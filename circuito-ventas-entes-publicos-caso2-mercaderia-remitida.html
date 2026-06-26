@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flujograma 16:9 · Ventas a Entes Públicos — M&A</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16202E; --ink-soft:#43586E; --muted:#7C8BA0; --line:#E4E9F1;
+    --brand-blue:#1565C0; --brand-blue-deep:#0B3D7A; --brand-orange:#EE7203;
+    --c-comercial:#EE7203; --c-creditos:#1565C0; --c-admin:#4F46E5;
+    --c-ente:#5C6B7E; --c-cobro:#1E9E57;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:#E7ECF3;color:var(--ink);
+    font-family:"DM Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;align-items:center;padding:24px 16px 48px;
+  }
+  .toolbar{margin-bottom:16px;display:flex;gap:10px;align-items:center}
+  .toolbar button{
+    font-family:inherit;font-weight:600;font-size:14px;cursor:pointer;color:#fff;
+    background:var(--brand-blue-deep);border:none;border-radius:10px;padding:11px 18px;
+    box-shadow:0 8px 20px -10px rgba(11,61,122,.8);transition:.2s;
+  }
+  .toolbar button:hover{background:#0d4a93;transform:translateY(-1px)}
+  .toolbar span{font-size:13px;color:#5b6b7e}
+
+  /* ===== Stage 16:9 ===== */
+  .stage{
+    width:1600px;height:900px;background:#fff;flex:none;
+    border-radius:18px;box-shadow:0 30px 80px -40px rgba(16,32,46,.5);
+    padding:46px 50px 40px;display:flex;flex-direction:column;overflow:hidden;position:relative;
+  }
+  .stage::after{
+    content:"";position:absolute;top:0;left:0;right:0;height:6px;
+    background:linear-gradient(90deg,var(--c-comercial),var(--c-creditos),var(--c-admin),var(--c-ente),var(--c-cobro));
+  }
+
+  /* header */
+  .top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:26px}
+  .id{display:flex;align-items:center;gap:14px}
+  .mono-tile{
+    width:50px;height:50px;border-radius:13px;flex:none;display:grid;place-items:center;
+    font-family:"Space Mono",monospace;font-weight:700;font-size:16px;color:#fff;
+    background:linear-gradient(135deg,var(--brand-orange),#c95c00);
+    box-shadow:0 8px 18px -6px rgba(238,114,3,.7);
+  }
+  .id .eb{font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand-orange);margin:0 0 3px}
+  .id h1{margin:0;font-size:29px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+  .id .sub{margin:4px 0 0;font-size:14px;color:var(--ink-soft)}
+  .top .meta{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;max-width:280px;margin-top:4px}
+  .top .meta span{
+    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.03em;color:var(--ink-soft);
+    background:#F2F5FA;border:1px solid var(--line);border-radius:999px;padding:5px 11px;
+  }
+
+  /* uso SÍ / NO */
+  .use{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:30px}
+  .ucard{border-radius:14px;padding:14px 18px;border:1px solid;display:flex;align-items:center;gap:16px}
+  .ucard.yes{background:#EAF7EF;border-color:#BFE6CD}
+  .ucard.no{background:#FBECEC;border-color:#F1C9C9}
+  .ucard .lab{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;white-space:nowrap;flex:none}
+  .ucard .lab svg{width:22px;height:22px;border-radius:50%;padding:4px;color:#fff}
+  .ucard.yes .lab{color:#15803D} .ucard.yes .lab svg{background:#1E9E57}
+  .ucard.no .lab{color:#C0392B} .ucard.no .lab svg{background:#D9534F}
+  .ucard ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--ink-soft)}
+  .ucard li{position:relative;padding-left:14px}
+  .ucard li::before{content:"";position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:50%}
+  .ucard.yes li::before{background:#1E9E57} .ucard.no li::before{background:#D9534F}
+  .ucard b{color:var(--ink);font-weight:700}
+
+  /* ===== Flujo ===== */
+  .flow{flex:1;display:flex;flex-direction:column;min-height:0}
+  .gridrow{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 86px minmax(0,1fr) 86px minmax(0,1fr) 86px minmax(0,1fr) 86px minmax(0,1fr) 86px 104px;
+  }
+  /* rail con nodos + flechas + anotaciones */
+  .rail{position:relative;height:66px;align-items:center}
+  .rail::before{
+    content:"";position:absolute;left:6%;right:3%;top:50%;height:3px;transform:translateY(-50%);
+    background:linear-gradient(90deg,var(--c-comercial),var(--c-creditos),var(--c-admin),var(--c-ente),var(--c-cobro));
+    border-radius:3px;z-index:0;
+  }
+  .node{
+    justify-self:center;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;z-index:2;
+    font-family:"Space Mono",monospace;font-weight:700;font-size:17px;color:#fff;
+    box-shadow:0 0 0 6px #fff, 0 8px 16px -6px rgba(0,0,0,.3);
+  }
+  .end-node{justify-self:center;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;z-index:2;
+    background:var(--c-cobro);box-shadow:0 0 0 6px #fff,0 8px 16px -6px rgba(30,158,87,.6)}
+  .end-node svg{width:22px;height:22px;color:#fff}
+
+  .conn{position:relative;display:grid;place-items:center;z-index:2}
+  .conn .arrow{width:30px;height:30px;background:#fff;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 5px #fff}
+  .conn .arrow svg{width:17px;height:17px;color:var(--ink-soft)}
+  .conn .cap{
+    position:absolute;bottom:calc(50% + 22px);left:50%;transform:translateX(-50%);
+    width:104px;text-align:center;font-family:"Space Mono",monospace;font-size:9.5px;line-height:1.25;
+    letter-spacing:.01em;color:var(--muted);text-transform:uppercase;
+  }
+
+  /* cards */
+  .cards{margin-top:14px;align-items:stretch}
+  .fcard{
+    background:#fff;border:1px solid var(--line);border-top:3px solid var(--cc);border-radius:13px;
+    padding:15px 15px 14px;display:flex;flex-direction:column;box-shadow:0 10px 26px -20px rgba(16,32,46,.5);
+  }
+  .fcard .badge{
+    align-self:flex-start;font-family:"Space Mono",monospace;font-size:9.5px;font-weight:700;letter-spacing:.03em;
+    color:var(--cc);background:color-mix(in srgb,var(--cc) 12%,#fff);border:1px solid color-mix(in srgb,var(--cc) 28%,#fff);
+    padding:3px 8px;border-radius:6px;margin-bottom:9px;white-space:nowrap;
+  }
+  .fcard h3{margin:0 0 7px;font-size:16px;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+  .fcard p{margin:0;font-size:12.5px;line-height:1.4;color:var(--ink-soft)}
+  .fcard .docs{margin-top:auto;padding-top:10px;display:flex;flex-direction:column;gap:4px}
+  .fcard .doc{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:var(--brand-blue-deep)}
+  .fcard .doc svg{width:11px;height:11px;color:var(--brand-blue);flex:none}
+  .fcard a.doc{text-decoration:none;cursor:pointer;transition:.18s}
+  .fcard a.doc:hover{color:var(--brand-blue);text-decoration:underline}
+  .end-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;padding-top:2px}
+  .end-col .et{font-size:13px;font-weight:700;color:var(--c-cobro);text-align:center;line-height:1.15}
+  .end-col .es{font-size:10px;color:var(--muted);text-align:center;line-height:1.2}
+
+  .foot{margin-top:22px;display:flex;justify-content:space-between;align-items:center;
+    font-family:"Space Mono",monospace;font-size:11px;color:var(--muted);letter-spacing:.02em}
+
+  /* nota aclaración placa 1 */
+  .note{
+    display:flex;align-items:center;gap:11px;margin-top:18px;
+    background:#FFF6EC;border:1px solid #FAD9B0;border-radius:11px;padding:11px 16px;
+    font-size:13px;color:var(--ink-soft);line-height:1.35;
+  }
+  .note svg{width:20px;height:20px;color:var(--brand-orange);flex:none}
+  .note b{color:var(--ink);font-weight:700}
+
+  /* ===== Placa 2 · Clientes alternativos ===== */
+  .whatis{display:flex;align-items:center;gap:16px;background:#F2F3FE;border:1px solid #DAD9F7;
+    border-radius:14px;padding:16px 20px;margin-bottom:24px}
+  .whatis__ico{flex:none;width:46px;height:46px;border-radius:12px;background:var(--c-admin);color:#fff;display:grid;place-items:center}
+  .whatis__ico svg{width:24px;height:24px}
+  .whatis p{margin:0;font-size:14.5px;color:var(--ink-soft);line-height:1.45}
+  .whatis b{color:var(--ink);font-weight:700}
+
+  .decision{display:flex;flex-direction:column;align-items:center;margin-bottom:8px}
+  .qbar{
+    background:linear-gradient(135deg,#0B3D7A,#134A91);color:#fff;font-weight:700;font-size:17px;
+    padding:13px 28px;border-radius:12px;box-shadow:0 12px 26px -14px rgba(11,61,122,.9);text-align:center;
+  }
+  .qsplit{display:flex;justify-content:space-between;width:62%;margin-top:14px;position:relative}
+  .qsplit::before{content:"";position:absolute;top:-14px;left:25%;right:25%;height:14px;border:2px solid #C7D2E8;border-bottom:none;border-radius:8px 8px 0 0}
+  .qsplit .leg{font-family:"Space Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:5px 14px;border-radius:999px}
+  .leg--yes{color:#15803D;background:#EAF7EF;border:1px solid #BFE6CD}
+  .leg--no{color:#4F46E5;background:#EDECFD;border:1px solid #CFccF7}
+
+  .branchgrid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:18px;align-items:stretch}
+  .bcard{background:#fff;border:1px solid var(--line);border-top:4px solid var(--cc);border-radius:16px;
+    padding:22px 24px;box-shadow:0 12px 30px -22px rgba(16,32,46,.5);display:flex;flex-direction:column}
+  .bcard__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .bstate{font-family:"Space Mono",monospace;font-size:13px;font-weight:700;letter-spacing:.02em;
+    color:#15803D;background:#EAF7EF;border:1px solid #BFE6CD;padding:6px 13px;border-radius:8px}
+  .bstate--no{color:#4F46E5;background:#EDECFD;border-color:#CFccF7}
+  .btag{font-size:12px;font-weight:600;color:var(--muted)}
+  .bcard ol{margin:0;padding-left:0;list-style:none;counter-reset:b;display:grid;gap:14px}
+  .bcard li{position:relative;padding-left:38px;font-size:15px;color:var(--ink-soft);counter-increment:b;line-height:1.4}
+  .bcard li::before{content:counter(b);position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;
+    background:var(--cc);color:#fff;font-family:"Space Mono",monospace;font-weight:700;font-size:13px;display:grid;place-items:center}
+  .bcard li b{color:var(--ink);font-weight:700}
+
+  @media (max-width:1640px){
+    .stage{transform:scale(.94);transform-origin:top center}
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button id="png">↓ Descargar PNG (16:9)</button>
+  <span>1600 × 900 · listo para tu presentación</span>
+</div>
+
+<div class="stage" id="stage">
+  <div class="top">
+    <div class="id">
+      <div class="mono-tile">M&amp;A</div>
+      <div>
+        <p class="eb">Circuito comercial · Procedimiento interno</p>
+        <h1>Ventas a Entes Públicos con Saldo Pendiente</h1>
+        <p class="sub">Gestión y seguimiento de la venta, de la solicitud hasta la cancelación del saldo.</p>
+      </div>
+    </div>
+    <div class="meta">
+      <span>RESPONSABLE · COMERCIAL</span>
+      <span>REVISIÓN 01</span>
+    </div>
+  </div>
+
+  <div class="use">
+    <div class="ucard yes">
+      <div class="lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M20 6L9 17l-5-5"/></svg>Sí, se usa cuando</div>
+      <ul>
+        <li>Venta a <b>ente público</b></li>
+        <li><b>Factura y entrega anticipada de mercadería</b></li>
+        <li>Queda <b>saldo pendiente</b> a seguir</li>
+      </ul>
+    </div>
+    <div class="ucard no">
+      <div class="lab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M18 6L6 18M6 6l12 12"/></svg>No corresponde si</div>
+      <ul>
+        <li><b>Caso 2:</b> factura y queda <b>pendiente de remitir</b></li>
+        <li>Pago <b>anticipado o contra entrega</b></li>
+        <li><b>Venta común</b> a privado / mostrador</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="flow">
+    <!-- RAIL: nodos + flechas con anotaciones -->
+    <div class="gridrow rail">
+      <div class="node" style="background:var(--c-comercial)">01</div>
+      <div class="conn"><span class="cap">Solicitud cargada</span><span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      <div class="node" style="background:var(--c-creditos)">02</div>
+      <div class="conn"><span class="cap">Venta autorizada</span><span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      <div class="node" style="background:var(--c-admin)">03</div>
+      <div class="conn"><span class="cap">Factura + remisión</span><span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      <div class="node" style="background:var(--c-ente)">04</div>
+      <div class="conn"><span class="cap">Entrega s/ Orden de Compra</span><span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      <div class="node" style="background:var(--c-cobro)">05</div>
+      <div class="conn"><span class="cap">Cobro en gestión</span><span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      <div class="end-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M20 6L9 17l-5-5"/></svg></div>
+    </div>
+
+    <!-- CARDS -->
+    <div class="gridrow cards">
+      <div class="fcard" style="--cc:var(--c-comercial)">
+        <span class="badge">COMERCIAL</span>
+        <h3>Solicitud de autorización</h3>
+        <p>Generá la nota de pedido y cargá los datos y documentación en la planilla Ventas a entes públicos.</p>
+        <div class="docs">
+          <a class="doc" target="_blank" rel="noopener" href="https://docs.google.com/forms/d/e/1FAIpQLSfrfXXMkFITnK7YPIUOk4QNknZyzGupb6U6QCsDWCIImVju8w/viewform"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Formulario Ventas a entes públicos</a>
+          <a class="doc" target="_blank" rel="noopener" href="https://docs.google.com/spreadsheets/d/1ppOdgMIjFLQnZDm-zN862jYKv4AqRDbUmW7IjK0g27Y/edit?gid=127895010#gid=127895010"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>Planilla Ventas a Entes Públicos SP</a>
+        </div>
+      </div>
+      <div></div>
+      <div class="fcard" style="--cc:var(--c-creditos)">
+        <span class="badge">CRÉDITOS CENTRAL</span>
+        <h3>Autorización de la operación</h3>
+        <p>Créditos Central analiza la operación y autoriza la venta dejando las observaciones que correspondan.</p>
+      </div>
+      <div></div>
+      <div class="fcard" style="--cc:var(--c-admin)">
+        <span class="badge">ADMINISTRACIÓN · DEPÓSITO</span>
+        <h3>Facturación y remisión</h3>
+        <p>Administración Central factura; con la observación de Créditos, Depósito remite la mercadería al cliente.</p>
+      </div>
+      <div></div>
+      <div class="fcard" style="--cc:var(--c-ente)">
+        <span class="badge">ENTE PÚBLICO</span>
+        <h3>Plazos y entrega</h3>
+        <p>El plazo corre desde la Orden de Compra, que fija el lugar y la forma de entrega.</p>
+        <div class="docs">
+          <a class="doc" target="_blank" rel="noopener" href="https://docs.google.com/document/d/1pWL1FBaZl0SGZeHAHzu-N7kJhkwxamdUTdKe0K_CuF4/edit?tab=t.0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>Instructivo entrega de productos</a>
+        </div>
+      </div>
+      <div></div>
+      <div class="fcard" style="--cc:var(--c-cobro)">
+        <span class="badge">GESTIÓN DE COBRO</span>
+        <h3>Forma de pago</h3>
+        <p>El cobro se gestiona tras entregar factura y mercadería, y se sigue hasta cancelar el saldo.</p>
+      </div>
+      <div></div>
+      <div class="end-col">
+        <div class="et">Saldo<br>cancelado</div>
+        <div class="es">Cierre del circuito</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+    <span><b>Aclaración:</b> este circuito aplica cuando hay que <b>facturar y remitir</b> la mercadería. Distinto del <b>Caso 2</b>, donde se factura y la venta queda <b>pendiente de remitir</b>. Si vendés a un <b>cliente alternativo</b>, ver la placa siguiente.</span>
+  </div>
+
+  <div class="foot">
+    <span>M&amp;A · DEPARTAMENTO COMERCIAL</span>
+    <span>SEGUIMIENTO VENTAS A ENTES PÚBLICOS · REV. 01</span>
+  </div>
+</div>
+
+<div class="toolbar" style="margin-top:34px">
+  <button id="png2">↓ Descargar PNG · Clientes alternativos</button>
+  <span>Placa 2 · 1600 × 900</span>
+</div>
+
+<div class="stage" id="stage2">
+  <div class="top">
+    <div class="id">
+      <div class="mono-tile" style="background:linear-gradient(135deg,var(--c-admin),#3a32b0);box-shadow:0 8px 18px -6px rgba(79,70,229,.7)">M&amp;A</div>
+      <div>
+        <p class="eb" style="color:var(--c-admin)">Caso especial · Ventas a entes públicos</p>
+        <h1>Clientes alternativos</h1>
+        <p class="sub">Cuándo aparecen y cómo gestionarlos para poder facturar la venta.</p>
+      </div>
+    </div>
+    <div class="meta">
+      <span>RESPONSABLE · COMERCIAL</span>
+      <span>REVISIÓN 01</span>
+    </div>
+  </div>
+
+  <div class="whatis">
+    <div class="whatis__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+    <p>Dentro de una cuenta de <b>Ente Público</b> pueden englobarse otros clientes: los <b>clientes alternativos</b>. Para generar la nota de pedido y facturar necesitan un <b>cambio de denominación con el mismo CUIT</b>, por eso requieren un tratamiento especial en el sistema.</p>
+  </div>
+
+  <div class="decision">
+    <div class="qbar">¿El cliente alternativo ya existe en el sistema?</div>
+    <div class="qsplit"><span class="leg leg--yes">Sí existe</span><span class="leg leg--no">No existe</span></div>
+  </div>
+
+  <div class="branchgrid">
+    <div class="bcard" style="--cc:var(--c-cobro)">
+      <div class="bcard__head"><span class="bstate">A · Ya existe</span><span class="btag">Circuito normal</span></div>
+      <ol>
+        <li>Seguís el <b>circuito normal de venta</b>.</li>
+        <li>En la nota de pedido, en <b>N° de cliente</b>, cargás el código/nombre del cliente alternativo.</li>
+        <li>Pedís la <b>autorización del caso</b>, se factura y seguís la gestión de cobro y entrega habitual.</li>
+      </ol>
+    </div>
+    <div class="bcard" style="--cc:var(--c-admin)">
+      <div class="bcard__head"><span class="bstate bstate--no">B · No existe</span><span class="btag">Crear primero</span></div>
+      <ol>
+        <li>Te comunicás con <b>Administración Central</b> para que cree el nuevo cliente alternativo.</li>
+        <li>Administración Central te <b>comparte el código</b> creado.</li>
+        <li>Con ese código <b>generás la nota de pedido</b> y gestionás la venta.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>M&amp;A · DEPARTAMENTO COMERCIAL</span>
+    <span>CLIENTE ALTERNATIVO · VENTA A ENTES PÚBLICOS</span>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+  async function downloadStage(stageId, filename, btn, label){
+    const stage = document.getElementById(stageId);
+    const prev = stage.style.transform;
+    const orig = btn.textContent;
+    btn.textContent = 'Generando…'; stage.style.transform = 'none';
+    try{
+      const canvas = await html2canvas(stage, {scale:2, backgroundColor:'#ffffff', width:1600, height:900, windowWidth:1700});
+      const a = document.createElement('a');
+      a.download = filename;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    }catch(e){ alert('No se pudo generar el PNG: '+e.message); }
+    stage.style.transform = prev; btn.textContent = orig;
+  }
+  document.getElementById('png').addEventListener('click', e =>
+    downloadStage('stage', 'Circuito_Ventas_Entes_Publicos_16x9.png', e.currentTarget));
+  document.getElementById('png2').addEventListener('click', e =>
+    downloadStage('stage2', 'Clientes_Alternativos_16x9.png', e.currentTarget));
+</script>
+</body>
+</html>

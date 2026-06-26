@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Centro de Control · M&A Comercial</title>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     HERRAMIENTAS  —  editá solo esta lista.
+     "archivo" = el nombre del .html, tal cual está subido junto a este índice.
+     "grupo"   = la sección donde aparece. "estado" = "vivo" | "estatico".
+     ════════════════════════════════════════════════════════════════════ -->
+<script>
+const TOOLS = [
+  { nombre:"Reporte Comercial 26/06",    archivo:"reporte-comercial.html", grupo:"Ventas",
+    desc:"Producción por zona del día, desde la planilla.",                  icono:"📊", estado:"estatico" },
+
+  { nombre:"Circuito Entes Públicos",     archivo:"circuito-ventas-entes-publicos-caso2-mercaderia-remitida.html", grupo:"Ventas",
+    desc:"Flujograma de ventas a entes públicos · caso 2: mercadería remitida.", icono:"🏛️", estado:"estatico" },
+
+  { nombre:"Cotizador Comparativo",       archivo:"cotizador-comparativo-v3.html", grupo:"Precios",
+    desc:"Compara listas de precios entre snapshots del cotizador (.accdb).", icono:"🏷️", estado:"estatico" },
+
+  { nombre:"Planes Vigentes Tarjetas",    archivo:"planes-vigentes-tarjetas.html", grupo:"Precios",
+    desc:"Planes de financiación por terminal y marca de tarjeta.",          icono:"💳", estado:"estatico" },
+
+  { nombre:"Control de Agendas",          archivo:"control-agendas.html", grupo:"Operaciones",
+    desc:"Agendas de gerentes y líderes por sucursal, en vivo desde Drive.", icono:"📅", estado:"vivo" },
+
+  { nombre:"Nómina Producción",           archivo:"nomina-produccion.html", grupo:"Operaciones",
+    desc:"Dotación de producción por sucursal y categoría, desde Excel.",    icono:"👥", estado:"estatico" },
+];
+</script>
+<!-- ════════════════════════════════════════════════════════════════════ -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --navy:#0F1B2D; --blue:#1456A0; --blue-tint:#EAF1F8; --blue-tint-2:#DCE9F6;
+  --orange:#F07A1A; --orange-tint:#FCE9D6;
+  --page:#F4F6F9; --surface:#FFFFFF; --border:#E2E8F0; --border-strong:#CBD6E2;
+  --text:#243447; --muted:#6B7A8D; --muted-2:#94A3B4;
+  --ok:#1E9E6A;
+  --shadow:0 1px 2px rgba(15,27,45,.04),0 10px 30px rgba(15,27,45,.07);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:"DM Sans",system-ui,sans-serif;background:var(--page);color:var(--text);
+  -webkit-font-smoothing:antialiased;line-height:1.45}
+
+/* Header compacto */
+.top{position:sticky;top:0;z-index:10;
+  background:radial-gradient(120% 220% at 100% 0%, rgba(240,122,26,.20), transparent 60%), var(--navy);
+  color:#fff;border-bottom:3px solid var(--orange);
+  display:flex;align-items:center;gap:14px;padding:11px 24px}
+.top .ma{font-weight:700;font-size:16px;letter-spacing:.5px;background:var(--orange);color:var(--navy);padding:2px 9px;border-radius:7px}
+.top .ttl{display:flex;flex-direction:column;line-height:1.12}
+.top .ttl b{font-family:"Fraunces",Georgia,serif;font-weight:600;font-size:18px}
+.top .ttl span{font-size:11px;color:#AFC0D6;text-transform:uppercase;letter-spacing:.5px}
+.search{margin-left:auto;position:relative;display:flex;align-items:center;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:10px}
+.search svg{position:absolute;left:12px;color:#9FB2C9}
+.search input{border:none;outline:none;background:transparent;font-family:inherit;font-size:14px;
+  color:#fff;padding:9px 12px 9px 36px;width:220px}
+.search input::placeholder{color:#8DA0B8}
+.search .count{font-size:11.5px;color:#9FB2C9;padding-right:12px;white-space:nowrap}
+
+main{max-width:1120px;margin:0 auto;padding:22px 24px 30px}
+
+.section{margin-bottom:34px}
+.section-head{display:flex;align-items:center;gap:12px;margin:0 2px 15px}
+.section-head h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0}
+.section-head .ln{flex:1;height:1px;background:var(--border)}
+.section-head .qty{font-size:12px;color:var(--muted-2)}
+
+.grid{display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.grid{grid-template-columns:1fr}}
+.tool{display:flex;flex-direction:column;text-decoration:none;color:inherit;
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  box-shadow:var(--shadow);padding:16px 18px;transition:transform .16s,box-shadow .16s,border-color .16s;position:relative;overflow:hidden}
+.tool::after{content:"";position:absolute;left:0;top:0;height:100%;width:4px;background:var(--blue);opacity:0;transition:.16s}
+.tool:hover{transform:translateY(-3px);box-shadow:0 14px 36px rgba(15,27,45,.13);border-color:var(--blue-tint-2)}
+.tool:hover::after{opacity:1}
+.tool-top{display:flex;align-items:flex-start;gap:13px;margin-bottom:12px}
+.ico{width:42px;height:42px;border-radius:11px;flex:none;display:grid;place-items:center;
+  font-size:20px;background:var(--blue-tint);border:1px solid var(--blue-tint-2)}
+.tool h3{margin:0;font-size:16px;font-weight:600;line-height:1.2}
+.estado{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;margin-top:5px}
+.estado .d{width:7px;height:7px;border-radius:50%}
+.estado.vivo{color:var(--ok)}.estado.vivo .d{background:var(--ok)}
+.estado.estatico{color:var(--muted-2)}.estado.estatico .d{background:var(--muted-2)}
+.tool p{margin:0;color:var(--muted);font-size:13.5px;flex:1}
+.tool .go{margin-top:13px;display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:var(--blue)}
+.tool .go svg{transition:transform .16s}
+.tool:hover .go svg{transform:translateX(3px)}
+
+.empty{padding:50px;text-align:center;color:var(--muted-2);font-style:italic}
+footer{max-width:1120px;margin:0 auto;padding:0 26px 40px;color:var(--muted-2);font-size:12.5px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <span class="ma">M&amp;A</span>
+  <div class="ttl"><b>Centro de Control</b><span>Departamento Comercial</span></div>
+  <div class="search">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+    <input type="text" id="q" placeholder="Buscar…" autocomplete="off">
+    <span class="count" id="count"></span>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<footer>M&amp;A Equipamientos Comerciales · Centro de Control interno · Tucumán</footer>
+
+<script>
+const $=s=>document.querySelector(s);
+const norm=s=>(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function card(t){
+  return `<a class="tool" href="${esc(t.archivo)}">
+    <div class="tool-top">
+      <div class="ico">${esc(t.icono||"📊")}</div>
+      <div>
+        <h3>${esc(t.nombre)}</h3>
+        <span class="estado ${t.estado==="vivo"?"vivo":"estatico"}"><span class="d"></span>${t.estado==="vivo"?"En vivo":"Estático"}</span>
+      </div>
+    </div>
+    <p>${esc(t.desc||"")}</p>
+    <span class="go">Abrir <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+  </a>`;
+}
+
+function render(){
+  const q=norm($("#q").value.trim());
+  const arr=TOOLS.filter(t=>!q||norm(t.nombre+" "+t.desc).includes(q));
+  $("#count").textContent=arr.length?`${arr.length}/${TOOLS.length}`:"";
+  const main=$("#main");
+  if(!arr.length){ main.innerHTML=`<div class="empty">Sin resultados para “${esc($("#q").value.trim())}”.</div>`; return; }
+  main.innerHTML=`<div class="grid">${arr.map(card).join("")}</div>`;
+}
+
+render();
+$("#q").addEventListener("input",render);
+</script>
+</body>
+</html>

@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planes Vigentes por Terminal · M&amp;A</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{
+  --blue:#143a6b; --blue2:#1e4f93; --blue-soft:#eaf0f8;
+  --orange:#f47b20; --orange-soft:#fff1e6;
+  --green:#15924f; --green-soft:#e6f5ec;
+  --red:#cf4040; --red-soft:#fbeaea;
+  --slate:#5f6b7e; --ink:#1b2533; --line:#e4e8ef;
+  --bg:#f3f5f9; --card:#fff;
+  --shadow:0 1px 3px rgba(20,40,80,.06),0 6px 24px rgba(20,40,80,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg);color:var(--ink);line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:0 16px 56px}
+
+/* Header */
+header{background:linear-gradient(135deg,var(--blue) 0%,var(--blue2) 100%);color:#fff;
+  padding:22px 0 26px;border-bottom:4px solid var(--orange)}
+.head-in{max-width:1240px;margin:0 auto;padding:0 16px;display:flex;align-items:center;
+  justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{width:50px;height:50px;border-radius:12px;background:#fff;color:var(--blue);
+  display:grid;place-items:center;font-weight:800;font-size:19px;letter-spacing:-.5px;flex:0 0 auto;
+  box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.logo span{color:var(--orange)}
+.head-title h1{font-size:20px;font-weight:700;letter-spacing:-.2px}
+.head-title p{font-size:13px;opacity:.82;margin-top:2px}
+.head-meta{font-size:12px;opacity:.78;text-align:right}
+.head-meta b{display:block;font-size:13px;opacity:1}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:-18px 0 22px;position:relative;z-index:2}
+.kpi{background:var(--card);border-radius:14px;padding:15px 16px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.kpi .v{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1}
+.kpi .l{font-size:11.5px;color:var(--slate);margin-top:6px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.kpi.b .v{color:var(--blue)} .kpi.o .v{color:var(--orange)}
+.kpi.g .v{color:var(--green)} .kpi.r .v{color:var(--red)}
+.kpi .acc{width:30px;height:3px;border-radius:3px;margin-top:9px;background:var(--line)}
+.kpi.b .acc{background:var(--blue)} .kpi.o .acc{background:var(--orange)}
+.kpi.g .acc{background:var(--green)} .kpi.r .acc{background:var(--red)}
+
+/* Charts */
+.charts{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;margin-bottom:22px}
+.panel{background:var(--card);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.panel h3{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px}
+.panel .sub{font-size:11.5px;color:var(--slate);margin-bottom:12px}
+.chart-box{position:relative;height:230px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* Controls */
+.controls{background:var(--card);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);
+  border:1px solid var(--line);margin-bottom:16px}
+.ctrl-top{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.search{flex:1;min-width:220px;position:relative}
+.search input{width:100%;padding:11px 14px 11px 38px;border:1.5px solid var(--line);border-radius:10px;
+  font-size:14px;color:var(--ink);background:#fbfcfe;outline:none;transition:.15s}
+.search input:focus{border-color:var(--blue2);background:#fff;box-shadow:0 0 0 3px var(--blue-soft)}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--slate)}
+select{padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:13.5px;
+  background:#fbfcfe;color:var(--ink);outline:none;cursor:pointer;font-weight:500}
+select:focus{border-color:var(--blue2)}
+.btn-png{padding:10px 16px;border:none;border-radius:10px;background:var(--blue);color:#fff;
+  font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.15s}
+.btn-png:hover{background:var(--blue2)}
+.btn-png:active{transform:translateY(1px)}
+
+.filter-rows{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.frow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.frow .lab{font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.4px;
+  width:62px;flex:0 0 auto}
+.chip{padding:6px 13px;border:1.5px solid var(--line);border-radius:20px;background:#fff;font-size:12.5px;
+  font-weight:600;color:var(--slate);cursor:pointer;transition:.12s;user-select:none;white-space:nowrap}
+.chip:hover{border-color:var(--blue2);color:var(--blue)}
+.chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.chip.on.t-mp{background:var(--orange);border-color:var(--orange)}
+.chip.on.t-pw{background:var(--blue2);border-color:var(--blue2)}
+.chip.on.k-desc{background:var(--green);border-color:var(--green)}
+.chip.on.k-rec{background:var(--red);border-color:var(--red)}
+.chip.on.k-sin{background:var(--slate);border-color:var(--slate)}
+
+.result-bar{display:flex;align-items:center;justify-content:space-between;margin:18px 0 10px;flex-wrap:wrap;gap:8px}
+.result-bar .count{font-size:13px;color:var(--slate)}
+.result-bar .count b{color:var(--ink);font-size:15px}
+.clear{font-size:12.5px;color:var(--orange);font-weight:600;cursor:pointer;border:none;background:none}
+.clear:hover{text-decoration:underline}
+
+/* Table */
+.tbl-card{background:var(--card);border-radius:14px;box-shadow:var(--shadow);border:1px solid var(--line);overflow:hidden}
+.tbl-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
+thead th{background:var(--blue);color:#fff;text-align:left;padding:11px 14px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.4px;position:sticky;top:0;white-space:nowrap}
+thead th.center{text-align:center}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:hover{background:#f8fafd}
+tbody tr:last-child td{border-bottom:none}
+.plan-name{font-weight:600;color:var(--ink);max-width:330px;font-size:12.5px;line-height:1.35}
+.tag{display:inline-block;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap}
+.tag-marca{background:var(--blue-soft);color:var(--blue)}
+.cuota-b{display:inline-block;min-width:30px;text-align:center;padding:3px 8px;border-radius:7px;
+  background:#eef1f6;font-weight:700;color:var(--ink);font-size:12.5px}
+.pct{font-weight:800;font-size:13.5px}
+.pct.desc{color:var(--green)} .pct.rec{color:var(--red)} .pct.zero{color:#aab2c0}
+.term-cell{text-align:center}
+.term-yes{display:inline-flex;flex-direction:column;align-items:center;gap:3px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.dot.mp{background:var(--orange)} .dot.pw{background:var(--green)}
+.cod{font-size:11px;font-weight:700;color:var(--ink);background:#fff5ec;border:1px solid #ffe2c9;
+  padding:2px 7px;border-radius:6px}
+.cod.pw{background:var(--green-soft);border-color:#c4e8d2}
+.no{color:#c9cfd9;font-size:15px}
+
+.empty{padding:48px 20px;text-align:center;color:var(--slate)}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
+
+/* View toggle + legend */
+.view-toggle{display:inline-flex;background:#eef1f6;border-radius:10px;padding:3px;gap:2px}
+.view-toggle button{border:none;background:none;padding:7px 15px;border-radius:8px;font-size:12.5px;
+  font-weight:700;color:var(--slate);cursor:pointer;transition:.12s;display:inline-flex;align-items:center;gap:6px}
+.view-toggle button.on{background:#fff;color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.legend{display:flex;gap:16px;align-items:center;font-size:11.5px;color:var(--slate);flex-wrap:wrap;font-weight:600}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+.lg-dot.mp{background:var(--orange)} .lg-dot.pw{background:var(--green)}
+
+/* Cards por tarjeta */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+.tcard{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  box-shadow:var(--shadow);display:flex;flex-direction:column}
+.tcard-head{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;
+  justify-content:space-between;gap:10px;border-left:5px solid var(--blue)}
+.tcard-head .hl{display:flex;align-items:center;gap:11px;min-width:0}
+.brand-av{width:44px;height:44px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
+  color:#fff;font-weight:800;font-size:14px;letter-spacing:.4px;box-shadow:0 1px 4px rgba(0,0,0,.2);
+  text-shadow:0 1px 1px rgba(0,0,0,.18)}
+.tcard-head .tit{font-size:15px;font-weight:800;color:var(--ink);line-height:1.2;letter-spacing:-.2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcard-head .mk{font-size:11.5px;color:var(--slate);margin-top:4px;font-weight:600}
+.tcard-head .cnt{font-size:11px;color:var(--slate);background:#eef1f6;padding:3px 10px;border-radius:20px;
+  font-weight:700;white-space:nowrap;flex:0 0 auto}
+.tcard-body{padding:7px 7px 9px}
+.crow{display:grid;grid-template-columns:46px 50px 1fr;align-items:center;gap:10px;padding:9px;border-radius:9px}
+.crow+.crow{margin-top:1px}
+.crow:hover{background:#f7f9fc}
+.crow .cu{font-weight:800;font-size:13px;color:var(--ink);background:#eef1f6;border-radius:7px;
+  padding:5px 0;text-align:center}
+.crow .cu.sp{font-size:11px}
+.crow .pc{font-weight:800;font-size:14px;text-align:center}
+.crow .pc.desc{color:var(--green)} .crow .pc.rec{color:var(--red)} .crow .pc.zero{color:#b9c0cc}
+.terms{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.tp{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:7px;white-space:nowrap;letter-spacing:.2px}
+.tp.mp{background:var(--orange-soft);color:#b85e12;border:1px solid #ffd9b8}
+.tp.pw{background:var(--green-soft);color:#0f6b3a;border:1px solid #bfe6cd}
+.tp.none{background:#f1f3f7;color:#9aa3b1;border:1px solid var(--line)}
+
+footer{text-align:center;color:var(--slate);font-size:12px;margin-top:24px;line-height:1.6}
+
+/* Mobile: cards */
+@media(max-width:760px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .kpis .kpi:last-child{grid-column:span 2}
+  .charts{grid-template-columns:1fr}
+  .chart-row{grid-template-columns:1fr}
+  .head-meta{text-align:left}
+  .cards-grid{grid-template-columns:1fr}
+  thead{display:none}
+  table,tbody,tr,td{display:block;width:100%;min-width:0}
+  table{min-width:0}
+  tbody tr{padding:13px 14px;border-bottom:8px solid var(--bg)}
+  tbody td{border:none;padding:4px 0;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  tbody td::before{content:attr(data-l);font-size:11px;font-weight:700;color:var(--slate);
+    text-transform:uppercase;letter-spacing:.3px;flex:0 0 auto}
+  tbody td.plan-td{display:block;padding-bottom:8px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+  tbody td.plan-td::before{display:none}
+  .plan-name{max-width:none;font-size:13.5px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="head-in">
+    <div class="brand">
+      <div class="logo">M<span>&amp;</span>A</div>
+      <div class="head-title">
+        <h1>Planes Vigentes por Terminal</h1>
+        <p>Tarjetas, cuotas, descuentos y recargos · M&amp;A Equipamientos Comerciales</p>
+      </div>
+    </div>
+    <div class="head-meta">
+      <b id="metaCount">— planes</b>
+      Point Smart / Mercado Pago &nbsp;·&nbsp; Payway / LaPos
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="charts">
+    <div class="panel">
+      <h3>Descuento promedio según cuotas</h3>
+      <div class="sub">Cuanto menos cuotas, mayor descuento ofrecible</div>
+      <div class="chart-box"><canvas id="chDesc"></canvas></div>
+    </div>
+    <div class="panel">
+      <h3>Disponibilidad por terminal</h3>
+      <div class="sub">Cantidad de planes habilitados en cada terminal</div>
+      <div class="chart-box"><canvas id="chTerm"></canvas></div>
+    </div>
+  </div>
+
+  <div class="chart-row" style="margin-bottom:22px">
+    <div class="panel">
+      <h3>Planes por marca / tarjeta</h3>
+      <div class="sub">Distribución del total de planes</div>
+      <div class="chart-box"><canvas id="chMarca"></canvas></div>
+    </div>
+    <div class="panel">
+      <h3>Condición comercial</h3>
+      <div class="sub">Descuento, sin costo o con recargo</div>
+      <div class="chart-box"><canvas id="chTipo"></canvas></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-top">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="q" type="text" placeholder="Buscar tarjeta, banco, código… (ej: Macro, Visa, 4046)">
+      </div>
+      <select id="selMarca"><option value="">Todas las marcas</option></select>
+      <select id="selGrupo"><option value="">Todos los emisores / bancos</option></select>
+      <button class="btn-png" id="btnPng">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar PNG
+      </button>
+    </div>
+    <div class="filter-rows">
+      <div class="frow"><span class="lab">Terminal</span><div id="fTerm"></div></div>
+      <div class="frow"><span class="lab">Cuotas</span><div id="fCuotas"></div></div>
+      <div class="frow"><span class="lab">Condición</span><div id="fTipo"></div></div>
+    </div>
+  </div>
+
+  <div class="result-bar">
+    <div class="count"><b id="rCount">0</b> planes <span id="rGrupos" style="color:var(--slate)"></span></div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div class="legend">
+        <span><i class="lg-dot mp"></i> Point Smart / MP</span>
+        <span><i class="lg-dot pw"></i> Payway / LaPos</span>
+      </div>
+      <div class="view-toggle">
+        <button id="vCards" class="on">▦ Tarjetas</button>
+        <button id="vTable">☰ Tabla</button>
+      </div>
+      <button class="clear" id="btnClear">Limpiar filtros</button>
+    </div>
+  </div>
+
+  <div id="capture">
+    <div id="cardsView" class="cards-grid"></div>
+    <div class="tbl-card" id="tableView" style="display:none">
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr>
+            <th>Tarjeta / Plan</th>
+            <th>Marca</th>
+            <th class="center">Cuotas</th>
+            <th class="center">Recargo</th>
+            <th class="center">Descuento</th>
+            <th class="center">Point Smart / MP</th>
+            <th class="center">Payway / LaPos</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="empty" id="empty" style="display:none">
+      <b>Sin resultados</b>
+      Probá con otro término o limpiá los filtros.
+    </div>
+  </div>
+
+  <footer>
+    Herramienta de referencia comercial · Departamento Comercial M&amp;A<br>
+    Los descuentos y recargos son orientativos según el plan vigente cargado en cada terminal.
+  </footer>
+</div>
+
+<script>
+const PLANES = [{"plan": "Visa  (4001) y Master (4015) Bancarizada (Otros Bancos) - 3 Cuotas - Con Descuento", "grupo": "Bancarizada (Otros Bancos)", "marca": "Visa / Master", "cuotas": 3, "special": null, "recargo": 0.0, "descuento": -0.2, "tipo": "Descuento", "mp_disp": true, "mp_cod": "3", "pw_disp": false, "pw_cod": null}, {"plan": "Visa y Master Bancarizada (Otros Bancos) - 6 Cuotas - Con Descuento", "grupo": "Bancarizada (Otros Bancos)", "marca": "Visa / Master", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": true, "mp_cod": "6", "pw_disp": false, "pw_cod": null}, {"plan": "Visa y Master Bancarizada (Otros Bancos) - 9 Cuotas - Con Descuento", "grupo": "Bancarizada (Otros Bancos)", "marca": "Visa / Master", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": true, "mp_cod": "9", "pw_disp": false, "pw_cod": null}, {"plan": "Visa y Master Bancarizada (Otros Bancos) - 12 Cuotas - Sin Interes", "grupo": "Bancarizada (Otros Bancos)", "marca": "Visa / Master", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": true, "mp_cod": "12", "pw_disp": false, "pw_cod": null}, {"plan": "Visa y Master Bancarizada (Otros Bancos) - 18 Cuotas - Sin Recargo", "grupo": "Bancarizada (Otros Bancos)", "marca": "Visa / Master", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": true, "mp_cod": "18", "pw_disp": false, "pw_cod": null}, {"plan": "Visa y Master No Bancarizada - 3 Cuotas - Con Descuento", "grupo": "No Bancarizada", "marca": "Visa / Master", "cuotas": 3, "special": null, "recargo": 0.0, "descuento": -0.2, "tipo": "Descuento", "mp_disp": true, "mp_cod": "3", "pw_disp": false, "pw_cod": null}, {"plan": "Visa y Master No Bancarizada - 6 Cuotas - Con Descuento", "grupo": "No Bancarizada", "marca": "Visa / Master", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": true, "mp_cod": "6", "pw_disp": false, "pw_cod": null}, {"plan": "Visa y Master No Bancarizada - 9 Cuotas - Con Descuento", "grupo": "No Bancarizada", "marca": "Visa / Master", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": true, "mp_cod": "9", "pw_disp": false, "pw_cod": null}, {"plan": "Visa y Master No Bancarizada - 12 Cuotas - Sin interes", "grupo": "No Bancarizada", "marca": "Visa / Master", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": true, "mp_cod": "12", "pw_disp": false, "pw_cod": null}, {"plan": "Visa y Master No Bancarizada - 18 Cuotas - Sin Recargo", "grupo": "No Bancarizada", "marca": "Visa / Master", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": true, "mp_cod": "18", "pw_disp": false, "pw_cod": null}, {"plan": "American Express (NO BANCARIA) - 3 cuotas", "grupo": "Amex No Bancaria", "marca": "American Express", "cuotas": 3, "special": null, "recargo": 0.0, "descuento": -0.2, "tipo": "Descuento", "mp_disp": true, "mp_cod": "3", "pw_disp": false, "pw_cod": null}, {"plan": "American Express (NO BANCARIA) - 6 cuotas - Sin Interes", "grupo": "Amex No Bancaria", "marca": "American Express", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": true, "mp_cod": "6", "pw_disp": false, "pw_cod": null}, {"plan": "American Express (NO BANCARIA) - 9 cuotas - Sin interes", "grupo": "Amex No Bancaria", "marca": "American Express", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": true, "mp_cod": "9", "pw_disp": false, "pw_cod": null}, {"plan": "American Express (NO BANCARIA) - 12 cuotas - Sin interes", "grupo": "Amex No Bancaria", "marca": "American Express", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": true, "mp_cod": "12", "pw_disp": false, "pw_cod": null}, {"plan": "American Express (NO BANCARIA) - 18 cuotas - Sin Recargo", "grupo": "Amex No Bancaria", "marca": "American Express", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": true, "mp_cod": "18", "pw_disp": false, "pw_cod": null}, {"plan": "American Express Bco Santander - 3 cuotas - Sin Interes", "grupo": "Banco Santander", "marca": "American Express", "cuotas": 3, "special": null, "recargo": 0.0, "descuento": -0.2, "tipo": "Descuento", "mp_disp": true, "mp_cod": "3", "pw_disp": false, "pw_cod": null}, {"plan": "American Express Bco Santander - 6 cuotas - Con recargo", "grupo": "Banco Santander", "marca": "American Express", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": true, "mp_cod": "6", "pw_disp": false, "pw_cod": null}, {"plan": "American Express Bco Santander - 9 cuotas - Con Recargo", "grupo": "Banco Santander", "marca": "American Express", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": true, "mp_cod": "9", "pw_disp": false, "pw_cod": null}, {"plan": "American Express Bco Santander - 12 cuotas - Con Recargo", "grupo": "Banco Santander", "marca": "American Express", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": true, "mp_cod": "12", "pw_disp": false, "pw_cod": null}, {"plan": "American Express Bco Santander - 18 cuotas - Sin Recargo", "grupo": "Banco Santander", "marca": "American Express", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": true, "mp_cod": "18", "pw_disp": false, "pw_cod": null}, {"plan": "Cabal - 3 cuotas - Sin Interes", "grupo": "Cabal", "marca": "Cabal", "cuotas": 3, "special": null, "recargo": 0.0, "descuento": -0.2, "tipo": "Descuento", "mp_disp": true, "mp_cod": "3", "pw_disp": false, "pw_cod": null}, {"plan": "Cabal - 6 cuotas - Sin Interes", "grupo": "Cabal", "marca": "Cabal", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": true, "mp_cod": "6", "pw_disp": false, "pw_cod": null}, {"plan": "Cabal - 9 cuotas - Sin Interes", "grupo": "Cabal", "marca": "Cabal", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": true, "mp_cod": "9", "pw_disp": false, "pw_cod": null}, {"plan": "Cabal - 12 cuotas - Sin Interes", "grupo": "Cabal", "marca": "Cabal", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": true, "mp_cod": "12", "pw_disp": false, "pw_cod": null}, {"plan": "Cabal - 18 cuotas - Sin Recargo", "grupo": "Cabal", "marca": "Cabal", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": true, "mp_cod": "18", "pw_disp": false, "pw_cod": null}, {"plan": "Naranja - 1 Cuota", "grupo": "Naranja", "marca": "Naranja", "cuotas": 1, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": true, "mp_cod": "1", "pw_disp": false, "pw_cod": null}, {"plan": "Naranja - Plan Z - Con Descuento", "grupo": "Naranja", "marca": "Naranja", "cuotas": null, "special": "Plan Z", "recargo": 0.0, "descuento": -0.2, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "11"}, {"plan": "Naranja - Cuota 6 - Con Descuento", "grupo": "Naranja", "marca": "Naranja", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "6"}, {"plan": "Naranja - Cuota 9 - Con Descuento", "grupo": "Naranja", "marca": "Naranja", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "9"}, {"plan": "Naranja - Cuota 12 - Sin interes", "grupo": "Naranja", "marca": "Naranja", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "12"}, {"plan": "Visa Bco Hipotecario (4038) - Cuotas 6 - Sin Interes", "grupo": "Banco Hipotecario", "marca": "Visa", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "6"}, {"plan": "Visa Bco Hipotecario (4038) - Cuotas 9 - Sin interes", "grupo": "Banco Hipotecario", "marca": "Visa", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "9"}, {"plan": "Visa Bco Hipotecario (4038) - Cuotas 12 - Sin Interes", "grupo": "Banco Hipotecario", "marca": "Visa", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "12"}, {"plan": "Visa Bco Hipotecario (4038) - Cuotas 15 - Sin Interes", "grupo": "Banco Hipotecario", "marca": "Visa", "cuotas": 15, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "15"}, {"plan": "Visa Bco Hipotecario (4038) - Cuotas 18 - Sin Interes", "grupo": "Banco Hipotecario", "marca": "Visa", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "18"}, {"plan": "SuCredito - Cuotas 1 - Sin interes", "grupo": "SuCrédito", "marca": "SuCrédito", "cuotas": 1, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": true, "mp_cod": "1", "pw_disp": false, "pw_cod": null}, {"plan": "SuCredito - Cuotas 3 - Sin interes", "grupo": "SuCrédito", "marca": "SuCrédito", "cuotas": 3, "special": null, "recargo": 0.0, "descuento": -0.2, "tipo": "Descuento", "mp_disp": true, "mp_cod": "3", "pw_disp": false, "pw_cod": null}, {"plan": "SuCredito - Cuotas 6 - Con interes", "grupo": "SuCrédito", "marca": "SuCrédito", "cuotas": 6, "special": null, "recargo": 0.05, "descuento": 0.0, "tipo": "Recargo", "mp_disp": false, "mp_cod": null, "pw_disp": false, "pw_cod": null}, {"plan": "SuCredito - Cuotas 9 - Con Recargo", "grupo": "SuCrédito", "marca": "SuCrédito", "cuotas": 9, "special": null, "recargo": 0.1, "descuento": 0.0, "tipo": "Recargo", "mp_disp": false, "mp_cod": null, "pw_disp": false, "pw_cod": null}, {"plan": "SuCredito - Cuotas 10 - Con Recargo", "grupo": "SuCrédito", "marca": "SuCrédito", "cuotas": 10, "special": null, "recargo": 0.15, "descuento": 0.0, "tipo": "Recargo", "mp_disp": false, "mp_cod": null, "pw_disp": false, "pw_cod": null}, {"plan": "SuCredito - Cuotas 12 - Con Recargo", "grupo": "SuCrédito", "marca": "SuCrédito", "cuotas": 12, "special": null, "recargo": 0.2, "descuento": 0.0, "tipo": "Recargo", "mp_disp": false, "mp_cod": null, "pw_disp": false, "pw_cod": null}, {"plan": "Credicash - Cuotas 3 - Sin Interes", "grupo": "Credicash", "marca": "Credicash", "cuotas": 3, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "3 - Plan 1"}, {"plan": "Credicash - Cuotas 6 - Sin Interes", "grupo": "Credicash", "marca": "Credicash", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "6 - Plan 1"}, {"plan": "Credicash - Cuotas 9 - Con Recargo", "grupo": "Credicash", "marca": "Credicash", "cuotas": 9, "special": null, "recargo": 0.15, "descuento": 0.0, "tipo": "Recargo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "9 - Plan 1"}, {"plan": "Tarjeta Sol - Cuotas 3 - Con Descuento", "grupo": "Tarjeta Sol", "marca": "Tarjeta Sol", "cuotas": 3, "special": null, "recargo": 0.0, "descuento": -0.2, "tipo": "Descuento", "mp_disp": false, "mp_cod": "3", "pw_disp": true, "pw_cod": "3"}, {"plan": "Tarjeta Sol - Cuotas 6 - Con Descuento", "grupo": "Tarjeta Sol", "marca": "Tarjeta Sol", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": false, "mp_cod": "6", "pw_disp": true, "pw_cod": "6"}, {"plan": "Tarjeta Sol - Cuotas 9 - Con Descuento", "grupo": "Tarjeta Sol", "marca": "Tarjeta Sol", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": false, "mp_cod": "9", "pw_disp": true, "pw_cod": "9"}, {"plan": "Tarjeta Sol - Cuotas 12 - Sin Interes", "grupo": "Tarjeta Sol", "marca": "Tarjeta Sol", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": false, "mp_cod": "12", "pw_disp": true, "pw_cod": "12"}, {"plan": "Visa  (4041)- Master (4043) / Bco Macro - Cuotas 3 - Todos los dias", "grupo": "Banco Macro", "marca": "Visa / Master", "cuotas": 3, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": false, "mp_cod": "3", "pw_disp": false, "pw_cod": null}, {"plan": "Visa  (4041)- Master (4043) / Bco Macro - Cuotas 6 - Todos los dias", "grupo": "Banco Macro", "marca": "Visa / Master", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": false, "mp_cod": "6", "pw_disp": false, "pw_cod": null}, {"plan": "Visa  (4041)- Master (4043) / Bco Macro - Cuotas 9 - Todos los dias", "grupo": "Banco Macro", "marca": "Visa / Master", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": false, "mp_cod": "9", "pw_disp": false, "pw_cod": null}, {"plan": "Visa  (4041)- Master (4043) / Bco Macro - Cuotas 12- Todos los dias", "grupo": "Banco Macro", "marca": "Visa / Master", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": "12", "pw_disp": false, "pw_cod": null}, {"plan": "Amex ( 4043 ) Banco Macro - Cuota 3", "grupo": "Banco Macro", "marca": "American Express", "cuotas": 3, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": false, "pw_cod": null}, {"plan": "Amex ( 4043 ) Banco Macro - Cuota 6", "grupo": "Banco Macro", "marca": "American Express", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": false, "pw_cod": null}, {"plan": "Amex ( 4043 ) Banco Macro - Cuota 9", "grupo": "Banco Macro", "marca": "American Express", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": false, "pw_cod": null}, {"plan": "Amex ( 4043 ) Banco Macro - Cuota 12", "grupo": "Banco Macro", "marca": "American Express", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": false, "pw_cod": null}, {"plan": "Visa (4046)- Master (4047) Banco Cuidad - Cuota 6 - Con Descuento", "grupo": "Banco Ciudad", "marca": "Visa / Master", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "6"}, {"plan": "Visa (4046) - Master (4047) Banco Cuidad - Cuota 9 - Con Descuento", "grupo": "Banco Ciudad", "marca": "Visa / Master", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "9"}, {"plan": "Visa (4046) - Master (4047) Banco Cuidad - Cuota 12 - Sin Interes", "grupo": "Banco Ciudad", "marca": "Visa / Master", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "12"}, {"plan": "Visa (4046)- Master (4047) Banco Cuidad - Cuota 15 - Sin Interes", "grupo": "Banco Ciudad", "marca": "Visa / Master", "cuotas": 15, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "15"}, {"plan": "Visa (4046)- Master (4047) Banco Cuidad - Cuota 18 - Sin Interes", "grupo": "Banco Ciudad", "marca": "Visa / Master", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "18"}, {"plan": "Visa (4048) - Master (4049) Banco Provincia - Cuota 6 - Con Descuento", "grupo": "Banco Provincia", "marca": "Visa / Master", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "6"}, {"plan": "Visa (4048) - Master (4049) Banco Provincia - Cuota 9 - Con Descuento", "grupo": "Banco Provincia", "marca": "Visa / Master", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "9"}, {"plan": "Visa (4048) - Master (4049) Banco Provincia - Cuota 12 - Sin Interes", "grupo": "Banco Provincia", "marca": "Visa / Master", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "12"}, {"plan": "Visa (4048) - Master (4049) Banco Provincia - Cuota 15 - Sin Interes", "grupo": "Banco Provincia", "marca": "Visa / Master", "cuotas": 15, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "15"}, {"plan": "Visa (4048) - Master (4049) Banco Provincia - Cuota 18 - Sin Interes", "grupo": "Banco Provincia", "marca": "Visa / Master", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "18"}, {"plan": "Visa (4044) - Master (4045) Banco Cordoba (Cordobesa) - Cuota 6 - Con Descuento", "grupo": "Banco Córdoba (Cordobesa)", "marca": "Visa / Master", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "6"}, {"plan": "Visa (4044) - Master (4045) Banco Cordoba (Cordobesa)- Cuota 9 - Con Descuento", "grupo": "Banco Córdoba (Cordobesa)", "marca": "Visa / Master", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "9"}, {"plan": "Visa (4044) - Master (4045) Banco Cordoba (Cordobesa) - Cuota 12 - Sin Interes", "grupo": "Banco Córdoba (Cordobesa)", "marca": "Visa / Master", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "12"}, {"plan": "Visa (4044) - Master (4045) Banco Cordoba (Cordobesa) - Cuota 15 - Sin Interes", "grupo": "Banco Córdoba (Cordobesa)", "marca": "Visa / Master", "cuotas": 15, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "15"}, {"plan": "Visa (4044) - Master (4045) Banco Cordoba (Cordobesa) - Cuota 18 - Sin Interes", "grupo": "Banco Córdoba (Cordobesa)", "marca": "Visa / Master", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "18"}, {"plan": "Visa (4050) - Master (4051) Banco ICBC - Cuota 6 - Con Descuento", "grupo": "Banco ICBC", "marca": "Visa / Master", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "6"}, {"plan": "Visa (4050) - Master (4051) Banco ICBC - Cuota 9 - Con Descuento", "grupo": "Banco ICBC", "marca": "Visa / Master", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "9"}, {"plan": "Visa (4050) - Master (4051) Banco ICBC - Cuota 12 - Sin Interes", "grupo": "Banco ICBC", "marca": "Visa / Master", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "12"}, {"plan": "Visa (4050) - Master (4051) Banco ICBC - Cuota 15 - Sin Interes", "grupo": "Banco ICBC", "marca": "Visa / Master", "cuotas": 15, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "15"}, {"plan": "Visa (4050) - Master (4051) Banco ICBC - Cuota 18 - Sin Interes", "grupo": "Banco ICBC", "marca": "Visa / Master", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "18"}, {"plan": "Visa (4052) - Master (4053) Banco BIND (INDUSTRIAL) - Cuota 6 - Con Descuento", "grupo": "Banco BIND (INDUSTRIAL)", "marca": "Visa / Master", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "6"}, {"plan": "Visa (4052) - Master (4053)  Banco BIND (INDUSTRIAL) - Cuota 9 - Con Descuento", "grupo": "Banco BIND (INDUSTRIAL)", "marca": "Visa / Master", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "9"}, {"plan": "Visa (4052) - Master (4053) Banco  BIND (INDUSTRIAL) - Cuota 12 - Sin Interes", "grupo": "Banco BIND (INDUSTRIAL)", "marca": "Visa / Master", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "12"}, {"plan": "Visa (4052) - Master (4053) Banco  BIND (INDUSTRIAL) - Cuota 15 - Sin Interes", "grupo": "Banco BIND (INDUSTRIAL)", "marca": "Visa / Master", "cuotas": 15, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "15"}, {"plan": "Visa (4052) - Master (4053) Banco  BIND (INDUSTRIAL) - Cuota 18 - Sin Interes", "grupo": "Banco BIND (INDUSTRIAL)", "marca": "Visa / Master", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "18"}, {"plan": "Visa (4054) - Master (4055) Banco de la Rioja - Cuota 6 - Con Descuento", "grupo": "Banco de la Rioja", "marca": "Visa / Master", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "6"}, {"plan": "Visa (4054) - Master (4055) Banco de la Rioja - Cuota 9 - Con Descuento", "grupo": "Banco de la Rioja", "marca": "Visa / Master", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "9"}, {"plan": "Visa (4054) - Master (4055) Banco de la Rioja - Cuota 12 - Sin Interes", "grupo": "Banco de la Rioja", "marca": "Visa / Master", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "12"}, {"plan": "Visa (4054) - Master (4055) Banco de la Rioja - Cuota 15 - Sin Interes", "grupo": "Banco de la Rioja", "marca": "Visa / Master", "cuotas": 15, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "15"}, {"plan": "Visa (4054) - Master (4055) Banco de la Rioja - Cuota 18 - Sin Interes", "grupo": "Banco de la Rioja", "marca": "Visa / Master", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "18"}, {"plan": "Visa (4056) - Master (4057) Banco del Chaco - Cuota 6 - Con Descuento", "grupo": "Banco del Chaco", "marca": "Visa / Master", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": -0.15, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "6"}, {"plan": "Visa (4056) - Master (4057) Banco del Chaco - Cuota 9 - Con Descuento", "grupo": "Banco del Chaco", "marca": "Visa / Master", "cuotas": 9, "special": null, "recargo": 0.0, "descuento": -0.1, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "9"}, {"plan": "Visa (4056) - Master (4057) Banco del Chaco - Cuota 12 - Sin Interes", "grupo": "Banco del Chaco", "marca": "Visa / Master", "cuotas": 12, "special": null, "recargo": 0.0, "descuento": -0.05, "tipo": "Descuento", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "12"}, {"plan": "Visa (4056) - Master (4057) Banco del Chaco - Cuota 15 - Sin Interes", "grupo": "Banco del Chaco", "marca": "Visa / Master", "cuotas": 15, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "15"}, {"plan": "Visa (4056) - Master (4057) Banco del Chaco - Cuota 18 - Sin Interes", "grupo": "Banco del Chaco", "marca": "Visa / Master", "cuotas": 18, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "18"}, {"plan": "Tarjeta CentroCard - Cuota 1 - Sin Interes", "grupo": "Tarjeta CentroCard", "marca": "CentroCard", "cuotas": 1, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "Cuota 1 - Codigo 1"}, {"plan": "Tarjeta CentroCard - Cuota 3 - Sin Interes", "grupo": "Tarjeta CentroCard", "marca": "CentroCard", "cuotas": 3, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "Cuota 1 - Codigo 3"}, {"plan": "Tarjeta CentroCard - Cuota 6 - Sin Interes", "grupo": "Tarjeta CentroCard", "marca": "CentroCard", "cuotas": 6, "special": null, "recargo": 0.0, "descuento": 0.0, "tipo": "Sin costo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "Cuota 6 - Codigo 1"}, {"plan": "Tarjeta CentroCard - Cuota 9", "grupo": "Tarjeta CentroCard", "marca": "CentroCard", "cuotas": 9, "special": null, "recargo": 0.15, "descuento": 0.0, "tipo": "Recargo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "Cuota 9 - Codigo 1"}, {"plan": "Tarjeta CentroCard - Cuota 12", "grupo": "Tarjeta CentroCard", "marca": "CentroCard", "cuotas": 12, "special": null, "recargo": 0.2, "descuento": 0.0, "tipo": "Recargo", "mp_disp": false, "mp_cod": null, "pw_disp": true, "pw_cod": "Cuota 12 - Codigo 12"}];
+
+const $=s=>document.querySelector(s);
+const fmtPct=v=>v===0?'—':(Math.round(Math.abs(v)*100)+'%');
+const state={q:'',marca:'',grupo:'',term:'all',cuotas:'',tipo:'',view:'cards'};
+const MARCA_COLOR={'Visa / Master':'#143a6b','Visa':'#143a6b','American Express':'#2a6f7f',
+  'Naranja':'#f47b20','Cabal':'#15924f','SuCrédito':'#6b4e9e','Credicash':'#b5455a',
+  'Tarjeta Sol':'#d99a18','CentroCard':'#5f6b7e'};
+const MARCA_BADGE={
+  'Visa / Master':{m:'VM',bg:'linear-gradient(135deg,#1a3a8f 0 52%,#d2262d 52% 100%)'},
+  'Visa':{m:'V',bg:'#1a3a8f'},
+  'American Express':{m:'AX',bg:'#2a6f9e'},
+  'Naranja':{m:'N',bg:'#ff6a00'},
+  'Cabal':{m:'CA',bg:'#1a9a5b'},
+  'SuCrédito':{m:'SC',bg:'#6b4e9e'},
+  'Credicash':{m:'CR',bg:'#c0392b'},
+  'Tarjeta Sol':{m:'SOL',bg:'linear-gradient(135deg,#f0b429,#e8821a)'},
+  'CentroCard':{m:'CC',bg:'#3a7d8c'},
+};
+
+/* ---------- KPIs ---------- */
+function renderKpis(){
+  const t=PLANES.length;
+  const mp=PLANES.filter(p=>p.mp_disp).length;
+  const pw=PLANES.filter(p=>p.pw_disp).length;
+  const d=PLANES.filter(p=>p.tipo==='Descuento').length;
+  const r=PLANES.filter(p=>p.tipo==='Recargo').length;
+  const k=[
+    ['b',t,'Planes totales'],
+    ['o',mp,'En Point Smart / MP'],
+    ['g',pw,'En Payway / LaPos'],
+    ['g',d,'Con descuento'],
+    ['r',r,'Con recargo'],
+  ];
+  $('#kpis').innerHTML=k.map(([c,v,l])=>
+    `<div class="kpi ${c}"><div class="v">${v}</div><div class="l">${l}</div><div class="acc"></div></div>`).join('');
+  $('#metaCount').textContent=t+' planes';
+}
+
+/* ---------- Filtros (poblar) ---------- */
+function buildFilters(){
+  const marcas=[...new Set(PLANES.map(p=>p.marca))].sort();
+  const grupos=[...new Set(PLANES.map(p=>p.grupo))].sort();
+  $('#selMarca').insertAdjacentHTML('beforeend',marcas.map(m=>`<option value="${m}">${m}</option>`).join(''));
+  $('#selGrupo').insertAdjacentHTML('beforeend',grupos.map(g=>`<option value="${g}">${g}</option>`).join(''));
+
+  $('#fTerm').innerHTML=[
+    ['all','Todas',''],['mp','Point Smart / MP','t-mp'],['pw','Payway / LaPos','t-pw']
+  ].map(([v,t,c])=>`<span class="chip ${v==='all'?'on':''} ${c}" data-f="term" data-v="${v}">${t}</span>`).join('');
+
+  const cuotas=[...new Set(PLANES.map(p=>p.cuotas).filter(Boolean))].sort((a,b)=>a-b);
+  $('#fCuotas').innerHTML=`<span class="chip on" data-f="cuotas" data-v="">Todas</span>`+
+    cuotas.map(c=>`<span class="chip" data-f="cuotas" data-v="${c}">${c}</span>`).join('');
+
+  $('#fTipo').innerHTML=[
+    ['','Todas',''],['Descuento','Descuento','k-desc'],['Sin costo','Sin costo','k-sin'],['Recargo','Recargo','k-rec']
+  ].map(([v,t,c])=>`<span class="chip ${v===''?'on':''} ${c}" data-f="tipo" data-v="${v}">${t}</span>`).join('');
+
+  document.querySelectorAll('.chip').forEach(ch=>ch.addEventListener('click',()=>{
+    const f=ch.dataset.f,v=ch.dataset.v;
+    state[f]=v;
+    ch.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+    ch.classList.add('on');
+    render();
+  }));
+}
+
+/* ---------- Filtrado ---------- */
+function getFiltered(){
+  const q=state.q.toLowerCase().trim();
+  return PLANES.filter(p=>{
+    if(state.marca && p.marca!==state.marca) return false;
+    if(state.grupo && p.grupo!==state.grupo) return false;
+    if(state.tipo && p.tipo!==state.tipo) return false;
+    if(state.cuotas && String(p.cuotas)!==state.cuotas) return false;
+    if(state.term==='mp' && !p.mp_disp) return false;
+    if(state.term==='pw' && !p.pw_disp) return false;
+    if(q){
+      const hay=(p.plan+' '+p.grupo+' '+p.marca+' '+(p.mp_cod||'')+' '+(p.pw_cod||'')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+/* ---------- Tabla ---------- */
+function termCell(disp,cod,kind){
+  if(!disp) return `<span class="no">—</span>`;
+  return `<span class="term-yes"><span class="dot ${kind}"></span>`+
+    (cod?`<span class="cod ${kind==='pw'?'pw':''}">Cód. ${cod}</span>`:`<span style="font-size:11px;color:var(--slate)">Sí</span>`)+
+    `</span>`;
+}
+function renderTable(rows){
+  $('#tbody').innerHTML=rows.map(p=>{
+    const cuo=p.cuotas?`<span class="cuota-b">${p.cuotas}</span>`:`<span class="cuota-b" title="${p.special||''}">${p.special||'—'}</span>`;
+    const rec=p.recargo>0?`<span class="pct rec">+${fmtPct(p.recargo)}</span>`:`<span class="pct zero">—</span>`;
+    const des=p.descuento<0?`<span class="pct desc">-${fmtPct(p.descuento)}</span>`:`<span class="pct zero">—</span>`;
+    return `<tr>
+      <td class="plan-td"><div class="plan-name">${p.plan}</div>
+        <div style="font-size:11px;color:var(--slate);margin-top:3px">${p.grupo}</div></td>
+      <td data-l="Marca"><span class="tag tag-marca">${p.marca}</span></td>
+      <td class="center" data-l="Cuotas">${cuo}</td>
+      <td class="center" data-l="Recargo">${rec}</td>
+      <td class="center" data-l="Descuento">${des}</td>
+      <td class="term-cell" data-l="Point Smart / MP">${termCell(p.mp_disp,p.mp_cod,'mp')}</td>
+      <td class="term-cell" data-l="Payway / LaPos">${termCell(p.pw_disp,p.pw_cod,'pw')}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ---------- Cards por tarjeta ---------- */
+function termPills(p){
+  const out=[];
+  if(p.mp_disp) out.push(`<span class="tp mp">MP · ${p.mp_cod||'Sí'}</span>`);
+  if(p.pw_disp) out.push(`<span class="tp pw">Pay · ${p.pw_cod||'Sí'}</span>`);
+  if(!out.length) out.push(`<span class="tp none">Sin terminal</span>`);
+  return out.join('');
+}
+function renderCards(rows){
+  const groups={};
+  rows.forEach(p=>{const k=p.grupo+'||'+p.marca;(groups[k]=groups[k]||[]).push(p);});
+  const keys=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'es'));
+  $('#cardsView').innerHTML=keys.map(k=>{
+    const arr=groups[k].slice().sort((a,b)=>(a.cuotas||99)-(b.cuotas||99));
+    const [grupo,marca]=k.split('||');
+    const col=MARCA_COLOR[marca]||'#143a6b';
+    const rowsHtml=arr.map(p=>{
+      const cu=p.cuotas?`${p.cuotas}c`:`<span class="sp">${p.special||'—'}</span>`;
+      let pc;
+      if(p.descuento<0) pc=`<span class="pc desc">-${fmtPct(p.descuento)}</span>`;
+      else if(p.recargo>0) pc=`<span class="pc rec">+${fmtPct(p.recargo)}</span>`;
+      else pc=`<span class="pc zero">—</span>`;
+      return `<div class="crow"><span class="cu">${cu}</span>${pc}<span class="terms">${termPills(p)}</span></div>`;
+    }).join('');
+    const b=MARCA_BADGE[marca]||{m:marca.slice(0,2).toUpperCase(),bg:'#143a6b'};
+    const av=`<span class="brand-av" style="background:${b.bg};${b.m.length>2?'font-size:10.5px;':''}">${b.m}</span>`;
+    return `<div class="tcard">
+      <div class="tcard-head" style="border-left-color:${col}">
+        <div class="hl">${av}<div style="min-width:0"><div class="tit">${grupo}</div><div class="mk">${marca}</div></div></div>
+        <span class="cnt">${arr.length} ${arr.length===1?'plan':'planes'}</span>
+      </div>
+      <div class="tcard-body">${rowsHtml}</div>
+    </div>`;
+  }).join('');
+  return keys.length;
+}
+
+function render(){
+  const rows=getFiltered();
+  const nGrupos=new Set(rows.map(p=>p.grupo+'||'+p.marca)).size;
+  $('#rCount').textContent=rows.length;
+  $('#rGrupos').textContent=rows.length?`en ${nGrupos} ${nGrupos===1?'tarjeta':'tarjetas'}`:'';
+  const cards=$('#cardsView'),table=$('#tableView'),emp=$('#empty');
+  if(!rows.length){cards.innerHTML='';$('#tbody').innerHTML='';
+    cards.style.display='none';table.style.display='none';emp.style.display='block';return;}
+  emp.style.display='none';
+  if(state.view==='cards'){
+    cards.style.display='grid';table.style.display='none';renderCards(rows);
+  }else{
+    cards.style.display='none';table.style.display='block';renderTable(rows);
+  }
+}
+
+/* ---------- Charts ---------- */
+const BLUE='#143a6b',BLUE2='#1e4f93',ORANGE='#f47b20',GREEN='#15924f',RED='#cf4040',SLATE='#5f6b7e';
+Chart.defaults.font.family="-apple-system,'Segoe UI',Roboto,sans-serif";
+Chart.defaults.font.size=11;Chart.defaults.color=SLATE;
+
+function buildCharts(){
+  // Descuento promedio por cuota
+  const cuotas=[...new Set(PLANES.map(p=>p.cuotas).filter(Boolean))].sort((a,b)=>a-b);
+  const avgDesc=cuotas.map(c=>{
+    const arr=PLANES.filter(p=>p.cuotas===c && p.descuento<0).map(p=>Math.abs(p.descuento));
+    return arr.length?Math.round(arr.reduce((a,b)=>a+b,0)/arr.length*1000)/10:0;
+  });
+  new Chart($('#chDesc'),{type:'bar',data:{labels:cuotas.map(c=>c+' c'),
+    datasets:[{label:'Descuento prom.',data:avgDesc,backgroundColor:GREEN,borderRadius:6,maxBarThickness:42}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>'Descuento promedio: '+c.parsed.y+'%'}}},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'},grid:{color:'#eef1f6'}},x:{grid:{display:false}}}}});
+
+  // Disponibilidad por terminal
+  const mp=PLANES.filter(p=>p.mp_disp).length, pw=PLANES.filter(p=>p.pw_disp).length;
+  const both=PLANES.filter(p=>p.mp_disp&&p.pw_disp).length;
+  new Chart($('#chTerm'),{type:'doughnut',
+    data:{labels:['Point Smart / MP','Payway / LaPos','En ambas'],
+      datasets:[{data:[mp,pw,both],backgroundColor:[ORANGE,BLUE2,GREEN],borderWidth:3,borderColor:'#fff'}]},
+    options:{maintainAspectRatio:false,cutout:'58%',
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}}}}});
+
+  // Planes por marca
+  const marcaC={};PLANES.forEach(p=>marcaC[p.marca]=(marcaC[p.marca]||0)+1);
+  const me=Object.entries(marcaC).sort((a,b)=>b[1]-a[1]);
+  new Chart($('#chMarca'),{type:'bar',data:{labels:me.map(e=>e[0]),
+    datasets:[{data:me.map(e=>e[1]),backgroundColor:BLUE2,borderRadius:5,maxBarThickness:22}]},
+    options:{indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{beginAtZero:true,grid:{color:'#eef1f6'},ticks:{precision:0}},y:{grid:{display:false}}}}});
+
+  // Condicion comercial
+  const tC={Descuento:0,'Sin costo':0,Recargo:0};PLANES.forEach(p=>tC[p.tipo]++);
+  new Chart($('#chTipo'),{type:'doughnut',
+    data:{labels:['Con descuento','Sin costo','Con recargo'],
+      datasets:[{data:[tC.Descuento,tC['Sin costo'],tC.Recargo],
+        backgroundColor:[GREEN,SLATE,RED],borderWidth:3,borderColor:'#fff'}]},
+    options:{maintainAspectRatio:false,cutout:'58%',
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:12,font:{size:11}}}}}});
+}
+
+/* ---------- Eventos ---------- */
+$('#vCards').addEventListener('click',()=>{state.view='cards';
+  $('#vCards').classList.add('on');$('#vTable').classList.remove('on');render();});
+$('#vTable').addEventListener('click',()=>{state.view='table';
+  $('#vTable').classList.add('on');$('#vCards').classList.remove('on');render();});
+$('#q').addEventListener('input',e=>{state.q=e.target.value;render();});
+$('#selMarca').addEventListener('change',e=>{state.marca=e.target.value;render();});
+$('#selGrupo').addEventListener('change',e=>{state.grupo=e.target.value;render();});
+$('#btnClear').addEventListener('click',()=>{
+  Object.assign(state,{q:'',marca:'',grupo:'',term:'all',cuotas:'',tipo:''});
+  $('#q').value='';$('#selMarca').value='';$('#selGrupo').value='';
+  document.querySelectorAll('.frow').forEach(r=>{
+    r.querySelectorAll('.chip').forEach((c,i)=>c.classList.toggle('on',i===0));});
+  render();
+});
+$('#btnPng').addEventListener('click',()=>{
+  const node=$('#capture'),btn=$('#btnPng');
+  btn.textContent='Generando…';btn.disabled=true;
+  html2canvas(node,{scale:2,backgroundColor:'#fff'}).then(c=>{
+    const a=document.createElement('a');
+    a.download='planes_terminal_MA.png';a.href=c.toDataURL('image/png');a.click();
+    btn.innerHTML='✓ Listo';setTimeout(()=>{btn.innerHTML='Exportar PNG';btn.disabled=false;},1400);
+  }).catch(()=>{btn.innerHTML='Error';btn.disabled=false;});
+});
+
+/* ---------- Init ---------- */
+renderKpis();buildFilters();buildCharts();render();
+</script>
+</body>
+</html>
