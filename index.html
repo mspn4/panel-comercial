@@ -6,30 +6,32 @@
 <title>Centro de Control · M&A Comercial</title>
 
 <!-- ════════════════════════════════════════════════════════════════════
-     HERRAMIENTAS  —  editá solo esta lista.
-     "archivo" = el nombre del .html, tal cual está subido junto a este índice.
-     "grupo"   = la sección donde aparece. "estado" = "vivo" | "estatico".
+     CONFIGURACIÓN
      ════════════════════════════════════════════════════════════════════ -->
 <script>
+const CONFIG = {
+  // URL del Apps Script (BackendPanel.gs), termina en /exec
+  APPSSCRIPT_URL: "https://script.google.com/macros/s/AKfycby3TXMd0s-HJBjyi_i362KIQq_yD_89-f0brHau1K11kLuyzVC7YjbBnHQJS-JX0DmC/exec",
+};
+
+// Herramientas "link" — igual que antes. archivo = nombre exacto del .html subido.
 const TOOLS = [
-  { nombre:"Reporte Comercial 26/06",    archivo:"reporte-comercial.html", grupo:"Ventas",
-    desc:"Producción por zona del día, desde la planilla.",                  icono:"📊", estado:"estatico" },
-
-  { nombre:"Circuito Entes Públicos",     archivo:"circuito-ventas-entes-publicos-caso2-mercaderia-remitida.html", grupo:"Ventas",
-    desc:"Flujograma de ventas a entes públicos · caso 2: mercadería remitida.", icono:"🏛️", estado:"estatico" },
-
-  { nombre:"Cotizador Comparativo",       archivo:"cotizador-comparativo-v3.html", grupo:"Precios",
-    desc:"Compara listas de precios entre snapshots del cotizador (.accdb).", icono:"🏷️", estado:"estatico" },
-
-  { nombre:"Planes Vigentes Tarjetas",    archivo:"planes-vigentes-tarjetas.html", grupo:"Precios",
-    desc:"Planes de financiación por terminal y marca de tarjeta.",          icono:"💳", estado:"estatico" },
-
-  { nombre:"Control de Agendas",          archivo:"control-agendas.html", grupo:"Operaciones",
-    desc:"Agendas de gerentes y líderes por sucursal, en vivo desde Drive.", icono:"📅", estado:"vivo" },
-
-  { nombre:"Nómina Producción",           archivo:"nomina-produccion.html", grupo:"Operaciones",
-    desc:"Dotación de producción por sucursal y categoría, desde Excel.",    icono:"👥", estado:"estatico" },
+  { key:"reporte-comercial.html", nombre:"Reporte Comercial 26/06", archivo:"reporte-comercial.html",
+    desc:"Producción por zona del día, desde la planilla.", icono:"📊" },
+  { key:"circuito-entes.html", nombre:"Circuito Entes Públicos", archivo:"circuito-ventas-entes-publicos-caso2-mercaderia-remitida.html",
+    desc:"Flujograma de ventas a entes públicos · caso 2: mercadería remitida.", icono:"🏛️" },
+  { key:"cotizador.html", nombre:"Cotizador Comparativo", archivo:"cotizador-comparativo-v3.html",
+    desc:"Compara listas de precios entre snapshots del cotizador (.accdb).", icono:"🏷️" },
+  { key:"planes.html", nombre:"Planes Vigentes Tarjetas", archivo:"planes-vigentes-tarjetas.html",
+    desc:"Planes de financiación por terminal y marca de tarjeta.", icono:"💳" },
+  { key:"agendas.html", nombre:"Control de Agendas", archivo:"control-agendas.html",
+    desc:"Agendas de gerentes y líderes por sucursal, en vivo desde Drive.", icono:"📅", vivo:true },
+  { key:"nomina.html", nombre:"Nómina Producción", archivo:"nomina-produccion.html",
+    desc:"Dotación de producción por sucursal y categoría, desde Excel.", icono:"👥" },
 ];
+
+// Paleta de colores de acento disponible en modo edición
+const PALETA = ["#1456A0","#F07A1A","#1E9E6A","#7C3AED","#C7361E","#0F766E","#7C8AA0"];
 </script>
 <!-- ════════════════════════════════════════════════════════════════════ -->
 
@@ -43,16 +45,17 @@ const TOOLS = [
   --orange:#F07A1A; --orange-tint:#FCE9D6;
   --page:#F4F6F9; --surface:#FFFFFF; --border:#E2E8F0; --border-strong:#CBD6E2;
   --text:#243447; --muted:#6B7A8D; --muted-2:#94A3B4;
-  --ok:#1E9E6A;
+  --ok:#1E9E6A; --err:#D7484B; --warn:#C77B12; --err-tint:#FBE7E7;
   --shadow:0 1px 2px rgba(15,27,45,.04),0 10px 30px rgba(15,27,45,.07);
 }
 *{box-sizing:border-box}
 html,body{margin:0}
 body{font-family:"DM Sans",system-ui,sans-serif;background:var(--page);color:var(--text);
   -webkit-font-smoothing:antialiased;line-height:1.45}
+button{font-family:inherit}
 
 /* Header compacto */
-.top{position:sticky;top:0;z-index:10;
+.top{position:sticky;top:0;z-index:30;
   background:radial-gradient(120% 220% at 100% 0%, rgba(240,122,26,.20), transparent 60%), var(--navy);
   color:#fff;border-bottom:3px solid var(--orange);
   display:flex;align-items:center;gap:14px;padding:11px 24px}
@@ -64,42 +67,148 @@ body{font-family:"DM Sans",system-ui,sans-serif;background:var(--page);color:var
   background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:10px}
 .search svg{position:absolute;left:12px;color:#9FB2C9}
 .search input{border:none;outline:none;background:transparent;font-family:inherit;font-size:14px;
-  color:#fff;padding:9px 12px 9px 36px;width:220px}
+  color:#fff;padding:9px 12px 9px 36px;width:240px}
 .search input::placeholder{color:#8DA0B8}
 .search .count{font-size:11.5px;color:#9FB2C9;padding-right:12px;white-space:nowrap}
+.btn-edit{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;
+  border-radius:9px;padding:8px 13px;cursor:pointer;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:7px}
+.btn-edit:hover{background:rgba(255,255,255,.22)}
+.btn-edit.on{background:var(--orange);color:var(--navy);border-color:var(--orange)}
 
-main{max-width:1120px;margin:0 auto;padding:22px 24px 30px}
+main{max-width:1180px;margin:0 auto;padding:22px 24px 60px}
+.editbar{display:none;align-items:center;gap:10px;background:var(--orange-tint);border:1px solid #EBCF94;
+  color:#7A551A;border-radius:11px;padding:10px 15px;margin-bottom:16px;font-size:13px}
+.editbar.show{display:flex}
+.editbar b{font-weight:700}
+.editbar .ghostbtn{margin-left:auto;background:#fff;border:1px solid var(--border-strong);border-radius:8px;
+  padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--text)}
 
-.section{margin-bottom:34px}
-.section-head{display:flex;align-items:center;gap:12px;margin:0 2px 15px}
-.section-head h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0}
-.section-head .ln{flex:1;height:1px;background:var(--border)}
-.section-head .qty{font-size:12px;color:var(--muted-2)}
-
+/* Grilla principal */
 .grid{display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr))}
 @media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:600px){.grid{grid-template-columns:1fr}}
-.tool{display:flex;flex-direction:column;text-decoration:none;color:inherit;
-  background:var(--surface);border:1px solid var(--border);border-radius:16px;
-  box-shadow:var(--shadow);padding:16px 18px;transition:transform .16s,box-shadow .16s,border-color .16s;position:relative;overflow:hidden}
-.tool::after{content:"";position:absolute;left:0;top:0;height:100%;width:4px;background:var(--blue);opacity:0;transition:.16s}
-.tool:hover{transform:translateY(-3px);box-shadow:0 14px 36px rgba(15,27,45,.13);border-color:var(--blue-tint-2)}
-.tool:hover::after{opacity:1}
-.tool-top{display:flex;align-items:flex-start;gap:13px;margin-bottom:12px}
-.ico{width:42px;height:42px;border-radius:11px;flex:none;display:grid;place-items:center;
-  font-size:20px;background:var(--blue-tint);border:1px solid var(--blue-tint-2)}
+
+.tool{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;box-shadow:var(--shadow);padding:16px 18px;position:relative;overflow:hidden;
+  text-decoration:none;color:inherit;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.tool::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent,var(--blue))}
+.tool:hover{transform:translateY(-3px);box-shadow:0 14px 36px rgba(15,27,45,.13)}
+.tool.dragging{opacity:.4}
+.tool.hidden-card{opacity:.45}
+.tool-top{display:flex;align-items:flex-start;gap:13px;margin-bottom:10px}
+.ico{width:42px;height:42px;border-radius:11px;flex:none;display:grid;place-items:center;font-size:20px;
+  background:color-mix(in srgb, var(--accent,var(--blue)) 12%, white);border:1px solid color-mix(in srgb, var(--accent,var(--blue)) 28%, white)}
 .tool h3{margin:0;font-size:16px;font-weight:600;line-height:1.2}
 .estado{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;margin-top:5px}
-.estado .d{width:7px;height:7px;border-radius:50%}
-.estado.vivo{color:var(--ok)}.estado.vivo .d{background:var(--ok)}
-.estado.estatico{color:var(--muted-2)}.estado.estatico .d{background:var(--muted-2)}
+.estado .d{width:7px;height:7px;border-radius:50%;background:var(--ok)}
 .tool p{margin:0;color:var(--muted);font-size:13.5px;flex:1}
-.tool .go{margin-top:13px;display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:var(--blue)}
-.tool .go svg{transition:transform .16s}
+.tool .go{margin-top:13px;display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:var(--accent,var(--blue))}
+.tool .go svg{transition:transform .15s}
 .tool:hover .go svg{transform:translateX(3px)}
 
-.empty{padding:50px;text-align:center;color:var(--muted-2);font-style:italic}
-footer{max-width:1120px;margin:0 auto;padding:0 26px 40px;color:var(--muted-2);font-size:12.5px}
+/* Controles de edición sobre la tarjeta */
+.edit-controls{display:none;align-items:center;gap:6px;margin-top:12px;padding-top:11px;border-top:1px dashed var(--border)}
+.tool.editing .edit-controls{display:flex}
+.swatch{width:17px;height:17px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--border-strong);cursor:pointer}
+.swatch.sel{box-shadow:0 0 0 2px var(--text)}
+.iconbtn{margin-left:auto;background:var(--page);border:1px solid var(--border-strong);border-radius:7px;
+  width:26px;height:26px;display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+.iconbtn:hover{color:var(--text);border-color:var(--blue)}
+.draghandle{cursor:grab;color:var(--muted-2)}
+.tool.editing{cursor:grab}
+.dropzone-card{outline:2px dashed var(--blue);outline-offset:3px}
+
+/* Drop sobre la card de Base de Conocimiento (drag&drop directo) */
+.tool.dropready{outline:2px dashed var(--ok);outline-offset:3px;background:#F2FBF6}
+
+.addcard{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  border:2px dashed var(--border-strong);border-radius:16px;color:var(--muted);cursor:pointer;
+  min-height:140px;background:transparent}
+.addcard:hover{border-color:var(--blue);color:var(--blue)}
+
+/* ───────── Modales (Base de Conocimiento / Recursos Gráficos) ───────── */
+.modal-bg{position:fixed;inset:0;background:rgba(15,27,45,.5);z-index:60;display:none;
+  align-items:center;justify-content:center;padding:18px}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border-radius:16px;width:min(1080px,97vw);height:min(720px,92vh);
+  display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(15,27,45,.35);overflow:hidden}
+.modal-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex:none}
+.modal-head .mico{width:36px;height:36px;border-radius:10px;background:var(--blue-tint);display:grid;place-items:center;font-size:18px}
+.modal-head h2{margin:0;font-size:17px;font-weight:700;flex:1}
+.modal-head .x{background:none;border:none;font-size:24px;cursor:pointer;color:var(--muted);line-height:1}
+.modal-toolbar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex:none;flex-wrap:wrap}
+.viewtoggle{display:flex;gap:3px;background:var(--page);padding:3px;border-radius:9px}
+.viewtoggle button{border:none;background:transparent;border-radius:7px;padding:6px 11px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+.viewtoggle button.active{background:#fff;color:var(--blue);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.crumb{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.crumb a{color:var(--blue);cursor:pointer;text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.modal-body{flex:1;overflow:auto;padding:16px 20px}
+.btn-sm{font-size:12.5px;font-weight:600;border:1px solid var(--border-strong);background:var(--surface);
+  border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;gap:6px}
+.btn-sm:hover{background:var(--blue-tint)}
+.btn-sm.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn-sm.primary:hover{background:#0E3F7E}
+
+/* Base de Conocimiento — lista/grilla de docs */
+.kb-cat{margin-bottom:20px}
+.kb-cat-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.kb-cat-h .ln{flex:1;height:1px;background:var(--border)}
+.kb-grid{display:grid;gap:11px;grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.kb-list .kb-grid{grid-template-columns:1fr}
+.doc{background:var(--page);border:1px solid var(--border);border-radius:11px;padding:12px;cursor:pointer;
+  display:flex;gap:10px;align-items:flex-start;transition:.12s}
+.doc:hover{border-color:var(--blue);background:var(--blue-tint)}
+.kb-list .doc{align-items:center}
+.doc .dico{font-size:20px;flex:none}
+.doc .dnm{font-weight:600;font-size:13.5px;word-break:break-word}
+.doc .dmeta{font-size:11.5px;color:var(--muted-2);margin-top:2px}
+.dropzone{border:2px dashed var(--border-strong);border-radius:12px;padding:18px;text-align:center;
+  color:var(--muted);font-size:13px;margin-bottom:16px;transition:.15s}
+.dropzone.over{border-color:var(--ok);background:#F2FBF6;color:var(--ok)}
+.empty{padding:40px;text-align:center;color:var(--muted-2);font-style:italic}
+
+/* Visor de documento */
+.docview{display:flex;flex-direction:column;height:100%;gap:10px}
+.docview textarea{flex:1;width:100%;border:1px solid var(--border-strong);border-radius:10px;padding:12px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;resize:none}
+.docview iframe{flex:1;width:100%;border:1px solid var(--border-strong);border-radius:10px}
+.docview .dvbar{display:flex;gap:8px;flex:none}
+
+/* Recursos Gráficos */
+.folder-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.foldercard{background:var(--page);border:1px solid var(--border);border-radius:12px;padding:14px;
+  cursor:pointer;display:flex;align-items:center;gap:11px;transition:.12s}
+.foldercard:hover{border-color:var(--blue);background:var(--blue-tint)}
+.foldercard .fi{font-size:24px}
+.foldercard .fn{font-weight:600;font-size:13.5px}
+.foldercard .fc{font-size:11.5px;color:var(--muted-2)}
+.img-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+.imgcard{border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;background:var(--page);
+  aspect-ratio:1;display:flex;align-items:center;justify-content:center;position:relative}
+.imgcard img{width:100%;height:100%;object-fit:cover}
+.imgcard .noprev{font-size:24px;color:var(--muted-2)}
+.imgcard .fname{position:absolute;bottom:0;left:0;right:0;background:rgba(15,27,45,.72);color:#fff;
+  font-size:10.5px;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Lightbox */
+.lightbox-bg{position:fixed;inset:0;background:rgba(8,14,24,.9);z-index:70;display:none;
+  align-items:center;justify-content:center;flex-direction:column;padding:24px}
+.lightbox-bg.open{display:flex}
+.lightbox-bg img{max-width:90vw;max-height:74vh;border-radius:8px;box-shadow:0 10px 50px rgba(0,0,0,.5)}
+.lightbox-actions{display:flex;gap:10px;margin-top:16px}
+.lightbox-actions button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;
+  border-radius:9px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:7px}
+.lightbox-actions button:hover{background:rgba(255,255,255,.22)}
+.lightbox-close{position:absolute;top:18px;right:24px;background:none;border:none;color:#fff;font-size:30px;cursor:pointer}
+.lightbox-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);
+  border:none;color:#fff;font-size:22px;width:42px;height:42px;border-radius:50%;cursor:pointer}
+.lightbox-nav.prev{left:18px}.lightbox-nav.next{right:18px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;
+  padding:10px 18px;border-radius:10px;font-size:13.5px;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,.25);display:none}
+.toast.show{display:block}
+
+footer{max-width:1180px;margin:0 auto;padding:0 24px 30px;color:var(--muted-2);font-size:12.5px}
 </style>
 </head>
 <body>
@@ -109,45 +218,501 @@ footer{max-width:1120px;margin:0 auto;padding:0 26px 40px;color:var(--muted-2);f
   <div class="ttl"><b>Centro de Control</b><span>Departamento Comercial</span></div>
   <div class="search">
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
-    <input type="text" id="q" placeholder="Buscar…" autocomplete="off">
+    <input type="text" id="q" placeholder="Buscar en todo…" autocomplete="off">
     <span class="count" id="count"></span>
   </div>
+  <button class="btn-edit" id="btnEdit">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    Editar
+  </button>
 </header>
 
-<main id="main"></main>
+<main>
+  <div class="editbar" id="editbar">
+    <span>✏️ <b>Modo edición activo.</b> Arrastrá tarjetas para reordenar, tocá un color para cambiarlo, o el ícono de ojo para ocultar.</span>
+    <button class="ghostbtn" id="btnAddCard">+ Agregar tarjeta</button>
+  </div>
+  <div class="grid" id="grid"></div>
+</main>
 
 <footer>M&amp;A Equipamientos Comerciales · Centro de Control interno · Tucumán</footer>
 
+<!-- Modal genérico (Base de Conocimiento / Recursos Gráficos) -->
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+
+<!-- Lightbox de imágenes -->
+<div class="lightbox-bg" id="lightboxBg">
+  <button class="lightbox-close" id="lbClose">&times;</button>
+  <button class="lightbox-nav prev" id="lbPrev">&#8249;</button>
+  <button class="lightbox-nav next" id="lbNext">&#8250;</button>
+  <img id="lbImg" alt="">
+  <div class="lightbox-actions">
+    <button id="lbCopy"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar</button>
+    <button id="lbDownload"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> Descargar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
+/* ═══════════════════════════ Utilidades ═══════════════════════════ */
 const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
 const norm=s=>(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2400); }
+function fmtFecha(iso){ if(!iso) return ""; const d=new Date(iso); return isNaN(d)?"":d.toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"}); }
+function fmtBytes(n){ if(!n) return ""; const u=["B","KB","MB","GB"]; let i=0; while(n>=1024&&i<u.length-1){n/=1024;i++;} return n.toFixed(n<10&&i>0?1:0)+" "+u[i]; }
 
-function card(t){
-  return `<a class="tool" href="${esc(t.archivo)}">
+async function api(action, params){
+  const url=CONFIG.APPSSCRIPT_URL+"?action="+action+"&"+new URLSearchParams(params||{}).toString();
+  const r=await fetch(url,{cache:"no-store"});
+  const d=await r.json();
+  if(d.error) throw new Error(d.error);
+  return d;
+}
+async function apiPost(action, payload){
+  const r=await fetch(CONFIG.APPSSCRIPT_URL,{method:"POST",body:JSON.stringify({action,key:state.editKey,...payload})});
+  const d=await r.json();
+  if(d.error) throw new Error(d.error);
+  return d;
+}
+
+/* ═══════════════════════════ Estado y layout ═══════════════════════════ */
+const state = {
+  editMode:false, editKey:null,
+  layout:{ order:[], colors:{}, hidden:{}, custom:[] },
+  query:"",
+  kbCache:null,       // último kb_list
+  gxFolderStack:[],   // breadcrumb de carpetas abiertas en Recursos Gráficos
+  gxCache:{},         // folderId -> {folders,images}
+  gxIndex:[],         // [{folderId,folderNombre,img}] para búsqueda, se llena a medida que se navega
+  lightbox:{items:[], idx:0},
+};
+
+function allCardDefs(){
+  // Tarjetas fijas: TOOLS (links) + kb + graphics, más las "custom" agregadas en modo edición
+  const fixed = TOOLS.map(t=>({...t, tipo:"link"}));
+  const especiales = [
+    {key:"kb", nombre:"Base de Conocimiento", desc:"Condiciones de venta, comisiones, políticas — todo buscable.", icono:"📚", tipo:"kb"},
+    {key:"graphics", nombre:"Recursos Gráficos", desc:"Logos, banco de imágenes, catálogos y más.", icono:"🖼️", tipo:"graphics"},
+  ];
+  return [...fixed, ...especiales, ...(state.layout.custom||[])];
+}
+function orderedVisibleCards(){
+  const defs=allCardDefs(); const byKey={}; defs.forEach(d=>byKey[d.key]=d);
+  let order=state.layout.order&&state.layout.order.length?state.layout.order.slice():defs.map(d=>d.key);
+  // por si se agregó una tarjeta nueva y el layout guardado es viejo
+  defs.forEach(d=>{ if(order.indexOf(d.key)<0) order.push(d.key); });
+  order=order.filter(k=>byKey[k]);
+  return order.map(k=>byKey[k]);
+}
+
+async function cargarLayout(){
+  try{
+    const {layout}=await api("layout_get");
+    if(layout) state.layout={order:[],colors:{},hidden:{},custom:[],...layout};
+  }catch(e){ /* sin Apps Script todavía configurado: sigue con layout por defecto */ }
+}
+async function guardarLayout(){
+  try{ await apiPost("layout_save",{layout:state.layout}); }
+  catch(e){ toast("No se pudo guardar: "+e.message); }
+}
+
+/* ═══════════════════════════ Modo edición ═══════════════════════════ */
+$("#btnEdit").addEventListener("click", async ()=>{
+  if(!state.editMode){
+    const k=window.prompt("Clave de edición:");
+    if(k===null) return;
+    state.editKey=k; state.editMode=true;
+  } else { state.editMode=false; state.editKey=null; }
+  $("#btnEdit").classList.toggle("on", state.editMode);
+  $("#editbar").classList.toggle("show", state.editMode);
+  render();
+});
+
+$("#btnAddCard").addEventListener("click", async ()=>{
+  const nombre=window.prompt("Nombre de la tarjeta:"); if(!nombre) return;
+  const archivo=window.prompt("Nombre exacto del archivo .html (ej: mi-panel.html):"); if(!archivo) return;
+  const desc=window.prompt("Descripción corta (opcional):")||"";
+  const icono=window.prompt("Un emoji para el ícono (opcional):")||"📄";
+  const key="custom-"+Date.now();
+  state.layout.custom=state.layout.custom||[];
+  state.layout.custom.push({key,nombre,archivo,desc,icono,tipo:"link"});
+  state.layout.order.push(key);
+  await guardarLayout(); render();
+});
+
+/* ═══════════════════════════ Render de tarjetas ═══════════════════════════ */
+function cardMatchesQuery(c, q){
+  if(!q) return true;
+  return norm(c.nombre+" "+(c.desc||"")).includes(q);
+}
+
+function tarjeta(c, idx){
+  const color=state.layout.colors[c.key]||PALETA[0];
+  const oculta=!!state.layout.hidden[c.key];
+  if(oculta && !state.editMode) return "";
+  const swatches=PALETA.map(col=>`<span class="swatch ${col===color?"sel":""}" style="background:${col}" data-color="${col}" data-key="${esc(c.key)}"></span>`).join("");
+  const esLink=c.tipo==="link";
+  const inner=`
     <div class="tool-top">
-      <div class="ico">${esc(t.icono||"📊")}</div>
+      <div class="ico">${esc(c.icono||"📄")}</div>
       <div>
-        <h3>${esc(t.nombre)}</h3>
-        <span class="estado ${t.estado==="vivo"?"vivo":"estatico"}"><span class="d"></span>${t.estado==="vivo"?"En vivo":"Estático"}</span>
+        <h3>${esc(c.nombre)}</h3>
+        ${c.vivo?`<span class="estado"><span class="d"></span>En vivo</span>`:""}
       </div>
     </div>
-    <p>${esc(t.desc||"")}</p>
+    <p>${esc(c.desc||"")}</p>
     <span class="go">Abrir <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-  </a>`;
+    <div class="edit-controls">
+      <span class="draghandle" title="Arrastrar para reordenar">⠿⠿</span>
+      ${swatches}
+      <span class="iconbtn" data-action="toggle-hidden" data-key="${esc(c.key)}" title="${oculta?"Mostrar":"Ocultar"}">${oculta?"🙈":"👁️"}</span>
+      ${c.tipo==="link" && c.key.startsWith("custom-") ? `<span class="iconbtn" data-action="delete-custom" data-key="${esc(c.key)}" title="Quitar">🗑️</span>` : ""}
+    </div>`;
+  const cls=`tool ${state.editMode?"editing":""} ${oculta?"hidden-card":""}`;
+  const style=`style="--accent:${color}"`;
+  if(esLink && !state.editMode){
+    return `<a class="${cls}" ${style} href="${esc(c.archivo)}" draggable="false" data-key="${esc(c.key)}">${inner}</a>`;
+  }
+  return `<div class="${cls}" ${style} draggable="${state.editMode}" data-key="${esc(c.key)}" data-tipo="${c.tipo}" data-archivo="${esc(c.archivo||"")}">${inner}</div>`;
 }
 
 function render(){
-  const q=norm($("#q").value.trim());
-  const arr=TOOLS.filter(t=>!q||norm(t.nombre+" "+t.desc).includes(q));
-  $("#count").textContent=arr.length?`${arr.length}/${TOOLS.length}`:"";
-  const main=$("#main");
-  if(!arr.length){ main.innerHTML=`<div class="empty">Sin resultados para “${esc($("#q").value.trim())}”.</div>`; return; }
-  main.innerHTML=`<div class="grid">${arr.map(card).join("")}</div>`;
+  const q=norm(state.query.trim());
+  const cards=orderedVisibleCards();
+  const visibles=cards.filter(c=>cardMatchesQuery(c,q));
+  const grid=$("#grid");
+
+  let html=visibles.map((c,i)=>tarjeta(c,i)).join("");
+  if(state.editMode) html+=`<button class="addcard" id="addcardInline">+ Agregar tarjeta</button>`;
+  grid.innerHTML=html || `<div class="empty">Sin resultados.</div>`;
+
+  if(state.editMode){
+    const ac=$("#addcardInline"); if(ac) ac.addEventListener("click",()=>$("#btnAddCard").click());
+  }
+  $("#count").textContent = q ? `${visibles.length} resultado${visibles.length===1?"":"s"}` : "";
+  wireCardEvents();
+  if(q) buscarEnSubcontenido(q);
 }
 
-render();
-$("#q").addEventListener("input",render);
+function wireCardEvents(){
+  $$(".tool[data-tipo]").forEach(el=>{
+    el.addEventListener("click", e=>{
+      if(state.editMode){ if(e.target.closest(".edit-controls")) return; return; }
+      const tipo=el.dataset.tipo, archivo=el.dataset.archivo;
+      if(tipo==="kb") abrirKB();
+      else if(tipo==="graphics") abrirGraphics();
+      else if(tipo==="link" && archivo) window.location.href=archivo;
+    });
+    // drag & drop de archivos directo sobre la card de Base de Conocimiento
+    if(el.dataset.tipo==="kb"){
+      el.addEventListener("dragover", e=>{ if(e.dataTransfer.types.includes("Files")){ e.preventDefault(); el.classList.add("dropready"); } });
+      el.addEventListener("dragleave", ()=>el.classList.remove("dropready"));
+      el.addEventListener("drop", async e=>{
+        if(!e.dataTransfer.files.length) return;
+        e.preventDefault(); el.classList.remove("dropready");
+        if(!state.editKey){ const k=window.prompt("Clave de edición para subir archivos:"); if(!k) return; state.editKey=k; }
+        for(const file of e.dataTransfer.files) await subirDocumento(file, "root");
+        toast("Documento subido a Base de Conocimiento.");
+      });
+    }
+  });
+  // reordenar por drag (solo en modo edición)
+  let dragKey=null;
+  $$(".tool[draggable='true']").forEach(el=>{
+    el.addEventListener("dragstart", e=>{ dragKey=el.dataset.key; el.classList.add("dragging"); });
+    el.addEventListener("dragend", ()=>{ el.classList.remove("dragging"); });
+    el.addEventListener("dragover", e=>{ if(dragKey) e.preventDefault(); });
+    el.addEventListener("drop", e=>{
+      if(!dragKey || e.dataTransfer.types.includes("Files")) return; // no interferir con drop de archivos
+      e.preventDefault();
+      const targetKey=el.dataset.key; if(targetKey===dragKey) return;
+      const order=orderedVisibleCards().map(c=>c.key);
+      const from=order.indexOf(dragKey), to=order.indexOf(targetKey);
+      order.splice(from,1); order.splice(to,0,dragKey);
+      state.layout.order=order; guardarLayout(); render();
+    });
+  });
+  $$(".swatch").forEach(s=>s.addEventListener("click", e=>{
+    e.stopPropagation();
+    state.layout.colors[s.dataset.key]=s.dataset.color;
+    guardarLayout(); render();
+  }));
+  $$('[data-action="toggle-hidden"]').forEach(b=>b.addEventListener("click", e=>{
+    e.stopPropagation();
+    const k=b.dataset.key; state.layout.hidden[k]=!state.layout.hidden[k];
+    guardarLayout(); render();
+  }));
+  $$('[data-action="delete-custom"]').forEach(b=>b.addEventListener("click", e=>{
+    e.stopPropagation();
+    const k=b.dataset.key;
+    if(!confirm("¿Quitar esta tarjeta del panel?")) return;
+    state.layout.custom=(state.layout.custom||[]).filter(c=>c.key!==k);
+    state.layout.order=(state.layout.order||[]).filter(x=>x!==k);
+    guardarLayout(); render();
+  }));
+}
+
+/* ═══════════════════════════ Búsqueda en sub-contenido ═══════════════════════════ */
+async function buscarEnSubcontenido(q){
+  // Aviso liviano debajo del buscador con coincidencias en KB / Gráficos ya indexados en esta sesión
+  if(!state.kbCache){ try{ state.kbCache=await api("kb_list"); }catch(e){} }
+  const docs=[]; if(state.kbCache){
+    (state.kbCache.sueltos||[]).forEach(d=>docs.push(d));
+    (state.kbCache.categorias||[]).forEach(c=>(c.docs||[]).forEach(d=>docs.push(d)));
+  }
+  const kbHits=docs.filter(d=>norm(d.nombre).includes(q));
+  const gxHits=state.gxIndex.filter(it=>norm(it.img.nombre).includes(q));
+  const extra=$("#count");
+  if(kbHits.length||gxHits.length){
+    extra.textContent += `  ·  ${kbHits.length} en Base de Conocimiento, ${gxHits.length} en Recursos Gráficos`;
+  }
+}
+
+/* ═══════════════════════════ Modal: Base de Conocimiento ═══════════════════════════ */
+let kbView="grid";
+async function abrirKB(){
+  $("#modal").innerHTML=`
+    <div class="modal-head"><div class="mico">📚</div><h2>Base de Conocimiento</h2>
+      ${state.editMode?`<button class="btn-sm" id="kbNewCat">+ Categoría</button>`:""}
+      <button class="x" id="modalClose">&times;</button></div>
+    <div class="modal-toolbar">
+      <div class="viewtoggle"><button id="kbVGrid" class="active">Grilla</button><button id="kbVList">Lista</button></div>
+      <input type="text" id="kbSearch" placeholder="Buscar documento…" style="margin-left:auto;border:1px solid var(--border-strong);border-radius:8px;padding:7px 10px;font-size:13px;font-family:inherit">
+    </div>
+    <div class="modal-body" id="kbBody"><div class="empty">Cargando…</div></div>`;
+  $("#modalBg").classList.add("open");
+  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  $("#kbVGrid").onclick=()=>{kbView="grid";$("#kbVGrid").classList.add("active");$("#kbVList").classList.remove("active");renderKB();};
+  $("#kbVList").onclick=()=>{kbView="list";$("#kbVList").classList.add("active");$("#kbVGrid").classList.remove("active");renderKB();};
+  $("#kbSearch").addEventListener("input", renderKB);
+  if(state.editMode) $("#kbNewCat").onclick=crearCategoriaKB;
+  try{ state.kbCache=await api("kb_list"); renderKB(); }
+  catch(e){ $("#kbBody").innerHTML=`<div class="empty">No se pudo leer la Base de Conocimiento.<br>${esc(e.message)}</div>`; }
+}
+function docIcon(mime){
+  if(mime==="text/plain"||mime==="text/markdown") return "📝";
+  if(mime===  "application/vnd.google-apps.document") return "📄";
+  if((mime||"").includes("wordprocessingml")||mime==="application/msword") return "📘";
+  if(mime==="application/pdf") return "📕";
+  return "📄";
+}
+function renderKB(){
+  const body=$("#kbBody"); const q=norm(($("#kbSearch")?.value||"").trim());
+  const data=state.kbCache; if(!data){ body.innerHTML=`<div class="empty">Sin datos.</div>`; return; }
+  body.className = kbView==="list" ? "kb-list" : "";
+  const dropHtml=`<div class="dropzone" id="kbDrop">Arrastrá un documento aquí, o <label style="color:var(--blue);cursor:pointer;text-decoration:underline">elegí un archivo<input type="file" id="kbFileInput" style="display:none"></label></div>`;
+  const filtrar=arr=>arr.filter(d=>!q||norm(d.nombre).includes(q));
+  const renderDocs=arr=>`<div class="kb-grid">${arr.map(d=>`
+    <div class="doc" data-id="${esc(d.id)}">
+      <span class="dico">${docIcon(d.mimeType)}</span>
+      <div><div class="dnm">${esc(d.nombre)}</div><div class="dmeta">${fmtFecha(d.modificado)} · ${fmtBytes(d.size)}</div></div>
+    </div>`).join("")}</div>`;
+
+  let html=dropHtml;
+  const sueltos=filtrar(data.sueltos||[]);
+  if(sueltos.length) html+=`<div class="kb-cat"><div class="kb-cat-h">General<span class="ln"></span></div>${renderDocs(sueltos)}</div>`;
+  (data.categorias||[]).forEach(cat=>{
+    const docs=filtrar(cat.docs||[]);
+    if(!docs.length && q) return;
+    html+=`<div class="kb-cat"><div class="kb-cat-h">${esc(cat.nombre)}<span class="ln"></span></div>${docs.length?renderDocs(docs):'<div class="empty" style="padding:14px">Sin documentos</div>'}</div>`;
+  });
+  if(!sueltos.length && !(data.categorias||[]).length) html+=`<div class="empty">Todavía no hay documentos.</div>`;
+  body.innerHTML=html;
+
+  $$("#kbBody .doc").forEach(d=>d.addEventListener("click",()=>abrirDocKB(d.dataset.id)));
+  const dz=$("#kbDrop");
+  dz.addEventListener("dragover",e=>{e.preventDefault();dz.classList.add("over");});
+  dz.addEventListener("dragleave",()=>dz.classList.remove("over"));
+  dz.addEventListener("drop", async e=>{
+    e.preventDefault(); dz.classList.remove("over");
+    if(!e.dataTransfer.files.length) return;
+    if(!requireEditKey()) return;
+    for(const f of e.dataTransfer.files) await subirDocumento(f,"root");
+    state.kbCache=await api("kb_list"); renderKB(); toast("Documento subido.");
+  });
+  $("#kbFileInput").addEventListener("change", async e=>{
+    if(!e.target.files.length) return;
+    if(!requireEditKey()) return;
+    await subirDocumento(e.target.files[0],"root");
+    state.kbCache=await api("kb_list"); renderKB(); toast("Documento subido.");
+  });
+}
+function requireEditKey(){
+  if(state.editKey) return true;
+  const k=window.prompt("Clave de edición:");
+  if(!k) return false;
+  state.editKey=k; return true;
+}
+async function crearCategoriaKB(){
+  if(!requireEditKey()) return;
+  const nombre=window.prompt("Nombre de la categoría:"); if(!nombre) return;
+  try{ await apiPost("kb_create_category",{nombre}); state.kbCache=await api("kb_list"); renderKB(); }
+  catch(e){ toast("Error: "+e.message); }
+}
+function fileToBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(",")[1]);
+    r.onerror=rej; r.readAsDataURL(file);
+  });
+}
+async function subirDocumento(file, categoryId){
+  const base64=await fileToBase64(file);
+  try{ await apiPost("kb_upload",{filename:file.name, mimeType:file.type||"application/octet-stream", base64, categoryId}); }
+  catch(e){ toast("Error al subir: "+e.message); }
+}
+async function abrirDocKB(id){
+  const body=$("#kbBody");
+  body.innerHTML=`<div class="empty">Abriendo…</div>`;
+  let doc; try{ doc=await api("kb_get",{id}); }catch(e){ body.innerHTML=`<div class="empty">${esc(e.message)}</div>`; return; }
+  const puedeEditar = doc.editable && state.editMode;
+  let visor;
+  if(doc.editable){
+    visor=`<textarea id="docTextarea" ${puedeEditar?"":"readonly"}>${esc(doc.texto)}</textarea>`;
+  } else {
+    visor=`<iframe src="https://drive.google.com/file/d/${esc(id)}/preview"></iframe>`;
+  }
+  body.innerHTML=`<div class="docview">
+    <div class="dvbar">
+      <button class="btn-sm" id="docBack">← Volver</button>
+      <span style="font-weight:600;align-self:center">${esc(doc.nombre)}</span>
+      <a class="btn-sm" href="${esc(doc.url)}" target="_blank" style="margin-left:auto">Abrir en Drive</a>
+      ${doc.editable && state.editMode ? `<button class="btn-sm primary" id="docSave">Guardar</button>` : ""}
+    </div>
+    ${visor}
+  </div>`;
+  $("#docBack").onclick=renderKB;
+  if(doc.editable && state.editMode){
+    $("#docSave").onclick=async ()=>{
+      if(!requireEditKey()) return;
+      try{ await apiPost("kb_save",{id, content:$("#docTextarea").value}); toast("Guardado."); }
+      catch(e){ toast("Error: "+e.message); }
+    };
+  }
+}
+
+/* ═══════════════════════════ Modal: Recursos Gráficos ═══════════════════════════ */
+async function abrirGraphics(){
+  state.gxFolderStack=[];
+  $("#modal").innerHTML=`
+    <div class="modal-head"><div class="mico">🖼️</div><h2>Recursos Gráficos</h2><button class="x" id="modalClose">&times;</button></div>
+    <div class="modal-toolbar"><div class="crumb" id="gxCrumb"></div></div>
+    <div class="modal-body" id="gxBody"><div class="empty">Cargando…</div></div>`;
+  $("#modalBg").classList.add("open");
+  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  try{ const tree=await api("gx_tree"); renderGxFolders(tree.folders, tree.nombre); }
+  catch(e){ $("#gxBody").innerHTML=`<div class="empty">No se pudo leer Recursos Gráficos.<br>${esc(e.message)}</div>`; }
+}
+function renderCrumb(nombreRaiz){
+  const crumb=$("#gxCrumb");
+  const parts=[`<a data-i="-1">${esc(nombreRaiz||"Recursos Gráficos")}</a>`];
+  state.gxFolderStack.forEach((f,i)=>parts.push(`<span>›</span><a data-i="${i}">${esc(f.nombre)}</a>`));
+  crumb.innerHTML=parts.join(" ");
+  crumb.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>{
+    const i=+a.dataset.i;
+    if(i===-1){ state.gxFolderStack=[]; abrirGraphics(); }
+    else{ state.gxFolderStack=state.gxFolderStack.slice(0,i+1); abrirGxFolder(state.gxFolderStack[i]); }
+  }));
+}
+function renderGxFolders(folders, nombreRaiz){
+  renderCrumb(nombreRaiz);
+  const body=$("#gxBody");
+  if(!folders.length){ body.innerHTML=`<div class="empty">No hay subcarpetas.</div>`; return; }
+  body.innerHTML=`<div class="folder-grid">${folders.map(f=>`
+    <div class="foldercard" data-id="${esc(f.id)}" data-nombre="${esc(f.nombre)}">
+      <span class="fi">📁</span><div><div class="fn">${esc(f.nombre)}</div><div class="fc">${f.count} imagen${f.count===1?"":"es"}</div></div>
+    </div>`).join("")}</div>`;
+  $$("#gxBody .foldercard").forEach(c=>c.addEventListener("click",()=>{
+    state.gxFolderStack.push({id:c.dataset.id,nombre:c.dataset.nombre});
+    abrirGxFolder(state.gxFolderStack[state.gxFolderStack.length-1]);
+  }));
+}
+async function abrirGxFolder(folder){
+  renderCrumb();
+  const body=$("#gxBody"); body.innerHTML=`<div class="empty">Cargando imágenes…</div>`;
+  let data=state.gxCache[folder.id];
+  if(!data){ data=await api("gx_images",{id:folder.id}); state.gxCache[folder.id]=data;
+    data.images.forEach(img=>state.gxIndex.push({folderId:folder.id, folderNombre:folder.nombre, img})); }
+  let html="";
+  if(data.folders.length) html+=`<div class="folder-grid" style="margin-bottom:16px">${data.folders.map(f=>`
+    <div class="foldercard" data-id="${esc(f.id)}" data-nombre="${esc(f.nombre)}">
+      <span class="fi">📁</span><div><div class="fn">${esc(f.nombre)}</div><div class="fc">${f.count} imagen${f.count===1?"":"es"}</div></div>
+    </div>`).join("")}</div>`;
+  if(data.images.length){
+    html+=`<div class="img-grid">${data.images.map((im,i)=>`
+      <div class="imgcard" data-i="${i}">
+        ${im.thumb?`<img src="data:${im.thumbMime};base64,${im.thumb}" alt="">`:`<span class="noprev">🖼️</span>`}
+        <span class="fname">${esc(im.nombre)}</span>
+      </div>`).join("")}</div>`;
+  } else if(!data.folders.length){
+    html+=`<div class="empty">Esta carpeta no tiene imágenes.</div>`;
+  }
+  body.innerHTML=html;
+  $$("#gxBody .foldercard").forEach(c=>c.addEventListener("click",()=>{
+    state.gxFolderStack.push({id:c.dataset.id,nombre:c.dataset.nombre});
+    abrirGxFolder(state.gxFolderStack[state.gxFolderStack.length-1]);
+  }));
+  $$("#gxBody .imgcard").forEach(c=>c.addEventListener("click",()=>abrirLightbox(data.images, +c.dataset.i)));
+}
+
+/* ═══════════════════════════ Lightbox ═══════════════════════════ */
+async function abrirLightbox(items, idx){
+  state.lightbox={items, idx};
+  $("#lightboxBg").classList.add("open");
+  await mostrarLightbox();
+}
+async function mostrarLightbox(){
+  const {items, idx}=state.lightbox; const im=items[idx];
+  $("#lbImg").src = im.thumb?`data:${im.thumbMime};base64,${im.thumb}`:"";
+  $("#lbImg").alt = im.nombre;
+  try{
+    const full=await api("gx_full",{id:im.id});
+    $("#lbImg").src=`data:${full.mimeType};base64,${full.base64}`;
+    state.lightbox.fullData=full;
+  }catch(e){ /* se queda con la miniatura si falla */ }
+}
+$("#lbClose").onclick=()=>$("#lightboxBg").classList.remove("open");
+$("#lightboxBg").addEventListener("click", e=>{ if(e.target.id==="lightboxBg") $("#lightboxBg").classList.remove("open"); });
+$("#lbPrev").onclick=()=>{ const lb=state.lightbox; lb.idx=(lb.idx-1+lb.items.length)%lb.items.length; mostrarLightbox(); };
+$("#lbNext").onclick=()=>{ const lb=state.lightbox; lb.idx=(lb.idx+1)%lb.items.length; mostrarLightbox(); };
+$("#lbDownload").onclick=()=>{
+  const f=state.lightbox.fullData; if(!f) return toast("Esperá que termine de cargar…");
+  const a=document.createElement("a"); a.href=`data:${f.mimeType};base64,${f.base64}`; a.download=f.nombre; a.click();
+};
+$("#lbCopy").onclick=async ()=>{
+  const f=state.lightbox.fullData; if(!f) return toast("Esperá que termine de cargar…");
+  try{
+    const res=await fetch(`data:${f.mimeType};base64,${f.base64}`); const blob=await res.blob();
+    await navigator.clipboard.write([new ClipboardItem({[blob.type]:blob})]);
+    toast("Imagen copiada.");
+  }catch(e){ toast("Tu navegador no permite copiar imágenes — usá Descargar."); }
+};
+document.addEventListener("keydown", e=>{
+  if(!$("#lightboxBg").classList.contains("open")) return;
+  if(e.key==="Escape") $("#lightboxBg").classList.remove("open");
+  if(e.key==="ArrowLeft") $("#lbPrev").click();
+  if(e.key==="ArrowRight") $("#lbNext").click();
+});
+$("#modalBg").addEventListener("click", e=>{ if(e.target.id==="modalBg") $("#modalBg").classList.remove("open"); });
+
+/* ═══════════════════════════ Buscador global ═══════════════════════════ */
+let tBusq=null;
+$("#q").addEventListener("input", e=>{
+  clearTimeout(tBusq);
+  tBusq=setTimeout(()=>{ state.query=e.target.value; render(); }, 150);
+});
+
+/* ═══════════════════════════ Inicio ═══════════════════════════ */
+(async function start(){
+  if(!CONFIG.APPSSCRIPT_URL){
+    $("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1">Falta configurar <code>APPSSCRIPT_URL</code> arriba del archivo para que funcionen Base de Conocimiento, Recursos Gráficos y el modo edición. Las tarjetas de herramientas igual abren bien.</div>`;
+  }
+  await cargarLayout();
+  render();
+})();
 </script>
 </body>
 </html>
