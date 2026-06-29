@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informe Estadístico General — Red de Sucursales · M&amp;A</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#0b2545;
+    --navy-2:#13315c;
+    --navy-3:#1d3f73;
+    --blue:#2a6fb0;
+    --blue-light:#8ec5e6;
+    --orange:#f3722c;
+    --orange-2:#ff8c42;
+    --red:#e63946;
+    --ink:#0e1b2e;
+    --muted:#5c6b80;
+    --line:#e6ebf2;
+    --bg:#eef1f6;
+    --panel:#ffffff;
+    --panel-2:#f5f8fc;
+    --radius:18px;
+    --shadow:0 1px 3px rgba(11,37,69,.06), 0 8px 24px rgba(11,37,69,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'DM Sans',system-ui,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{display:flex;min-height:100vh;align-items:flex-start}
+
+  /* ---------- EDITOR ---------- */
+  .editor{
+    width:400px;flex:0 0 400px;
+    background:var(--panel);
+    border-right:1px solid var(--line);
+    height:100vh;position:sticky;top:0;
+    overflow-y:auto;
+    padding:22px 22px 60px;
+  }
+  .editor.hidden{display:none}
+  .ed-brand{font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--orange);text-transform:uppercase}
+  .ed-title{font-size:19px;font-weight:800;color:var(--navy);margin:2px 0 4px;letter-spacing:-.01em}
+  .ed-sub{font-size:12.5px;color:var(--muted);line-height:1.45;margin-bottom:18px}
+  .field{margin-bottom:16px}
+  .field > label{display:block;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px}
+  .field .hint{display:block;font-size:11px;color:var(--muted);font-weight:500;margin-bottom:6px;line-height:1.4}
+  textarea, input[type=text]{
+    width:100%;font-family:'DM Sans',monospace;font-size:12.5px;
+    border:1px solid var(--line);border-radius:12px;padding:10px 12px;
+    background:var(--panel-2);color:var(--ink);resize:vertical;line-height:1.6;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  textarea:focus, input[type=text]:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(42,111,176,.12);background:#fff}
+  textarea.mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11.5px;white-space:pre;overflow-x:auto}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;justify-content:center;
+    border:none;border-radius:12px;cursor:pointer;font-family:inherit;
+    font-weight:700;font-size:13px;padding:11px 16px;transition:transform .08s, filter .15s, background .15s;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:var(--navy);color:#fff;width:100%}
+  .btn-primary:hover{filter:brightness(1.12)}
+  .btn-orange{background:var(--orange);color:#fff}
+  .btn-orange:hover{filter:brightness(1.05)}
+  .btn-ghost{background:var(--panel-2);color:var(--navy);border:1px solid var(--line)}
+  .btn-ghost:hover{background:#eaeff6}
+  .btn-sm{padding:8px 13px;font-size:12px;border-radius:10px}
+  .ed-actions{position:sticky;bottom:0;background:linear-gradient(to top,#fff 70%,rgba(255,255,255,0));padding-top:14px;margin-top:6px}
+  details.group{border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden;background:var(--panel-2)}
+  details.group > summary{cursor:pointer;list-style:none;padding:11px 14px;font-size:12.5px;font-weight:700;color:var(--navy);display:flex;justify-content:space-between;align-items:center}
+  details.group > summary::-webkit-details-marker{display:none}
+  details.group > summary::after{content:'+';font-size:16px;color:var(--muted)}
+  details.group[open] > summary::after{content:'–'}
+  details.group > .group-body{padding:4px 14px 14px}
+
+  /* ---------- REPORT ---------- */
+  .report-wrap{flex:1;min-width:0;padding:34px clamp(16px,4vw,56px);max-width:980px;margin:0 auto}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--orange);text-transform:uppercase;background:rgba(243,114,44,.1);padding:4px 10px;border-radius:999px}
+  .report{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:clamp(22px,3.4vw,44px);overflow:hidden}
+  .r-title{font-size:clamp(24px,3.6vw,34px);font-weight:800;color:var(--navy);letter-spacing:-.02em;line-height:1.1;margin:14px 0 8px}
+  .r-sub{font-size:14px;color:var(--muted);line-height:1.5;max-width:62ch;margin-bottom:8px}
+  .r-sub b{color:var(--navy);font-weight:700}
+  .section-h{font-size:21px;font-weight:800;color:var(--navy);letter-spacing:-.01em;margin:38px 0 14px}
+
+  /* slide = exportable 16:9 frame */
+  .slide-block{margin-bottom:26px}
+  .slide-tools{display:flex;justify-content:flex-end;margin-bottom:8px}
+  .slide{
+    width:100%;aspect-ratio:16/9;background:#fff;border:1px solid var(--line);
+    border-radius:14px;padding:26px 30px 22px;display:flex;flex-direction:column;
+    position:relative;overflow:hidden;
+  }
+  .slide-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .slide-title{font-size:clamp(15px,1.9vw,20px);font-weight:800;color:var(--navy);letter-spacing:-.01em}
+  .slide-brand{font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--orange);text-transform:uppercase}
+  .slide-canvas{flex:1;position:relative;min-height:0}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:6px}
+  .kpi{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .kpi .v{font-size:clamp(22px,3vw,30px);font-weight:800;color:var(--navy);letter-spacing:-.02em;line-height:1}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:6px;font-weight:500}
+  .callout{display:flex;gap:12px;align-items:flex-start;background:rgba(42,111,176,.07);border:1px solid rgba(42,111,176,.18);border-radius:14px;padding:14px 16px;margin-top:14px;font-size:13.5px;color:var(--navy);line-height:1.5}
+  .callout .ic{font-size:18px;line-height:1}
+  .callout b{font-weight:700}
+
+  /* table */
+  table.vend{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:4px}
+  table.vend th{text-align:left;font-weight:700;color:var(--navy);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:2px solid var(--line)}
+  table.vend td{padding:11px 12px;border-bottom:1px solid var(--line);color:var(--ink)}
+  table.vend td.amt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:var(--navy)}
+  table.vend tr:hover td{background:var(--panel-2)}
+
+  /* diag cards */
+  .diag-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+  .diag{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:16px 17px;border-top:3px solid var(--blue)}
+  .diag h4{margin:0 0 7px;font-size:14px;font-weight:800;color:var(--navy);line-height:1.25}
+  .diag p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5}
+
+  /* conclusiones */
+  .concl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:6px}
+  .concl{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:15px 18px}
+  .concl .k{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--orange)}
+  .concl .v{font-size:14px;font-weight:700;color:var(--navy);margin-top:3px;line-height:1.35}
+
+  .reco{display:flex;gap:13px;align-items:flex-start;background:var(--navy);color:#fff;border-radius:14px;padding:18px 20px;margin-top:24px;line-height:1.55;font-size:14px}
+  .reco .ic{font-size:20px}
+  .reco b{color:var(--orange-2)}
+
+  .footer-brand{display:flex;justify-content:flex-end;margin-top:20px}
+  .footer-brand .pill{background:var(--navy);color:#fff;font-size:11px;font-weight:700;letter-spacing:.1em;padding:8px 16px;border-radius:999px;text-transform:uppercase}
+  .footer-brand .pill b{color:var(--orange-2)}
+
+  .float-toggle{position:fixed;left:14px;bottom:14px;z-index:50}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 20px;border-radius:999px;font-size:13px;font-weight:600;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;z-index:100}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+
+  /* export modal */
+  .exp-modal{position:fixed;inset:0;background:rgba(11,37,69,.55);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;z-index:200;padding:30px 16px;overflow:auto}
+  .exp-modal.show{display:flex}
+  .exp-card{background:#fff;border-radius:18px;max-width:760px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .exp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
+  .exp-head b{font-size:16px;color:var(--navy)}
+  .exp-tip{font-size:12.5px;color:var(--muted);margin-top:5px;max-width:50ch;line-height:1.45}
+  .exp-item{margin-bottom:20px}
+  .exp-item img{width:100%;border:1px solid var(--line);border-radius:10px;display:block}
+  .exp-row{display:flex;justify-content:space-between;align-items:center;margin-top:9px}
+  .exp-name{font-size:12px;color:var(--muted);font-family:monospace}
+
+  @media (max-width:1080px){
+    .app{flex-direction:column}
+    .editor{width:100%;flex:none;height:auto;position:static;border-right:none;border-bottom:1px solid var(--line)}
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .diag-grid,.concl-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= EDITOR ================= -->
+  <aside class="editor" id="editor">
+    <div class="ed-brand">M&amp;A · Generador de informes</div>
+    <div class="ed-title">Carga de datos</div>
+    <div class="ed-sub">Editá los valores en texto plano. El informe y todos los gráficos se regeneran solos. Cada gráfico se exporta en PNG 16:9 para tu presentación.</div>
+
+    <div class="field">
+      <label>Título del informe</label>
+      <input type="text" id="in-titulo" value="Informe Estadístico General — Carga de Datos Diarios">
+    </div>
+
+    <div class="field">
+      <label>Datos por sucursal</label>
+      <span class="hint">Una sucursal por línea, separada por <b>|</b> :<br>Nombre | Facturación ($) | Conversión (%) | Clientes</span>
+      <textarea id="in-sucursales" class="mono" rows="11"></textarea>
+    </div>
+
+    <details class="group">
+      <summary>Mejores vendedores</summary>
+      <div class="group-body">
+        <span class="hint">Sucursal | Vendedor | Facturación individual ($)</span>
+        <textarea id="in-vendedores" class="mono" rows="10"></textarea>
+      </div>
+    </details>
+
+    <details class="group">
+      <summary>Mejor día de facturación</summary>
+      <div class="group-body">
+        <textarea id="in-mejordia" rows="3"></textarea>
+      </div>
+    </details>
+
+    <details class="group">
+      <summary>Diagnóstico gerencial</summary>
+      <div class="group-body">
+        <span class="hint">Una tarjeta por línea: Título :: Texto</span>
+        <textarea id="in-diag" rows="9"></textarea>
+      </div>
+    </details>
+
+    <details class="group">
+      <summary>Conclusiones (texto libre)</summary>
+      <div class="group-body">
+        <span class="hint">Las 4 primeras se calculan solas. Estas dos las escribís vos:</span>
+        <div class="field"><label>Mejor equilibrio</label><input type="text" id="in-equilibrio"></div>
+        <div class="field"><label>Modelo a replicar</label><input type="text" id="in-modelo"></div>
+      </div>
+    </details>
+
+    <div class="field">
+      <label>Recomendación central</label>
+      <textarea id="in-reco" rows="4"></textarea>
+    </div>
+
+    <div class="ed-actions">
+      <button class="btn btn-primary" id="btn-regenerar">Actualizar informe</button>
+      <div style="display:flex;gap:8px;margin-top:9px">
+        <button class="btn btn-ghost btn-sm" id="btn-toggle" style="flex:1">Ocultar panel</button>
+        <button class="btn btn-orange btn-sm" id="btn-export-all" style="flex:1">Exportar todo PNG</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= REPORT ================= -->
+  <div class="report-wrap">
+    <div class="topbar">
+      <span class="eyebrow">Informe comercial · Red de sucursales</span>
+    </div>
+
+    <div class="report" id="report">
+      <h1 class="r-title" id="r-title"></h1>
+      <p class="r-sub" id="r-sub"></p>
+
+      <!-- Gráfico 1 -->
+      <div class="slide-block">
+        <div class="slide-tools"><button class="btn btn-ghost btn-sm" data-chart="fact">⬇ PNG 16:9</button></div>
+        <div class="slide" id="slide-fact">
+          <div class="slide-head"><div class="slide-title">Facturación por Sucursal (ARS)</div><div class="slide-brand">M&amp;A</div></div>
+          <div class="slide-canvas"><canvas id="ch-fact"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Gráfico 2 -->
+      <div class="slide-block">
+        <div class="slide-tools"><button class="btn btn-ghost btn-sm" data-chart="conv">⬇ PNG 16:9</button></div>
+        <div class="slide" id="slide-conv">
+          <div class="slide-head"><div class="slide-title">Conversión por Sucursal (%)</div><div class="slide-brand">M&amp;A</div></div>
+          <div class="slide-canvas"><canvas id="ch-conv"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Gráfico 3 -->
+      <div class="slide-block">
+        <div class="slide-tools"><button class="btn btn-ghost btn-sm" data-chart="scatter">⬇ PNG 16:9</button></div>
+        <div class="slide" id="slide-scatter">
+          <div class="slide-head"><div class="slide-title">Clientes Atendidos vs. Conversión</div><div class="slide-brand">M&amp;A</div></div>
+          <div class="slide-canvas"><canvas id="ch-scatter"></canvas></div>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <h2 class="section-h">Indicadores Clave de la Red</h2>
+      <div class="kpis" id="kpis"></div>
+      <div class="callout" id="mejordia"></div>
+
+      <!-- Vendedores -->
+      <h2 class="section-h">Mejores Vendedores por Sucursal</h2>
+      <table class="vend"><thead><tr><th>Sucursal</th><th>Vendedor destacado</th><th style="text-align:right">Facturación individual</th></tr></thead><tbody id="tb-vend"></tbody></table>
+
+      <!-- Diagnóstico -->
+      <h2 class="section-h">Diagnóstico Gerencial por Sucursal</h2>
+      <div class="diag-grid" id="diag-grid"></div>
+
+      <!-- Conclusiones -->
+      <h2 class="section-h">Primeras Conclusiones Estratégicas</h2>
+      <div class="concl-grid" id="concl-grid"></div>
+
+      <!-- Reco -->
+      <div class="reco" id="reco"></div>
+
+      <div class="footer-brand"><span class="pill">Hecho con <b>M&amp;A</b></span></div>
+    </div>
+  </div>
+</div>
+
+<button class="btn btn-orange float-toggle" id="btn-show" style="display:none">Mostrar panel</button>
+<div class="toast" id="toast"></div>
+
+<div class="exp-modal" id="exp-modal">
+  <div class="exp-card">
+    <div class="exp-head">
+      <div>
+        <b>Gráficos listos (PNG 16:9)</b>
+        <div class="exp-tip">Tocá <b>Descargar</b>, o hacé click derecho sobre la imagen → <b>Guardar imagen como…</b>. Si abriste el archivo en tu navegador, la descarga directa también funciona sola.</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="exp-close">Cerrar</button>
+    </div>
+    <div class="exp-body" id="exp-body"></div>
+  </div>
+</div>
+
+<script>
+/* ===================== DATOS POR DEFECTO (extraídos del PDF) ===================== */
+const DEFAULTS = {
+  titulo:"Informe Estadístico General — Carga de Datos Diarios",
+  sucursales:`Tucumán Capital | 209.900.000 | 32,8 | 451
+Salta | 134.600.000 | 43,7 | 238
+Córdoba | 57.000.000 | 52,6 | 57
+Jujuy | 53.000.000 | 29,0 | 120
+Orán | 50.000.000 | 40,0 | 115
+Santiago del Estero | 38.000.000 | 29,0 | 95
+Catamarca | 33.000.000 | 29,0 | 90
+Tucumán Interior | 31.000.000 | 41,0 | 75
+La Rioja | 16.100.000 | 23,1 | 79`,
+  vendedores:`Tucumán Capital | SUAREZ RUBEN SUAREZ | 66.300.223,5
+Salta | José Luis Alberto Mamani | 60.037.285
+Orán | Daiana Analía Belén Moreno | 56.443.887
+Jujuy | Jorge Humberto Rodríguez | 32.648.475
+Córdoba | Nicolás Francisco Frías | 31.754.735
+Tucumán Interior | Mario David Romano | 31.377.414
+Santiago del Estero | Diego Enrique Luna | 26.566.105
+Catamarca | Julián León López Osornio | 16.325.586
+La Rioja | Néstor David Benegas Llanos | 10.105.250`,
+  mejordia:"Tucumán Capital día 17 ($33,3M) · Salta día 23 ($20,2M) · Jujuy día 8 ($9,6M).",
+  diag:`🥇 Tucumán Capital — Liderazgo por Volumen :: 451 clientes y $210M facturados. Conversión del 32,8% (intermedia). Oportunidad clave: mejorar eficiencia sin aumentar tráfico.
+🏅 Córdoba — Referencia en Eficiencia :: Solo 57 clientes, pero 52,6% de conversión: el mejor indicador de la red. Proceso altamente efectivo, replicable en otras sucursales.
+⭐ Salta — Mejor Equilibrio Volumen-Eficiencia :: 238 clientes y 43,7% de conversión. Combina alto volumen con eficiencia superior. Modelo de referencia para la red.
+⚠️ La Rioja — Prioridad de Intervención :: Menor conversión (23,1%) y menor facturación ($16,1M). El foco debe estar en transformar oportunidades en ventas, no en tráfico.
+📊 Catamarca y Santiago — Desempeño Intermedio :: Conversión cercana al 29% y volumen similar. Desafío: mejorar técnicas de venta, seguimiento y generación de demanda.`,
+  equilibrio:"Salta — volumen alto + 43,7% conversión",
+  modelo:"Córdoba — alta conversión con bajo volumen",
+  reco:"Documentar y replicar las prácticas comerciales de Córdoba y Salta en La Rioja, Catamarca y Santiago del Estero para elevar la conversión promedio de la red hacia el 40%."
+};
+
+/* ===================== HELPERS ===================== */
+function num(s){
+  if(s==null) return 0;
+  s=String(s).trim().replace(/[$\s]/g,'');
+  if(s==='') return 0;
+  if(s.includes(',')){ s=s.replace(/\./g,'').replace(',','.'); }
+  else { const dots=(s.match(/\./g)||[]).length; if(dots>1) s=s.replace(/\./g,''); }
+  return parseFloat(s)||0;
+}
+const fmtInt = n => Math.round(n).toLocaleString('es-AR');
+const fmtPesos = n => '$'+Math.round(n).toLocaleString('es-AR');
+const fmtPesosDec = n => '$'+n.toLocaleString('es-AR',{minimumFractionDigits:Number.isInteger(n)?0:1,maximumFractionDigits:1});
+function fmtMillones(n){
+  const m=n/1e6;
+  return '$'+m.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+'M';
+}
+// escala de azules: t=0 oscuro (rank alto) -> t=1 claro
+function blueScale(t){
+  const a=[11,37,69], b=[142,197,230];
+  const r=Math.round(a[0]+(b[0]-a[0])*t),
+        g=Math.round(a[1]+(b[1]-a[1])*t),
+        bl=Math.round(a[2]+(b[2]-a[2])*t);
+  return `rgb(${r},${g},${bl})`;
+}
+function parseSucursales(txt){
+  return txt.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#')).map(l=>{
+    const p=l.split('|').map(x=>x.trim());
+    return {nombre:p[0]||'—', fact:num(p[1]), conv:num(p[2]), cli:Math.round(num(p[3]))};
+  }).filter(s=>s.nombre);
+}
+function parseVendedores(txt){
+  return txt.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const p=l.split('|').map(x=>x.trim());
+    return {suc:p[0]||'', vend:p[1]||'', fact:num(p[2])};
+  });
+}
+function parseDiag(txt){
+  return txt.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const i=l.indexOf('::');
+    if(i<0) return {t:l, p:''};
+    return {t:l.slice(0,i).trim(), p:l.slice(i+2).trim()};
+  });
+}
+
+/* ===================== CHART STATE ===================== */
+let chFact,chConv,chScatter;
+const baseFont={family:"'DM Sans',sans-serif"};
+Chart.defaults.font.family="'DM Sans',sans-serif";
+Chart.defaults.color="#5c6b80";
+
+// plugin línea promedio
+const avgLine={
+  id:'avgLine',
+  afterDatasetsDraw(chart,args,opts){
+    if(opts.value==null) return;
+    const {ctx,chartArea:{left,right},scales:{y}}=chart;
+    const yp=y.getPixelForValue(opts.value);
+    ctx.save();
+    ctx.beginPath();ctx.setLineDash([6,5]);ctx.moveTo(left,yp);ctx.lineTo(right,yp);
+    ctx.lineWidth=1.6;ctx.strokeStyle='#e63946';ctx.stroke();
+    ctx.setLineDash([]);
+    const label='Promedio Red: '+Math.round(opts.value);
+    ctx.font="700 12px 'DM Sans'";
+    const tw=ctx.measureText(label).width;
+    const bx=left+8, by=yp-11, bw=tw+18, bh=22;
+    ctx.fillStyle='#0b2545';
+    ctx.beginPath();ctx.roundRect(bx,by,bw,bh,6);ctx.fill();
+    ctx.fillStyle='#fff';ctx.textBaseline='middle';
+    ctx.fillText(label,bx+9,yp+1);
+    ctx.restore();
+  }
+};
+Chart.register(avgLine);
+
+/* ===================== RENDER ===================== */
+function render(){
+  const data=parseSucursales(val('in-sucursales'));
+  const vend=parseVendedores(val('in-vendedores'));
+  const diag=parseDiag(val('in-diag'));
+
+  // título + subtítulo
+  const titulo=val('in-titulo')||DEFAULTS.titulo;
+  document.getElementById('r-title').textContent=titulo;
+
+  const totCli=data.reduce((a,s)=>a+s.cli,0);
+  const totFact=data.reduce((a,s)=>a+s.fact,0);
+  const avgConv=data.length? data.reduce((a,s)=>a+s.conv,0)/data.length : 0;
+
+  document.getElementById('r-sub').innerHTML=
+    `Resumen del desempeño comercial de la red: <b>${fmtInt(totCli)} clientes atendidos</b> y `+
+    `<b>${fmtMillones(totFact).replace('$','$')} </b> facturados. Conversión promedio: <b>${Math.round(avgConv)}%</b>.`;
+
+  /* ---- Gráfico facturación (barras horizontales, desc) ---- */
+  const fSorted=[...data].sort((a,b)=>b.fact-a.fact);
+  const fColors=fSorted.map((_,i)=>blueScale(fSorted.length>1? i/(fSorted.length-1):0));
+  drawFact(fSorted.map(s=>s.nombre), fSorted.map(s=>s.fact), fColors);
+
+  /* ---- Gráfico conversión (barras verticales, desc, línea promedio) ---- */
+  const cSorted=[...data].sort((a,b)=>b.conv-a.conv);
+  const cColors=cSorted.map((_,i)=>blueScale(cSorted.length>1? i/(cSorted.length-1):0));
+  drawConv(cSorted.map(s=>s.nombre), cSorted.map(s=>s.conv), cColors, avgConv);
+
+  /* ---- Scatter clientes vs conversión ---- */
+  drawScatter(data);
+
+  /* ---- KPIs ---- */
+  document.getElementById('kpis').innerHTML=[
+    [fmtInt(totCli),'Clientes atendidos en total'],
+    [fmtMillones(totFact),'Facturación total de la red'],
+    [Math.round(avgConv)+'%','Conversión promedio'],
+    [data.length,'Sucursales activas']
+  ].map(k=>`<div class="kpi"><div class="v">${k[0]}</div><div class="l">${k[1]}</div></div>`).join('');
+
+  document.getElementById('mejordia').innerHTML=
+    `<span class="ic">📌</span><div><b>Mejor día de facturación:</b> ${esc(val('in-mejordia'))}</div>`;
+
+  /* ---- Vendedores ---- */
+  document.getElementById('tb-vend').innerHTML=vend.map(v=>
+    `<tr><td>${esc(v.suc)}</td><td>${esc(v.vend)}</td><td class="amt">${fmtPesosDec(v.fact)}</td></tr>`).join('');
+
+  /* ---- Diagnóstico ---- */
+  document.getElementById('diag-grid').innerHTML=diag.map(d=>
+    `<div class="diag"><h4>${esc(d.t)}</h4><p>${esc(d.p)}</p></div>`).join('');
+
+  /* ---- Conclusiones (auto + manual) ---- */
+  const maxCli=[...data].sort((a,b)=>b.cli-a.cli)[0];
+  const maxFact=[...data].sort((a,b)=>b.fact-a.fact)[0];
+  const maxConv=[...data].sort((a,b)=>b.conv-a.conv)[0];
+  const minConv=[...data].sort((a,b)=>a.conv-b.conv)[0];
+  const concl=[
+    ['Mayor Volumen', maxCli? `${maxCli.nombre} — ${fmtInt(maxCli.cli)} clientes atendidos`:'—'],
+    ['Mayor Facturación', maxFact? `${maxFact.nombre} — ${fmtMillones(maxFact.fact).replace('$','$')} `+(maxFact.fact>=1e6?'':''):'—'],
+    ['Mayor Eficiencia', maxConv? `${maxConv.nombre} — ${maxConv.conv.toLocaleString('es-AR')}% de conversión`:'—'],
+    ['Mejor Equilibrio', esc(val('in-equilibrio'))],
+    ['Mayor Potencial', minConv? `${minConv.nombre} — prioridad de intervención`:'—'],
+    ['Modelo a Replicar', esc(val('in-modelo'))]
+  ];
+  document.getElementById('concl-grid').innerHTML=concl.map(c=>
+    `<div class="concl"><div class="k">${c[0]}</div><div class="v">${c[1]}</div></div>`).join('');
+
+  /* ---- Reco ---- */
+  document.getElementById('reco').innerHTML=
+    `<span class="ic">🎯</span><div><b>Recomendación central:</b> ${esc(val('in-reco'))}</div>`;
+}
+
+/* ---- chart builders ---- */
+function drawFact(labels,values,colors){
+  if(chFact) chFact.destroy();
+  chFact=new Chart(document.getElementById('ch-fact'),{
+    type:'bar',
+    data:{labels,datasets:[{data:values,backgroundColor:colors,borderRadius:3,barThickness:'flex',maxBarThickness:26}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:2,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtMillones(c.raw)}}},
+      scales:{
+        x:{ticks:{callback:v=>fmtMillones(v).replace('$','$').replace(',0','')},grid:{color:'#eef2f7'},border:{display:false}},
+        y:{ticks:{font:{weight:'600',size:12},color:'#0e1b2e'},grid:{display:false},border:{display:false}}
+      }}
+  });
+}
+function drawConv(labels,values,colors,avg){
+  if(chConv) chConv.destroy();
+  const maxV=Math.max(...values,0)*1.18||50;
+  chConv=new Chart(document.getElementById('ch-conv'),{
+    type:'bar',
+    data:{labels,datasets:[{data:values,backgroundColor:colors,borderRadius:4,maxBarThickness:54}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:2,
+      plugins:{legend:{display:false},avgLine:{value:avg},tooltip:{callbacks:{label:c=>c.raw.toLocaleString('es-AR')+'%'}}},
+      scales:{
+        x:{ticks:{font:{weight:'600',size:11},color:'#0e1b2e',autoSkip:false,maxRotation:0,minRotation:0},grid:{display:false},border:{display:false}},
+        y:{beginAtZero:true,suggestedMax:maxV,ticks:{callback:v=>v+'%'},grid:{color:'#eef2f7'},border:{display:false}}
+      }}
+  });
+}
+function drawScatter(data){
+  if(chScatter) chScatter.destroy();
+  chScatter=new Chart(document.getElementById('ch-scatter'),{
+    type:'scatter',
+    data:{datasets:[{
+      data:data.map(s=>({x:s.cli,y:s.conv,n:s.nombre})),
+      backgroundColor:'#13315c',borderColor:'#fff',borderWidth:1.5,pointRadius:7,pointHoverRadius:9
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:2,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.n}: ${c.raw.x} clientes · ${c.raw.y}%`}}},
+      scales:{
+        x:{title:{display:true,text:'Clientes Atendidos',font:{weight:'600'}},beginAtZero:true,grid:{color:'#eef2f7'},border:{display:false}},
+        y:{title:{display:true,text:'Conversión (%)',font:{weight:'600'}},ticks:{callback:v=>v+'%'},grid:{color:'#eef2f7'},border:{display:false}}
+      }}
+  });
+}
+
+/* ===================== EXPORT PNG 16:9 (nativo, sin librerías) ===================== */
+const CHART_META={
+  fact:{get:()=>chFact, title:'Facturación por Sucursal (ARS)', name:'facturacion_por_sucursal'},
+  conv:{get:()=>chConv, title:'Conversión por Sucursal (%)', name:'conversion_por_sucursal'},
+  scatter:{get:()=>chScatter, title:'Clientes Atendidos vs. Conversión', name:'clientes_vs_conversion'}
+};
+
+// dibuja encabezado M&A + gráfico dentro de un lienzo 1920x1080
+function composeSlide(chart, title){
+  const W=1920, H=1080, pad=80;
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
+  // eyebrow M&A (derecha)
+  ctx.textBaseline='top';
+  ctx.fillStyle='#f3722c'; ctx.font="700 24px 'DM Sans', sans-serif";
+  const eb='M\u0026A';
+  ctx.fillText(eb, W-pad-ctx.measureText(eb).width, pad+6);
+  // título (izquierda)
+  ctx.fillStyle='#0b2545'; ctx.font="800 46px 'DM Sans', sans-serif";
+  ctx.fillText(title, pad, pad);
+  // divisor
+  ctx.strokeStyle='#e6ebf2'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(pad, pad+78); ctx.lineTo(W-pad, pad+78); ctx.stroke();
+  // área de contenido
+  const cx=pad, cy=pad+110, cw=W-pad*2, chh=H-cy-pad;
+  // ajustar el gráfico manteniendo proporción (contain)
+  const src=chart.canvas;
+  const sr=src.width/src.height, dr=cw/chh;
+  let dw,dh;
+  if(sr>dr){ dw=cw; dh=cw/sr; } else { dh=chh; dw=chh*sr; }
+  const dx=cx+(cw-dw)/2, dy=cy+(chh-dh)/2;
+  ctx.drawImage(src, dx, dy, dw, dh);
+  // pie de marca
+  ctx.fillStyle='#9aa6b8'; ctx.font="600 18px 'DM Sans', sans-serif";
+  ctx.fillText('M\u0026A Equipamientos Comerciales', pad, H-pad+22);
+  return c;
+}
+
+// intenta la descarga directa (funciona al abrir el archivo en el navegador)
+function attemptDownload(url, filename){
+  try{
+    const a=document.createElement('a');
+    a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ /* si el entorno lo bloquea, queda el modal de respaldo */ }
+}
+
+async function buildImage(key){
+  const m=CHART_META[key]; if(!m) return null;
+  const chart=m.get(); if(!chart) return null;
+  await document.fonts.ready;
+  await new Promise(r=>setTimeout(r,40));
+  const canvas=composeSlide(chart, m.title);
+  return {url:canvas.toDataURL('image/png'), name:m.name+'_16x9.png'};
+}
+
+async function exportChart(key){
+  const m=CHART_META[key];
+  if(!m || !m.get()){ toast('Generá el informe primero'); return; }
+  toast('Generando PNG…');
+  const img=await buildImage(key);
+  if(!img){ toast('No se pudo generar el PNG'); return; }
+  attemptDownload(img.url, img.name);
+  openExportModal([img]);
+}
+async function exportAll(){
+  toast('Generando los 3 PNG…');
+  const imgs=[];
+  for(const key of ['fact','conv','scatter']){
+    const img=await buildImage(key);
+    if(img){ imgs.push(img); attemptDownload(img.url,img.name); await new Promise(r=>setTimeout(r,200)); }
+  }
+  if(imgs.length) openExportModal(imgs);
+}
+function openExportModal(imgs){
+  document.getElementById('exp-body').innerHTML=imgs.map(im=>`
+    <div class="exp-item">
+      <img src="${im.url}" alt="${im.name}">
+      <div class="exp-row">
+        <span class="exp-name">${im.name}</span>
+        <a class="btn btn-orange btn-sm" href="${im.url}" download="${im.name}">Descargar</a>
+      </div>
+    </div>`).join('');
+  document.getElementById('exp-modal').classList.add('show');
+}
+
+/* ===================== UTIL UI ===================== */
+function val(id){return document.getElementById(id).value;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+let toastT;
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
+
+/* init defaults */
+document.getElementById('in-titulo').value=DEFAULTS.titulo;
+document.getElementById('in-sucursales').value=DEFAULTS.sucursales;
+document.getElementById('in-vendedores').value=DEFAULTS.vendedores;
+document.getElementById('in-mejordia').value=DEFAULTS.mejordia;
+document.getElementById('in-diag').value=DEFAULTS.diag;
+document.getElementById('in-equilibrio').value=DEFAULTS.equilibrio;
+document.getElementById('in-modelo').value=DEFAULTS.modelo;
+document.getElementById('in-reco').value=DEFAULTS.reco;
+
+/* events */
+let deb;
+document.querySelectorAll('.editor input, .editor textarea').forEach(el=>{
+  el.addEventListener('input',()=>{clearTimeout(deb);deb=setTimeout(render,450);});
+});
+document.getElementById('btn-regenerar').addEventListener('click',()=>{render();toast('Informe actualizado');});
+document.getElementById('btn-export-all').addEventListener('click',exportAll);
+document.querySelectorAll('[data-chart]').forEach(b=>{
+  b.addEventListener('click',()=>exportChart(b.dataset.chart));
+});
+document.getElementById('btn-toggle').addEventListener('click',()=>{
+  document.getElementById('editor').classList.add('hidden');
+  document.getElementById('btn-show').style.display='inline-flex';
+});
+document.getElementById('btn-show').addEventListener('click',()=>{
+  document.getElementById('editor').classList.remove('hidden');
+  document.getElementById('btn-show').style.display='none';
+});
+document.getElementById('exp-close').addEventListener('click',()=>document.getElementById('exp-modal').classList.remove('show'));
+document.getElementById('exp-modal').addEventListener('click',e=>{ if(e.target.id==='exp-modal') e.target.classList.remove('show'); });
+
+/* first paint */
+if(document.fonts && document.fonts.ready){ document.fonts.ready.then(render); }
+render();
+</script>
+</body>
+</html>

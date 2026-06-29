@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proyección de Facturación · Gerentes · Junio 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --navy:#0B2545;--navy-2:#163A66;--blue:#2E6FB7;--orange:#F5821F;--orange-soft:#FFB36B;
+    --ink:#1D1D1F;--ink-2:#6E6E73;--line:#E6E6EB;--bg:#E8E8ED;--card:#FFFFFF;
+    --green:#1E9E5A;--red:#D93A3A;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  html,body{background:var(--bg);font-family:'DM Sans',-apple-system,sans-serif;color:var(--ink);}
+  #viewport{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;}
+  #scaler{transform-origin:center center;}
+  #stage{
+    width:1280px;height:720px;background:var(--card);border-radius:26px;overflow:hidden;position:relative;
+    box-shadow:0 30px 80px rgba(11,37,69,.22);display:flex;flex-direction:column;padding:28px 36px 24px;
+  }
+  /* HEADER */
+  .head{display:flex;justify-content:space-between;align-items:flex-start;}
+  .brand{display:flex;align-items:center;gap:14px;}
+  .logo{width:50px;height:50px;border-radius:14px;background:linear-gradient(135deg,var(--navy),var(--navy-2));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:19px;letter-spacing:.5px;
+    box-shadow:0 6px 16px rgba(11,37,69,.28);}
+  .logo b{color:var(--orange);}
+  .h-txt h1{font-size:22px;font-weight:700;letter-spacing:-.4px;line-height:1.1;}
+  .h-txt p{font-size:13px;color:var(--ink-2);margin-top:3px;font-weight:500;}
+  .head-right{display:flex;align-items:center;gap:10px;}
+  .pill{background:#FFF3E8;color:var(--orange);border:1px solid #FFD9B8;padding:7px 14px;border-radius:999px;
+    font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:7px;}
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--orange);}
+  .pill-date{background:#F2F3F6;color:var(--ink-2);border-color:var(--line);}
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-top:18px;}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;box-shadow:0 1px 0 rgba(0,0,0,.02);}
+  .kpi .lab{font-size:11.5px;color:var(--ink-2);font-weight:600;display:flex;align-items:center;gap:7px;}
+  .kpi .lab .sw{width:9px;height:9px;border-radius:3px;}
+  .kpi .val{font-size:29px;font-weight:700;letter-spacing:-1px;margin-top:6px;line-height:1;}
+  .chip-up{display:inline-flex;align-items:center;gap:4px;background:rgba(30,158,90,.12);color:var(--green);
+    font-weight:700;font-size:11px;padding:3px 8px;border-radius:7px;margin-top:7px;}
+  .chip-up span{font-weight:500;color:var(--ink-2);}
+  .kpi.hero{background:linear-gradient(135deg,var(--navy),var(--navy-2));border:none;box-shadow:0 14px 30px rgba(11,37,69,.30);}
+  .kpi.hero .lab{color:rgba(255,255,255,.72);}
+  .kpi.hero .val{color:#fff;}
+  .kpi.hero .chip-up{background:rgba(245,130,31,.22);color:var(--orange-soft);}
+  .kpi.hero .chip-up span{color:rgba(255,255,255,.72);}
+  /* MAIN */
+  .main{flex:1;display:flex;gap:18px;margin-top:15px;min-height:0;}
+  .chart-card{flex:1;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:15px 18px 6px;
+    display:flex;flex-direction:column;min-width:0;}
+  .cc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+  .cc-head h2{font-size:15px;font-weight:700;letter-spacing:-.2px;}
+  .cc-head .note{font-size:10.5px;color:var(--ink-2);font-weight:500;}
+  .legend{display:flex;gap:14px;margin-top:2px;}
+  .lg{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);font-weight:600;}
+  .lg .sw{width:11px;height:11px;border-radius:3px;}
+  .chart-wrap{flex:1;position:relative;min-height:0;}
+  /* SIDE */
+  .side{width:258px;display:flex;flex-direction:column;gap:9px;}
+  .side-title{font-size:12.5px;font-weight:700;letter-spacing:-.1px;display:flex;align-items:center;gap:8px;}
+  .side-title .bar{width:4px;height:14px;border-radius:2px;background:var(--orange);}
+  .cmp{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:10px 13px;
+    display:flex;justify-content:space-between;align-items:center;}
+  .cmp.lead{background:linear-gradient(135deg,#F4F8FF,#EAF1FB);border-color:#D8E5F7;}
+  .cmp .l .t{font-size:12.5px;font-weight:600;}
+  .cmp .l .d{font-size:10.5px;color:var(--ink-2);margin-top:2px;}
+  .cmp .delta{font-size:17px;font-weight:700;color:var(--green);letter-spacing:-.5px;}
+  .cmp.lead .delta{font-size:20px;color:var(--blue);}
+  .hl{border-radius:12px;padding:9px 12px;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;}
+  .hl b{font-weight:700;}
+  .hl span{font-weight:700;font-size:13px;}
+  .hl.up{background:rgba(30,158,90,.10);color:var(--green);}
+  .hl.down{background:rgba(217,58,58,.09);color:var(--red);}
+  /* FOOTER */
+  .foot{display:flex;justify-content:space-between;align-items:center;margin-top:11px;font-size:10.5px;color:var(--ink-2);font-weight:500;}
+  .foot .acc{color:var(--orange);font-weight:700;}
+  /* EXPORT */
+  #exportBtn{position:fixed;bottom:22px;right:22px;z-index:50;background:var(--navy);color:#fff;border:none;cursor:pointer;
+    padding:13px 20px;border-radius:14px;font-family:inherit;font-size:14px;font-weight:600;
+    box-shadow:0 10px 28px rgba(11,37,69,.4);display:flex;align-items:center;gap:9px;transition:transform .15s;}
+  #exportBtn:hover{transform:translateY(-2px);}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="scaler">
+    <div id="stage">
+      <div class="head">
+        <div class="brand">
+          <div class="logo">M<b>&</b>A</div>
+          <div class="h-txt">
+            <h1>Proyección de Facturación · Gerentes</h1>
+            <p>Departamento Comercial · Cierre de mes Junio 2026</p>
+          </div>
+        </div>
+        <div class="head-right">
+          <div class="pill"><span class="dot"></span>2 días restantes</div>
+          <div class="pill pill-date">29/06/2026</div>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="lab"><span class="sw" style="background:var(--navy)"></span>Facturado Neto</div>
+          <div class="val" id="k-neto">—</div>
+          <div class="chip-up">▲ +32% <span>vs Mayo mismo día</span></div>
+        </div>
+        <div class="kpi">
+          <div class="lab"><span class="sw" style="background:var(--blue)"></span>Reservas Generadas</div>
+          <div class="val" id="k-res">—</div>
+          <div class="chip-up">▲ +17% <span>vs Mayo</span></div>
+        </div>
+        <div class="kpi">
+          <div class="lab"><span class="sw" style="background:var(--orange)"></span>Proyección (2 días)</div>
+          <div class="val" id="k-proy">—</div>
+          <div class="chip-up">▲ +42% <span>vs Mayo</span></div>
+        </div>
+        <div class="kpi hero">
+          <div class="lab">Total Final Proyectado</div>
+          <div class="val" id="k-total">—</div>
+          <div class="chip-up" id="k-vs-mayo">▲ —</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="chart-card">
+          <div class="cc-head">
+            <h2>Composición por gerente · proyectado al cierre</h2>
+            <div class="note">% = facturado neto vs mismo día de Mayo</div>
+          </div>
+          <div class="legend">
+            <div class="lg"><span class="sw" style="background:var(--navy)"></span>Facturado</div>
+            <div class="lg"><span class="sw" style="background:var(--blue)"></span>Reservas</div>
+            <div class="lg"><span class="sw" style="background:var(--orange)"></span>Proyección</div>
+            <div class="lg" style="margin-left:auto"><span style="color:var(--green);font-weight:700">▲</span>/<span style="color:var(--red);font-weight:700">▼</span> var. intermensual</div>
+          </div>
+          <div class="chart-wrap"><canvas id="chart"></canvas></div>
+        </div>
+
+        <div class="side">
+          <div class="side-title"><span class="bar"></span>Variación vs Mayo · mismo día</div>
+          <div class="cmp lead">
+            <div class="l"><div class="t">Facturado Neto</div><div class="d" id="s-fact-d">—</div></div>
+            <div class="delta" id="s-fact">—</div>
+          </div>
+          <div class="cmp">
+            <div class="l"><div class="t">Contado</div><div class="d">Jun $103M · May $71M</div></div>
+            <div class="delta">+45%</div>
+          </div>
+          <div class="cmp">
+            <div class="l"><div class="t">Financiado</div><div class="d">Jun $55M · May $37M</div></div>
+            <div class="delta">+46%</div>
+          </div>
+          <div class="hl up" id="s-up"></div>
+          <div class="hl down" id="s-down"></div>
+        </div>
+      </div>
+
+      <div class="foot">
+        <div>Fuente: <span class="acc">Sistema de Facturación M&A</span> · Var. = facturado neto al 29/06 vs mismo día de Mayo</div>
+        <div>10 gerentes (excl. Gil) · Pesos argentinos (ARS)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button id="exportBtn" onclick="exportPNG()">⤓ Exportar PNG</button>
+
+<script>
+// ---------- DATA (Gil excluido) ----------
+const raw = [
+  {n:"GUIPPONI EMANUEL AGUSTIN",    neto:25615805, res:2310400, proy:3000000, may:4683521},
+  {n:"FONTANA VALDEZ HUGO FACUNDO", neto:21410389, res:838100,  proy:500000,  may:11732745},
+  {n:"GOMEZ LEONARDO DAMIAN",       neto:21295543, res:0,       proy:4000000, may:8583451},
+  {n:"ISA MASSA VICTOR YAMIL",      neto:17707248, res:4758970, proy:4700000, may:6469141},
+  {n:"ARJONA SEBASTIAN RICARDO",    neto:15700520, res:0,       proy:5000000, may:13589471},
+  {n:"ROIG BAÑA SEBASTIAN",         neto:15233809, res:0,       proy:3000000, may:19790439},
+  {n:"DEPETRIS LEANDRO GABRIEL",    neto:15206417, res:1039433, proy:5000000, may:11870958},
+  {n:"LUDUEÑA GABRIEL EZEQUIEL",    neto:11559710, res:5408400, proy:5000000, may:18577702.5},
+  {n:"RODRIGUEZ CARLOS NAZARIO",    neto:6910626,  res:2567790, proy:7000000, may:7752808},
+  {n:"RIOS NIETO SEBASTIAN VIVIANO",neto:4874690,  res:0,       proy:1000000, may:14617360},
+];
+const MAYO_CIERRE = 147000000;
+raw.forEach(d=>{ d.total=d.neto+d.res+d.proy; d.pct=(d.neto-d.may)/d.may*100; });
+raw.sort((a,b)=>b.total-a.total);
+
+const short = s => { const w=s.trim().split(/\s+/)[0].toLowerCase(); return w.charAt(0).toUpperCase()+w.slice(1); };
+const fmtM = n => '$'+(n/1e6).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+'M';
+const fmtFull = n => '$'+new Intl.NumberFormat('es-AR').format(Math.round(n));
+const sum = k => raw.reduce((a,d)=>a+d[k],0);
+
+const tNeto=sum('neto'),tRes=sum('res'),tProy=sum('proy'),tTot=sum('total'),tMay=sum('may');
+document.getElementById('k-neto').textContent=fmtM(tNeto);
+document.getElementById('k-res').textContent=fmtM(tRes);
+document.getElementById('k-proy').textContent=fmtM(tProy);
+document.getElementById('k-total').textContent=fmtM(tTot);
+document.getElementById('k-vs-mayo').innerHTML='▲ +'+Math.round((tTot/MAYO_CIERRE-1)*100)+'% <span>vs cierre Mayo $147M</span>';
+
+const factPct=Math.round((tNeto-tMay)/tMay*100);
+document.getElementById('s-fact').textContent='+'+factPct+'%';
+document.getElementById('s-fact-d').textContent='Jun '+fmtM(tNeto)+' · May '+fmtM(tMay);
+
+const up=[...raw].sort((a,b)=>b.pct-a.pct)[0];
+const down=[...raw].sort((a,b)=>a.pct-b.pct)[0];
+document.getElementById('s-up').innerHTML='▲ Mayor suba · <b>'+short(up.n)+'</b> <span>+'+Math.round(up.pct)+'%</span>';
+document.getElementById('s-down').innerHTML='▼ Mayor baja · <b>'+short(down.n)+'</b> <span>'+Math.round(down.pct)+'%</span>';
+
+// ---------- CHART ----------
+const C={neto:'#0B2545',res:'#2E6FB7',proy:'#F5821F'};
+const labels=raw.map(d=>short(d.n));
+const totals=raw.map(d=>d.total);
+const pcts=raw.map(d=>d.pct);
+
+const endLabel={
+  id:'endLabel',
+  afterDatasetsDraw(chart){
+    const {ctx}=chart;
+    const meta=chart.getDatasetMeta(chart.data.datasets.length-1);
+    meta.data.forEach((bar,i)=>{
+      ctx.save(); ctx.textBaseline='middle'; ctx.textAlign='left';
+      ctx.font='700 12.5px "DM Sans"'; ctx.fillStyle='#1D1D1F';
+      const tTxt=fmtM(totals[i]); ctx.fillText(tTxt,bar.x+9,bar.y);
+      const tW=ctx.measureText(tTxt).width;
+      const u=pcts[i]>=0;
+      ctx.font='700 11.5px "DM Sans"'; ctx.fillStyle=u?'#1E9E5A':'#D93A3A';
+      ctx.fillText((u?'▲ +':'▼ ')+Math.round(pcts[i])+'%', bar.x+9+tW+11, bar.y);
+      ctx.restore();
+    });
+  }
+};
+
+function buildChart(){
+  new Chart(document.getElementById('chart'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Facturado',data:raw.map(d=>d.neto),backgroundColor:C.neto,borderRadius:{topLeft:5,bottomLeft:5},borderSkipped:false,barThickness:22},
+      {label:'Reservas', data:raw.map(d=>d.res), backgroundColor:C.res,barThickness:22},
+      {label:'Proyección',data:raw.map(d=>d.proy),backgroundColor:C.proy,borderRadius:{topRight:5,bottomRight:5},borderSkipped:false,barThickness:22},
+    ]},
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      layout:{padding:{right:156,top:2,bottom:0}},
+      scales:{
+        x:{stacked:true,grid:{color:'#F0F0F4',drawBorder:false},border:{display:false},
+           ticks:{color:'#9A9AA0',font:{family:'DM Sans',size:11,weight:'500'},callback:v=>'$'+(v/1e6)+'M'}},
+        y:{stacked:true,reverse:true,grid:{display:false},border:{display:false},
+           ticks:{color:'#1D1D1F',font:{family:'DM Sans',size:12.5,weight:'600'}}}
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#0B2545',padding:12,cornerRadius:10,
+          titleFont:{family:'DM Sans',size:13,weight:'700'},bodyFont:{family:'DM Sans',size:12.5},
+          callbacks:{
+            label:c=>'  '+c.dataset.label+': '+fmtFull(c.raw),
+            afterBody:items=>{
+              const i=items[0].dataIndex; const v=Math.round(pcts[i]);
+              return '  ─────────────\n  Total proyectado: '+fmtFull(totals[i])+
+                     '\n  Facturado Mayo: '+fmtFull(raw[i].may)+
+                     '\n  Var. facturado: '+(v>=0?'+':'')+v+'%';
+            }
+          }
+        }
+      }
+    },
+    plugins:[endLabel]
+  });
+}
+
+function fitStage(){
+  const s=Math.min((window.innerWidth-32)/1280,(window.innerHeight-32)/720,2);
+  document.getElementById('scaler').style.transform='scale('+s+')';
+}
+window.addEventListener('resize',fitStage);
+
+async function exportPNG(){
+  const btn=document.getElementById('exportBtn');btn.style.display='none';
+  const sc=document.getElementById('scaler');const prev=sc.style.transform;sc.style.transform='scale(1)';
+  await new Promise(r=>setTimeout(r,80));
+  const canvas=await html2canvas(document.getElementById('stage'),{scale:2,backgroundColor:'#ffffff',useCORS:true});
+  sc.style.transform=prev;btn.style.display='flex';
+  const a=document.createElement('a');a.download='Proyeccion_Gerentes_Junio2026.png';a.href=canvas.toDataURL('image/png');a.click();
+}
+
+document.fonts.ready.then(()=>{buildChart();fitStage();});
+fitStage();
+</script>
+</body>
+</html>
