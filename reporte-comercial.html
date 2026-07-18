@@ -2501,7 +2501,8 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.version && parsed.ventas && parsed.maestras) {
+      if (parsed && parsed.version && parsed.maestras) {
+        parsed.ventas = parsed.ventas || [];
         migrateState(parsed);
         return parsed;
       }
@@ -2547,7 +2548,13 @@ function migrateState(s) {
 function saveState() {
   if (typeof MODO_GERENTE !== 'undefined' && MODO_GERENTE) return;
   if (typeof MODO_LIDER !== 'undefined' && MODO_LIDER) return;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE)); }
+  try {
+    // Las ventas no se guardan acá: ya viven en la nube (CloudSync) y son
+    // demasiado grandes para la cuota de localStorage. Se recuperan solas
+    // desde la nube al cargar la página (fetchAndMergeCloud).
+    const { ventas, ...rest } = STATE;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+  }
   catch(e) { toast('warn', 'No pude autoguardar en el navegador. Recordá exportar a JSON desde Backup.'); }
 }
 let STATE = loadState();
@@ -2742,6 +2749,15 @@ const FILTER_DEFS = [
   { key: 'plan', id: 'f_plan' },
   { key: 'tipo_venta', id: 'f_tipo_venta' }
 ];
+
+function escAttr(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/'/g, '&#39;');
+}
 
 const fmt = {
   money: n => '$' + Math.round(n).toLocaleString('es-AR'),
