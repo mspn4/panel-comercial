@@ -21,10 +21,11 @@ GitHub Pages (repo público)
 ├── informe-showroom-sucursales.html
 └── evolucion-vendedores.html
 
-Google Apps Script (2 scripts separados)
+Google Apps Script (4 scripts separados)
 ├── LectorAgendas.gs             ← Lee Sheets de agendas (ya deployado)
 ├── BackendPanel.gs              ← Base de conocimiento + Recursos Gráficos + layout (ya deployado)
-└── CloudSync.gs                 ← Sync de ventas + backup GitHub (PENDIENTE de deploy)
+├── CloudSync.gs                 ← Sync de ventas + backup GitHub (ya deployado)
+└── AIProxy.gs                   ← Proxy a Claude/ChatGPT para la pestaña IA (PENDIENTE de deploy)
 ```
 
 ---
@@ -47,15 +48,21 @@ Google Apps Script (2 scripts separados)
   - `EDIT_KEY`: Sebastian debe definirlo (clave propia, no está en el código fuente).
 - **Usado por:** `index.html`
 
-### 3. CloudSync.gs ← **PENDIENTE DE DEPLOY**
+### 3. CloudSync.gs
+- **URL exec:** ver `CLOUD_CONFIG.APPSSCRIPT_URL` dentro de `reporte-comercial.html` (ya deployado y en uso).
 - **Función:** Recibe ventas nuevas del dashboard, las guarda en `ventas-live.json` en Drive (fuente compartida), y tiene una función `dailyGithubBackup` para disparar a las 23:00.
+- **Usado por:** `reporte-comercial.html` (`fetchAndMergeCloud()` / `pushToCloud()`).
+
+### 4. AIProxy.gs ← **PENDIENTE DE DEPLOY**
+- **Función:** Proxy hacia las APIs de Claude (Anthropic) y ChatGPT (OpenAI) para la pestaña **IA** del reporte comercial. Guarda las API keys en Propiedades del Script (nunca en el HTML, el repo es público). Arma el contexto de cada consulta con: resumen agregado de ventas que manda el frontend (`buildDataContext()`, respeta los filtros activos del dashboard) + texto de la carpeta de Base de Conocimiento (`KNOWLEDGE_FOLDER_ID`, la misma que usa `index.html`).
+- **Gate de acceso:** valida `IA_ACCESS_KEY` (Script Property) contra la clave que pide el frontend por `window.prompt` la primera vez — cada consulta gasta crédito de API paga, por eso queda protegida.
+- **Limitación conocida:** de la Base de Conocimiento solo puede leer texto de Google Docs nativos y `.txt`. Archivos Word/PDF subidos tal cual se listan por nombre pero sin extraer su contenido (Apps Script no soporta esa extracción sin el servicio avanzado de Drive + OCR). Si hace falta que la IA los lea, convertirlos a Google Doc al subirlos.
 - **Pendiente del usuario:**
-  1. Crear carpeta en Drive, pegar su ID en `DATA_FOLDER_ID`.
-  2. Subir el último backup JSON como `seed.json` en esa carpeta.
-  3. Ejecutar `seedFromDrive()` una vez a mano desde el editor.
-  4. Deploy como Web App (Ejecutar como: Yo, Acceso: Cualquiera).
-  5. Copiar la URL `/exec` y pegarla en `CLOUD_CONFIG.APPSSCRIPT_URL` dentro de `reporte-comercial.html`.
-  6. (Opcional) Configurar backup nocturno a GitHub: token en Script Properties (`GITHUB_TOKEN`, `GITHUB_REPO`, `GITHUB_BRANCH`, `GITHUB_PATH`), agregar disparador diario sobre `dailyGithubBackup` a las 23:00.
+  1. Crear el proyecto en script.google.com con el código de `AIProxy.gs`.
+  2. Propiedades del script → agregar `ANTHROPIC_API_KEY` y/o `OPENAI_API_KEY` (según qué proveedor(es) uses), `IA_ACCESS_KEY` (clave propia a compartir), y opcionalmente `ANTHROPIC_MODEL` / `OPENAI_MODEL` para fijar un modelo distinto al default.
+  3. Deploy como Web App (Ejecutar como: Yo, Acceso: Cualquiera).
+  4. Copiar la URL `/exec` y pegarla en `AI_CONFIG.APPSSCRIPT_URL` dentro de `reporte-comercial.html`.
+- **Usado por:** pestaña "IA" de `reporte-comercial.html` (`sendIAMessage()`).
 
 ---
 
@@ -106,6 +113,7 @@ Google Apps Script (2 scripts separados)
 - Al abrir: carga local + `fetchAndMergeCloud()` para sincronizar novedades.
 - **Estado actual:** el archivo tiene datos históricos incrustados en un `<script type="application/json" id="initial-data-embed">`. **TAREA PENDIENTE: eliminar ese bloque y reemplazar por un array vacío**, para que la fuente de verdad sea exclusivamente la nube (CloudSync).
 - `CLOUD_CONFIG.APPSSCRIPT_URL` debe completarse una vez deployado CloudSync.gs.
+- **Pestaña IA:** chat tipo LLM web (burbujas usuario/asistente, selector Claude/ChatGPT) contra `AIProxy.gs`. Manda como contexto un resumen agregado de `filterData()` (`buildDataContext()` — totales, top zonas/vendedores/sucursales/planes, serie mensual) más la Base de Conocimiento de Drive. Protegida por `IA_ACCESS_KEY` (se pide una vez con `window.prompt`, se guarda en `sessionStorage`). Requiere `AI_CONFIG.APPSSCRIPT_URL` apuntando al deploy de `AIProxy.gs`.
 
 ---
 

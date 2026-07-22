@@ -1390,6 +1390,55 @@ body.modo-directorio .mapa-toolbar [data-admin-only] {
   display: none !important;
 }
 
+/* ===== Tab IA (chat) ===== */
+.ia-layout {
+  display: flex; flex-direction: column; height: calc(100vh - 260px); min-height: 480px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: var(--shadow-sm); overflow: hidden;
+}
+.ia-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface-2);
+}
+.ia-provider-toggle { display: flex; gap: 6px; }
+.ia-provider-toggle button {
+  background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+  padding: 6px 12px; font-family: var(--font-sans); font-size: 11px; font-weight: 500;
+  cursor: pointer; border-radius: 5px; transition: all 0.15s;
+}
+.ia-provider-toggle button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.ia-toolbar .hint { font-family: var(--font-sans); font-size: 11px; color: var(--text-subtle); }
+.ia-messages {
+  flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;
+}
+.ia-empty {
+  margin: auto; text-align: center; color: var(--text-subtle);
+  font-family: var(--font-sans); font-size: 13px; max-width: 380px;
+}
+.ia-msg { display: flex; }
+.ia-msg.user { justify-content: flex-end; }
+.ia-msg .bubble {
+  max-width: 72%; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.55;
+  white-space: pre-wrap; word-wrap: break-word;
+}
+.ia-msg.user .bubble { background: var(--primary); color: #fff; border-bottom-right-radius: 3px; }
+.ia-msg.assistant .bubble {
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+  border-bottom-left-radius: 3px;
+}
+.ia-msg.assistant .bubble.thinking { color: var(--text-subtle); font-style: italic; }
+.ia-msg.assistant .bubble.error { border-color: rgba(224,84,76,0.4); color: var(--negative); }
+.ia-inputbar {
+  display: flex; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--border); background: var(--surface-2);
+}
+.ia-inputbar textarea {
+  flex: 1; resize: none; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+  font-family: var(--font-sans); font-size: 13px; color: var(--text); background: var(--surface);
+  min-height: 42px; max-height: 140px; line-height: 1.4;
+}
+.ia-inputbar textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.ia-inputbar button { align-self: flex-end; }
+
 </style>
 </head>
 <body>
@@ -1455,6 +1504,7 @@ body.modo-directorio .mapa-toolbar [data-admin-only] {
   <button data-tab="detalle"><span class="tab-icon">⊞</span>Detalle</button>
   <button data-tab="reservas"><span class="tab-icon">⊕</span>Reservas</button>
   <button data-tab="mapa"><span class="tab-icon">◯</span>Mapa</button>
+  <button data-tab="ia"><span class="tab-icon">✦</span>IA</button>
 </nav>
 
 <!-- ===== TAB: RESUMEN ===== -->
@@ -1980,6 +2030,27 @@ body.modo-directorio .mapa-toolbar [data-admin-only] {
 </div>
 <!-- /TAB: MAPA -->
 
+<!-- ===== TAB: IA ===== -->
+<div class="tab-panel" id="panel-ia">
+  <div class="ia-layout">
+    <div class="ia-toolbar">
+      <div class="ia-provider-toggle" id="iaProviderToggle">
+        <button type="button" class="active" data-provider="anthropic">Claude</button>
+        <button type="button" data-provider="openai">ChatGPT</button>
+      </div>
+      <span class="hint">Responde sobre los datos filtrados actuales y la Base de Conocimiento</span>
+    </div>
+    <div class="ia-messages" id="iaMessages">
+      <div class="ia-empty" id="iaEmptyState">Preguntá sobre tendencias, ventas, zonas, vendedores o cualquier dato del reporte. La IA ve el recorte actual del dashboard (filtros aplicados) más la Base de Conocimiento.</div>
+    </div>
+    <div class="ia-inputbar">
+      <textarea id="iaInput" placeholder="Escribí tu consulta…" rows="1"></textarea>
+      <button class="btn btn-primary" id="iaSendBtn">Enviar</button>
+    </div>
+  </div>
+</div>
+<!-- /TAB: IA -->
+
 
 <footer>
   <div>Dashboard dinámico · <em>autoguardado en este navegador</em> · exportá backup regularmente</div>
@@ -2441,6 +2512,11 @@ const CLOUD_CONFIG = {
   APPSSCRIPT_URL: "https://script.google.com/macros/s/AKfycbz8fI9AL71EQxT2YVnJb3mX-XwkUWwmNEXQRutAMOYUPFiPya6y-CUygITuqNe34CFz8A/exec",
 };
 
+// AIProxy.gs — completar tras deployar (ver handoff.md)
+const AI_CONFIG = {
+  APPSSCRIPT_URL: "https://script.google.com/macros/s/AKfycbxbdzKMoOcZ8QecISnnhZ7IWMfSEDKCZVa3ofOyF0LZeIQoF1hc3_phSe_jpjKP3XD0/exec",
+};
+
 async function fetchAndMergeCloud() {
   if (!CLOUD_CONFIG.APPSSCRIPT_URL) return;
   try {
@@ -2735,7 +2811,8 @@ const state = {
   varModo: 'periodo', varChartType: 'bar', varTopN: 10, varSearch: '',
   varTableSort: { col: '__last__', dir: 'desc' },
   tableView: 'zonas', tableSort: { col: 'neto', dir: 'desc' },
-  tableSearch: '', modalCharts: {}, detalleVendMode: 'abs'
+  tableSearch: '', modalCharts: {}, detalleVendMode: 'abs',
+  iaProvider: 'anthropic', iaHistory: [], iaBusy: false
 };
 const OBJETIVO = 50_000_000; // $50M para zona, cobrador y vendedor
 const charts = {};
@@ -2839,6 +2916,64 @@ function filterData(overrides = {}) {
     return matchesFilters(x, f);
   });
 }
+
+// ====================== CONTEXTO PARA LA IA ======================
+// Resumen agregado (no filas crudas) de los datos actualmente filtrados, para
+// mandar como contexto a AIProxy.gs. Cap duro de tamaño para no disparar tokens/latencia.
+function _topGroups(rows, keyFn, n) {
+  return aggBy(rows, x => keyFn(x) || '(sin dato)')
+    .sort((a, b) => b.neto - a.neto)
+    .slice(0, n)
+    .map(g => ({ nombre: g.key, neto: Math.round(g.neto) }));
+}
+
+function buildDataContext(rows) {
+  const totalNeto = rows.reduce((s, x) => s + x.neto, 0);
+  const facturas = new Set(rows.filter(x => !x.es_nc).map(x => x.numero)).size;
+  const ticketProm = facturas > 0 ? totalNeto / facturas : 0;
+
+  const monthsMap = {};
+  rows.forEach(x => {
+    const m = x.fecha.slice(0, 7);
+    monthsMap[m] = (monthsMap[m] || 0) + x.neto;
+  });
+  const serieMensual = Object.keys(monthsMap).sort().map(m => ({ mes: m, neto: Math.round(monthsMap[m]) }));
+  let variacionUltimoMes = null;
+  if (serieMensual.length >= 2) {
+    const ult = serieMensual[serieMensual.length - 1].neto;
+    const prev = serieMensual[serieMensual.length - 2].neto;
+    if (prev > 0) variacionUltimoMes = +(((ult - prev) / prev) * 100).toFixed(1);
+  }
+
+  const ctx = {
+    filtros_activos: state.filters,
+    total_operaciones: rows.length,
+    total_facturas: facturas,
+    neto_total: Math.round(totalNeto),
+    ticket_promedio: Math.round(ticketProm),
+    serie_mensual: serieMensual,
+    variacion_pct_ultimo_mes_vs_anterior: variacionUltimoMes,
+    top_zonas: _topGroups(rows, x => x.zona, 15),
+    top_vendedores: _topGroups(rows, x => x.vendedor, 15),
+    top_sucursales: _topGroups(rows, x => x.sucursal, 15),
+    top_planes: _topGroups(rows, x => x.plan, 10),
+    por_tipo_venta: _topGroups(rows, x => x.tipo_venta, 10)
+  };
+
+  let json = JSON.stringify(ctx);
+  const MAX_CHARS = 20000;
+  if (json.length > MAX_CHARS) {
+    // Recorta colas de listas largas hasta entrar en el límite
+    ['top_zonas', 'top_vendedores', 'top_sucursales'].forEach(k => {
+      while (json.length > MAX_CHARS && ctx[k].length > 3) {
+        ctx[k].pop();
+        json = JSON.stringify(ctx);
+      }
+    });
+  }
+  return json;
+}
+
 // Construye el shell del componente multi-select (idempotente)
 function _ensureMSShell(wrap, fkey) {
   if (wrap.querySelector('.ms-trigger')) return; // ya construido
@@ -5884,6 +6019,91 @@ function switchTab(tabName) {
 }
 document.querySelectorAll('.nav-tabs button').forEach(b => {
   b.addEventListener('click', () => switchTab(b.dataset.tab));
+});
+
+// ===== TAB IA (chat) =====
+function iaGetKey() {
+  let key = sessionStorage.getItem('iaKey');
+  if (!key) {
+    key = window.prompt('Clave de acceso a la pestaña IA:');
+    if (key) sessionStorage.setItem('iaKey', key);
+  }
+  return key || '';
+}
+
+document.querySelectorAll('#iaProviderToggle button').forEach(b => {
+  b.addEventListener('click', () => {
+    state.iaProvider = b.dataset.provider;
+    document.querySelectorAll('#iaProviderToggle button').forEach(x => x.classList.toggle('active', x === b));
+  });
+});
+
+function iaAppendBubble(role, text, cls) {
+  const wrap = document.getElementById('iaMessages');
+  const empty = document.getElementById('iaEmptyState');
+  if (empty) empty.remove();
+  const row = document.createElement('div');
+  row.className = 'ia-msg ' + role;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble' + (cls ? ' ' + cls : '');
+  bubble.textContent = text;
+  row.appendChild(bubble);
+  wrap.appendChild(row);
+  wrap.scrollTop = wrap.scrollHeight;
+  return bubble;
+}
+
+async function iaSendMessage() {
+  if (state.iaBusy) return;
+  const input = document.getElementById('iaInput');
+  const text = input.value.trim();
+  if (!text) return;
+  if (!AI_CONFIG.APPSSCRIPT_URL) { toast('warn', 'Falta configurar AI_CONFIG.APPSSCRIPT_URL (ver handoff.md).'); return; }
+  const key = iaGetKey();
+  if (!key) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  iaAppendBubble('user', text);
+  state.iaHistory.push({ role: 'user', content: text });
+  const thinkingBubble = iaAppendBubble('assistant', 'Pensando…', 'thinking');
+
+  state.iaBusy = true;
+  try {
+    const dataContext = buildDataContext(filterData());
+    const r = await fetch(AI_CONFIG.APPSSCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'chat', key, provider: state.iaProvider, messages: state.iaHistory, dataContext }),
+    });
+    const data = await r.json();
+    thinkingBubble.classList.remove('thinking');
+    if (!data.ok) {
+      thinkingBubble.classList.add('error');
+      thinkingBubble.textContent = data.error || 'Error consultando la IA.';
+      state.iaHistory.pop(); // no dejar el mensaje del usuario colgado sin respuesta válida
+      return;
+    }
+    thinkingBubble.textContent = data.reply;
+    state.iaHistory.push({ role: 'assistant', content: data.reply });
+  } catch (e) {
+    thinkingBubble.classList.remove('thinking');
+    thinkingBubble.classList.add('error');
+    thinkingBubble.textContent = 'No se pudo conectar con la IA: ' + e.message;
+    state.iaHistory.pop();
+  } finally {
+    state.iaBusy = false;
+    document.getElementById('iaMessages').scrollTop = document.getElementById('iaMessages').scrollHeight;
+  }
+}
+
+document.getElementById('iaSendBtn').addEventListener('click', iaSendMessage);
+const iaInputEl = document.getElementById('iaInput');
+iaInputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); iaSendMessage(); }
+});
+iaInputEl.addEventListener('input', () => {
+  iaInputEl.style.height = 'auto';
+  iaInputEl.style.height = Math.min(iaInputEl.scrollHeight, 140) + 'px';
 });
 
 // Acciones rápidas del selector de zonas
