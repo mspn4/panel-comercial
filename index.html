@@ -181,6 +181,38 @@ main{max-width:1180px;margin:0 auto;padding:22px 24px 60px}
 .docview iframe{flex:1;width:100%;border:1px solid var(--border-strong);border-radius:10px}
 .docview .dvbar{display:flex;gap:8px;flex:none}
 
+/* Gerente Regional — pestañas tipo navegador */
+.modal-bg.full{padding:0}
+.modal.modal-wide{width:100vw;height:100vh;max-width:none;border-radius:0}
+.gtabbar{display:flex;align-items:flex-end;gap:3px;background:var(--navy);padding:8px 10px 0;overflow-x:auto;flex:none}
+.gtab{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.07);color:#C7D3E3;
+  border-radius:9px 9px 0 0;padding:8px 8px 8px 12px;font-size:12.5px;font-weight:600;cursor:pointer;
+  max-width:190px;min-width:110px;white-space:nowrap;flex:none;transition:.12s}
+.gtab:hover{background:rgba(255,255,255,.13)}
+.gtab.active{background:var(--surface);color:var(--text)}
+.gtab .gtico{font-size:13px;flex:none}
+.gtab .gttxt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.gtab .gtx{flex:none;opacity:.55;font-size:16px;line-height:1;padding:0 3px;border-radius:4px}
+.gtab .gtx:hover{opacity:1;background:rgba(0,0,0,.15)}
+.gtab.active .gtx:hover{background:var(--page)}
+.gtab.plus{min-width:0;max-width:none;padding:8px 13px;color:#8DA0B8;font-weight:700;font-size:16px;background:transparent}
+.gtab.plus:hover{color:#fff;background:rgba(255,255,255,.1)}
+.gtab.pin{border-right:1px solid rgba(255,255,255,.14);margin-right:5px;padding-right:15px}
+.gsplit{display:flex;flex:1;width:100%;height:100%;min-width:0}
+.gsplit iframe{flex:1.4;border:none;border-right:1px solid var(--border);min-width:0}
+.gnotes{flex:1;display:flex;flex-direction:column;background:var(--page);min-width:0}
+.gnotes .gnbar{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;flex:none}
+.gnotes textarea{flex:1;border:none;background:transparent;resize:none;padding:14px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;outline:none;color:var(--text)}
+
+/* Notas globales — vista agregada */
+.gnotas-global{max-width:840px;margin:0 auto}
+.gng-bloque{border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;cursor:pointer;background:var(--surface);transition:.12s}
+.gng-bloque:hover{border-color:var(--blue);background:var(--blue-tint)}
+.gng-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;margin-bottom:8px}
+.gng-h .gng-f{margin-left:auto;font-weight:500;font-size:11.5px;color:var(--muted-2)}
+.gng-txt{white-space:pre-wrap;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px;color:var(--text);line-height:1.55}
+
 /* Recursos Gráficos */
 .folder-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
 .foldercard{background:var(--page);border:1px solid var(--border);border-radius:12px;padding:14px;
@@ -294,6 +326,8 @@ const state = {
   gxCache:{},         // folderId -> {folders,images}
   gxIndex:[],         // [{folderId,folderNombre,img}] para búsqueda, se llena a medida que se navega
   lightbox:{items:[], idx:0},
+  gerTabs:[],         // pestañas abiertas en Gerente Regional
+  gerActive:null,     // id de la pestaña activa
 };
 
 function allCardDefs(){
@@ -302,6 +336,7 @@ function allCardDefs(){
   const especiales = [
     {key:"kb", nombre:"Base de Conocimiento", desc:"Condiciones de venta, comisiones, políticas — todo buscable.", icono:"📚", tipo:"kb"},
     {key:"graphics", nombre:"Recursos Gráficos", desc:"Logos, banco de imágenes, catálogos y más.", icono:"🖼️", tipo:"graphics"},
+    {key:"gerencial", nombre:"Gerente Regional", desc:"Manuales de gestión y tus notas de lectura, en pestañas.", icono:"🧭", tipo:"gerencial"},
   ];
   return [...fixed, ...especiales, ...(state.layout.custom||[])];
 }
@@ -410,6 +445,7 @@ function wireCardEvents(){
       const tipo=el.dataset.tipo, archivo=el.dataset.archivo;
       if(tipo==="kb") abrirKB();
       else if(tipo==="graphics") abrirGraphics();
+      else if(tipo==="gerencial") abrirGerencial();
       else if(tipo==="link" && archivo) window.location.href=archivo;
     });
     // drag & drop de archivos directo sobre la card de Base de Conocimiento
@@ -600,6 +636,259 @@ async function abrirDocKB(id){
   }
 }
 
+/* ═══════════════════════════ Modal: Gerente Regional ═══════════════════════════ */
+const GER_CAT_NOMBRE="Gerente Regional";
+let gerTabSeq=0;
+function gerFindCategoria(){
+  const cats=(state.kbCache&&state.kbCache.categorias)||[];
+  return cats.find(c=>norm(c.nombre)===norm(GER_CAT_NOMBRE));
+}
+function gerTab(id){ return state.gerTabs.find(t=>t.id===id); }
+function gerTabIcon(t){
+  if(t.kind==="new") return "🗂️";
+  if(t.kind==="note") return "📝";
+  return docIcon(t.mimeType);
+}
+function gerNombreNota(t){ return `${t.title} — notas.txt`; }
+
+function cerrarModalGerencial(){
+  $("#modalBg").classList.remove("open");
+  $("#modal").classList.remove("modal-wide");
+  $("#modalBg").classList.remove("full");
+}
+
+async function abrirGerencial(){
+  $("#modal").className="modal modal-wide";
+  $("#modalBg").classList.add("full");
+  if(!state.gerTabs.length){
+    state.gerTabs.push({id:"tab-"+(++gerTabSeq),kind:"new",title:"Nueva pestaña"});
+    state.gerActive=state.gerTabs[0].id;
+  }
+  $("#modalBg").classList.add("open");
+  renderGerencial();
+  if(!state.kbCache){ try{ state.kbCache=await api("kb_list"); }catch(e){} }
+  renderGerencial();
+}
+
+function abrirGerDoc(id, nombre, mimeType){
+  const existente=state.gerTabs.find(x=>x.kind==="doc"&&x.docId===id);
+  if(existente){ state.gerActive=existente.id; renderGerencial(); return; }
+  const t={id:"tab-"+(++gerTabSeq), kind:"doc", docId:id, title:nombre, mimeType, noteId:null, noteContent:"", noteLoaded:false};
+  state.gerTabs.push(t); state.gerActive=t.id; renderGerencial();
+}
+
+function nuevaPestanaGer(){
+  const t={id:"tab-"+(++gerTabSeq),kind:"new",title:"Nueva pestaña"};
+  state.gerTabs.push(t); state.gerActive=t.id; renderGerencial();
+}
+
+function cerrarGerTab(id){
+  const idx=state.gerTabs.findIndex(t=>t.id===id);
+  if(idx<0) return;
+  state.gerTabs.splice(idx,1);
+  if(!state.gerTabs.length) state.gerTabs.push({id:"tab-"+(++gerTabSeq),kind:"new",title:"Nueva pestaña"});
+  if(state.gerActive===id){
+    const fallback=state.gerTabs[Math.min(idx,state.gerTabs.length-1)];
+    state.gerActive=fallback.id;
+  }
+  renderGerencial();
+}
+
+function renderGerencial(){
+  const pinHtml=`<div class="gtab pin ${state.gerActive==="global"?"active":""}" id="gtabGlobal" title="Todas las notas en un solo lugar">
+    <span class="gtico">📚</span><span class="gttxt">Notas globales</span></div>`;
+  const tabsHtml=state.gerTabs.map(t=>`
+    <div class="gtab ${t.id===state.gerActive?"active":""}" data-id="${esc(t.id)}">
+      <span class="gtico">${gerTabIcon(t)}</span>
+      <span class="gttxt">${esc(t.title)}</span>
+      <span class="gtx" data-close="${esc(t.id)}">&times;</span>
+    </div>`).join("");
+  $("#modal").innerHTML=`
+    <div class="modal-head"><div class="mico">🧭</div><h2>Gerente Regional</h2>
+      <button class="x" id="modalClose">&times;</button></div>
+    <div class="gtabbar" id="gtabbar">${pinHtml}${tabsHtml}<div class="gtab plus" id="gtabNew" title="Nueva pestaña">+</div></div>
+    <div class="modal-body" id="gerBody" style="padding:0;overflow:hidden;display:flex;flex-direction:column"></div>`;
+  $("#modalClose").onclick=cerrarModalGerencial;
+  $("#gtabGlobal").onclick=()=>{ state.gerActive="global"; renderGerencial(); };
+  $$("#gtabbar .gtab[data-id]").forEach(el=>{
+    el.addEventListener("click", e=>{
+      if(e.target.dataset.close!==undefined){ cerrarGerTab(e.target.dataset.close); return; }
+      state.gerActive=el.dataset.id; renderGerencial();
+    });
+  });
+  $("#gtabNew").onclick=nuevaPestanaGer;
+  renderGerBody();
+}
+
+function renderGerBody(){
+  if(state.gerActive==="global"){ renderGerNotasGlobales(); return; }
+  const t=gerTab(state.gerActive);
+  if(!t) return;
+  if(t.kind==="new") renderGerNuevaPestana(t);
+  else if(t.kind==="doc") renderGerDoc(t);
+  else if(t.kind==="note") renderGerNote(t);
+}
+
+async function renderGerNotasGlobales(){
+  const body=$("#gerBody");
+  body.style.cssText="padding:26px 20px;overflow:auto;display:block";
+  if(!state.kbCache){ try{ state.kbCache=await api("kb_list"); }catch(e){} }
+  const cat=gerFindCategoria();
+  const notas=(cat&&cat.docs||[]).filter(d=>d.mimeType==="text/plain");
+  if(!notas.length){ body.innerHTML=`<div class="empty">Todavía no escribiste notas. Abrí un manual o creá una nota en blanco.</div>`; return; }
+  body.innerHTML=`<div class="empty">Cargando notas…</div>`;
+  const bloques=await Promise.all(notas.map(async d=>{
+    const esDeManual=d.nombre.endsWith(" — notas.txt");
+    let texto=""; try{ const doc=await api("kb_get",{id:d.id}); texto=doc.texto||""; }catch(e){}
+    return { tipo: esDeManual?"doc":"suelta", titulo: esDeManual?d.nombre.replace(/ — notas\.txt$/,""):d.nombre.replace(/\.txt$/i,""), id:d.id, fecha:d.modificado, texto };
+  }));
+  if(state.gerActive!=="global") return; // el usuario navegó a otra pestaña mientras cargaba
+  bloques.sort((a,b)=> a.tipo===b.tipo ? 0 : (a.tipo==="doc"?-1:1));
+  body.innerHTML=`<div class="gnotas-global">${bloques.map((b,i)=>`
+    <div class="gng-bloque" id="gngb-${i}">
+      <div class="gng-h"><span class="gng-ico">${b.tipo==="doc"?"📘":"📝"}</span><span class="gng-t">${esc(b.titulo)}</span><span class="gng-f">${fmtFecha(b.fecha)}</span></div>
+      <div class="gng-txt">${b.texto?esc(b.texto):'<span style="opacity:.5">(sin contenido)</span>'}</div>
+    </div>`).join("")}</div>`;
+  bloques.forEach((b,i)=>{
+    $("#gngb-"+i).addEventListener("click", ()=>{
+      if(b.tipo==="doc"){
+        const cat2=gerFindCategoria();
+        const manual=cat2&&(cat2.docs||[]).find(d=>d.nombre===b.titulo && d.mimeType!=="text/plain");
+        if(manual) abrirGerDoc(manual.id, manual.nombre, manual.mimeType);
+        return;
+      }
+      const existente=state.gerTabs.find(x=>x.kind==="note"&&x.noteId===b.id);
+      if(existente){ state.gerActive=existente.id; renderGerencial(); return; }
+      const t={id:"tab-"+(++gerTabSeq), kind:"note", title:b.titulo, noteId:b.id, content:b.texto};
+      state.gerTabs.push(t); state.gerActive=t.id; renderGerencial();
+    });
+  });
+}
+
+function renderGerNuevaPestana(t){
+  const body=$("#gerBody");
+  body.style.cssText="padding:22px 20px;overflow:auto;display:block";
+  const cat=gerFindCategoria();
+  const manuales=(cat&&cat.docs||[]).filter(d=>d.mimeType!=="text/plain");
+  const notas=(cat&&cat.docs||[]).filter(d=>d.mimeType==="text/plain");
+  body.innerHTML=`
+    <div style="max-width:760px;margin:0 auto">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:32px">🧭</div>
+        <h3 style="margin:8px 0 2px">Gerente Regional</h3>
+        <p style="color:var(--muted);font-size:13.5px;margin:0">Elegí un manual para leer, o empezá una nota en blanco.</p>
+      </div>
+      <button class="btn-sm primary" id="gerBtnNota" style="margin-bottom:18px">📝 Nueva nota en blanco</button>
+      ${manuales.length?`<div class="kb-grid">${manuales.map(d=>`
+        <div class="doc" data-id="${esc(d.id)}" data-nombre="${esc(d.nombre)}" data-mime="${esc(d.mimeType)}">
+          <span class="dico">${docIcon(d.mimeType)}</span>
+          <div><div class="dnm">${esc(d.nombre)}</div><div class="dmeta">${fmtFecha(d.modificado)} · ${fmtBytes(d.size)}</div></div>
+        </div>`).join("")}</div>`
+        :`<div class="empty">${state.kbCache?"Todavía no hay manuales acá.":"Cargando…"}</div>`}
+      ${notas.length?`<div class="kb-cat-h" style="margin-top:24px">Notas guardadas<span class="ln"></span></div>
+        <div class="kb-grid">${notas.map(d=>`
+          <div class="doc" data-note="${esc(d.id)}" data-nombre="${esc(d.nombre)}">
+            <span class="dico">📝</span>
+            <div><div class="dnm">${esc(d.nombre)}</div><div class="dmeta">${fmtFecha(d.modificado)}</div></div>
+          </div>`).join("")}</div>`:""}
+    </div>`;
+  $("#gerBtnNota").onclick=()=>{ t.kind="note"; t.content=""; t.noteId=null; t.title="Nueva pestaña"; renderGerencial(); };
+  $$("#gerBody .doc[data-id]").forEach(el=>el.addEventListener("click",()=>{
+    const id=el.dataset.id;
+    const existente=state.gerTabs.find(x=>x.kind==="doc"&&x.docId===id);
+    if(existente){ state.gerActive=existente.id; renderGerencial(); return; }
+    t.kind="doc"; t.docId=id; t.title=el.dataset.nombre; t.mimeType=el.dataset.mime;
+    t.noteId=null; t.noteContent=""; t.noteLoaded=false;
+    renderGerencial();
+  }));
+  $$("#gerBody .doc[data-note]").forEach(el=>el.addEventListener("click", async ()=>{
+    const id=el.dataset.note;
+    const existente=state.gerTabs.find(x=>x.kind==="note"&&x.noteId===id);
+    if(existente){ state.gerActive=existente.id; renderGerencial(); return; }
+    t.kind="note"; t.noteId=id; t.title=el.dataset.nombre.replace(/\.txt$/i,""); t.content=""; t.loading=true;
+    renderGerencial();
+    try{ const doc=await api("kb_get",{id}); t.content=doc.texto||""; }catch(e){}
+    t.loading=false;
+    if(state.gerActive===t.id) renderGerencial();
+  }));
+}
+
+async function renderGerDoc(t){
+  const body=$("#gerBody");
+  body.style.cssText="padding:0;overflow:hidden;display:flex";
+  body.innerHTML=`<div class="gsplit">
+    <iframe src="https://drive.google.com/file/d/${esc(t.docId)}/preview"></iframe>
+    <div class="gnotes">
+      <div class="gnbar"><span>📝 Notas — ${esc(t.title)}</span><span id="gnStatus" style="margin-left:auto;color:var(--muted-2)"></span></div>
+      <textarea id="gnText" placeholder="Escribí tus notas sobre este manual a medida que lo leés…">${esc(t.noteContent||"")}</textarea>
+    </div>
+  </div>`;
+  const ta=$("#gnText");
+  if(!t.noteLoaded){
+    ta.disabled=true; $("#gnStatus").textContent="Cargando notas…";
+    await gerCargarNotaDoc(t);
+    if(gerTab(t.id)===t && state.gerActive===t.id){ ta.value=t.noteContent||""; ta.disabled=false; $("#gnStatus").textContent=""; }
+  }
+  let debounce;
+  ta.addEventListener("input", ()=>{
+    t.noteContent=ta.value;
+    $("#gnStatus").textContent="Sin guardar";
+    clearTimeout(debounce);
+    debounce=setTimeout(()=>gerGuardarNotaGenerica(t, gerNombreNota(t), t.noteContent, "#gnStatus"), 1200);
+  });
+}
+
+async function gerCargarNotaDoc(t){
+  const cat=gerFindCategoria();
+  const existente=cat&&(cat.docs||[]).find(d=>d.nombre===gerNombreNota(t)&&d.mimeType==="text/plain");
+  if(existente){
+    try{ const doc=await api("kb_get",{id:existente.id}); t.noteId=existente.id; t.noteContent=doc.texto||""; }catch(e){}
+  }
+  t.noteLoaded=true;
+}
+
+function renderGerNote(t){
+  const body=$("#gerBody");
+  body.style.cssText="padding:0;overflow:hidden;display:flex";
+  if(t.loading){ body.innerHTML=`<div class="empty" style="margin:auto">Cargando…</div>`; return; }
+  body.innerHTML=`<div class="docview" style="padding:16px 20px">
+    <div class="dvbar">
+      <input type="text" id="gnTitle" value="${esc(t.title)}" style="font-weight:600;border:1px solid var(--border-strong);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:13.5px">
+      <span id="gnnStatus" style="margin-left:auto;color:var(--muted-2);font-size:12px;align-self:center"></span>
+      <button class="btn-sm primary" id="gnnSave">Guardar</button>
+    </div>
+    <textarea id="gnnText">${esc(t.content||"")}</textarea>
+  </div>`;
+  $("#gnTitle").addEventListener("input", e=>{
+    t.title=e.target.value||"Nueva pestaña";
+    const lbl=document.querySelector(`.gtab[data-id="${t.id}"] .gttxt`);
+    if(lbl) lbl.textContent=t.title;
+  });
+  $("#gnnText").addEventListener("input", e=>{ t.content=e.target.value; $("#gnnStatus").textContent="Sin guardar"; });
+  $("#gnnSave").onclick=async ()=>{
+    await gerGuardarNotaGenerica(t, t.noteId?null:(t.title||"Nueva pestaña").trim()+((t.title||"").toLowerCase().endsWith(".txt")?"":".txt"), t.content, "#gnnStatus");
+    toast("Nota guardada.");
+  };
+}
+
+async function gerGuardarNotaGenerica(t, nombreArchivo, content, statusSel){
+  if(!requireEditKey()){ const el=$(statusSel); if(el) el.textContent="Necesitás la clave de edición."; return; }
+  try{
+    if(!t.noteId){
+      const file=new File([new Blob([content||""],{type:"text/plain"})], nombreArchivo, {type:"text/plain"});
+      const cat=gerFindCategoria();
+      await subirDocumento(file, cat?cat.id:"root");
+      state.kbCache=await api("kb_list");
+      const cat2=gerFindCategoria();
+      const found=cat2&&(cat2.docs||[]).find(d=>d.nombre===nombreArchivo);
+      if(found) t.noteId=found.id;
+    } else {
+      await apiPost("kb_save",{id:t.noteId, content:content||""});
+    }
+    const el=$(statusSel); if(el) el.textContent="Guardado ✓";
+  }catch(e){ const el=$(statusSel); if(el) el.textContent="Error al guardar"; }
+}
+
 /* ═══════════════════════════ Modal: Recursos Gráficos ═══════════════════════════ */
 async function abrirGraphics(){
   state.gxFolderStack=[];
@@ -702,7 +991,10 @@ document.addEventListener("keydown", e=>{
   if(e.key==="ArrowLeft") $("#lbPrev").click();
   if(e.key==="ArrowRight") $("#lbNext").click();
 });
-$("#modalBg").addEventListener("click", e=>{ if(e.target.id==="modalBg") $("#modalBg").classList.remove("open"); });
+$("#modalBg").addEventListener("click", e=>{ if(e.target.id==="modalBg") cerrarModalGerencial(); });
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape" && $("#modalBg").classList.contains("open")) cerrarModalGerencial();
+});
 
 /* ═══════════════════════════ Buscador global ═══════════════════════════ */
 let tBusq=null;
