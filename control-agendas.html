@@ -246,6 +246,8 @@ table.week tr:hover td.task{background:var(--blue-tint)}
 .cv-form{padding:18px 20px;overflow:auto;display:flex;flex-direction:column;gap:14px}
 .cv-form textarea{width:100%;min-height:220px;border:1px solid var(--border-strong);border-radius:10px;
   padding:12px;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px;resize:vertical}
+.cv-form textarea.cv-mini{min-height:46px;font-family:inherit;font-size:13.5px;padding:8px 10px;border-radius:8px}
+.cv-form textarea.cv-mini.cv-obs{min-height:90px}
 .cv-form label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px}
 .cv-form input,.cv-form select{width:100%;border:1px solid var(--border-strong);border-radius:8px;
   padding:8px 10px;font-family:inherit;font-size:13.5px}
@@ -640,35 +642,54 @@ function cvMatchSucursal(gerenteTexto){
   return CONFIG.SUCURSALES.find(s=>[].concat(s.gerente).some(ape=>g.includes(norm(ape))));
 }
 
-/* Parseo del informe pegado desde WhatsApp. Tolerante a variaciones de tilde/emoji;
-   usa el "estado" (ventas/datos) para no confundir el "Detalle de productos" repetido. */
+/* Etiquetas reconocidas: con o sin ":", con o sin plural/tilde. Cada una captura
+   lo que quede en la misma línea (puede ser vacío si el valor arranca en el renglón siguiente). */
+const CV_LABELS=[
+  {campo:"sucursal",         re:/^sucursal\s*:?\s*(.*)$/i},
+  {campo:"gerente",          re:/^gerente\s*:?\s*(.*)$/i},
+  {campo:"acompanante",      re:/^vendedor[^:\n]*?acompa[ñn]ado\s*:?\s*(.*)$/i},
+  {campo:"zona",             re:/^zona\s+trabajada\s*:?\s*(.*)$/i},
+  {campo:"visitas",          re:/^cantidad\s+de\s+visitas\s*:?\s*(.*)$/i},
+  {campo:"nuevosNegocios",   re:/^cantidad\s+de\s+nuevos\s+negocios\s*:?\s*(.*)$/i},
+  {campo:"ventasCantidad",   re:/^cantidad\s+de\s+ventas\s+realizadas\s*:?\s*(.*)$/i},
+  {campo:"ventasValor",      re:/^valor\s+total\s+de\s+(?:las\s+)?ventas\s*:?\s*(.*)$/i},
+  {campo:"condicionVenta",   re:/^condici[oó]n\s+de\s+venta\s*:?\s*(.*)$/i},
+  {campo:"datosCantidad",    re:/^cantidad\s+de\s+datos\s+recopilados\s*:?\s*(.*)$/i},
+  {campo:"datosValor",       re:/^valor\s+total\s+de\s+datos\s*:?\s*(.*)$/i},
+  {campo:"detalleProductos", re:/^detalle\s+de\s+productos?\s*:?\s*(.*)$/i},
+  {campo:"observaciones",    re:/^observaciones\s*:?\s*(.*)$/i},
+];
+
+/* Parseo del informe pegado desde WhatsApp. Cada etiqueta puede venir con o sin
+   ":", y su valor puede seguir en los renglones siguientes (listas de productos,
+   observaciones largas) — esos renglones se acumulan hasta la próxima etiqueta
+   reconocida. Usa la "sección" (ventas/datos) para no confundir el "Detalle de
+   productos" que aparece repetido. */
 function parseCovente(texto){
-  const lineas=(texto||"").split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const rawLines=(texto||"").split(/\r?\n/);
   let fecha="";
   const mF=(texto||"").match(/informe\s+(\d{1,2})[\/\-.](\d{1,2})/i);
   if(mF) fecha=new Date().getFullYear()+"-"+mF[2].padStart(2,"0")+"-"+mF[1].padStart(2,"0");
   const c={sucursal:"",gerente:"",acompanante:"",zona:"",visitas:"",nuevosNegocios:"",
     ventasCantidad:"",ventasValor:"",ventasDetalle:"",condicionVenta:"",
     datosCantidad:"",datosValor:"",datosDetalle:"",observaciones:""};
-  let seccion="ventas";
-  lineas.forEach(linea=>{
-    const m=linea.match(/^[☑✓✔️\s]*(.+?):\s*(.*)$/);
-    if(!m) return;
-    const label=norm(m[1]), val=m[2].trim();
-    if(label.includes("sucursal")) c.sucursal=val;
-    else if(label.includes("gerente")) c.gerente=val;
-    else if(label.includes("acompan")) c.acompanante=val;
-    else if(label.includes("zona")) c.zona=val;
-    else if(label.includes("nuevos negocios")) c.nuevosNegocios=val;
-    else if(label.includes("visitas")) c.visitas=val;
-    else if(label.includes("ventas realizadas")){ c.ventasCantidad=val; seccion="ventas"; }
-    else if(label.includes("valor total de las ventas")||label.includes("valor total de venta")) c.ventasValor=val;
-    else if(label.includes("condicion de venta")) c.condicionVenta=val;
-    else if(label.includes("datos recopilados")){ c.datosCantidad=val; seccion="datos"; }
-    else if(label.includes("valor total de datos")) c.datosValor=val;
-    else if(label.includes("detalle de productos")){ if(seccion==="datos") c.datosDetalle=val; else c.ventasDetalle=val; }
-    else if(label.includes("observaciones")) c.observaciones=val;
+  let seccion="ventas", activo=null;
+  rawLines.forEach(raw=>{
+    const linea=raw.replace(/^[☑✓✔️\s]+/,"").trim();
+    if(!linea) return; // línea vacía: no corta el campo que se está acumulando
+    let match=null;
+    for(const L of CV_LABELS){ const m=linea.match(L.re); if(m){ match={campo:L.campo,valor:(m[1]||"").trim()}; break; } }
+    if(match){
+      if(match.campo==="ventasCantidad") seccion="ventas";
+      if(match.campo==="datosCantidad") seccion="datos";
+      const destino = match.campo==="detalleProductos" ? (seccion==="datos"?"datosDetalle":"ventasDetalle") : match.campo;
+      c[destino]=match.valor;
+      activo=destino;
+    } else if(activo){
+      c[activo]=(c[activo]?c[activo]+"\n":"")+linea;
+    }
   });
+  Object.keys(c).forEach(k=>c[k]=(c[k]||"").trim());
   return {fecha, campos:c, textoOriginal:texto};
 }
 
@@ -871,14 +892,14 @@ function renderCoventeCamposForm(parsed, editId, container){
       <div><label>Ventas realizadas</label><input data-f="ventasCantidad" value="${esc(c.ventasCantidad)}"></div>
       <div><label>Valor total de ventas</label><input data-f="ventasValor" value="${esc(c.ventasValor)}"></div>
     </div>
-    <div><label>Detalle de productos vendidos</label><input data-f="ventasDetalle" value="${esc(c.ventasDetalle)}"></div>
-    <div><label>Condición de venta</label><input data-f="condicionVenta" value="${esc(c.condicionVenta)}"></div>
+    <div><label>Detalle de productos vendidos</label><textarea class="cv-mini" data-f="ventasDetalle">${esc(c.ventasDetalle)}</textarea></div>
+    <div><label>Condición de venta</label><textarea class="cv-mini" data-f="condicionVenta">${esc(c.condicionVenta)}</textarea></div>
     <div class="row">
       <div><label>Datos recopilados</label><input data-f="datosCantidad" value="${esc(c.datosCantidad)}"></div>
       <div><label>Valor total de datos</label><input data-f="datosValor" value="${esc(c.datosValor)}"></div>
     </div>
-    <div><label>Detalle de productos (datos)</label><input data-f="datosDetalle" value="${esc(c.datosDetalle)}"></div>
-    <div><label>Observaciones</label><input data-f="observaciones" value="${esc(c.observaciones)}"></div>
+    <div><label>Detalle de productos (datos)</label><textarea class="cv-mini" data-f="datosDetalle">${esc(c.datosDetalle)}</textarea></div>
+    <div><label>Observaciones</label><textarea class="cv-mini cv-obs" data-f="observaciones">${esc(c.observaciones)}</textarea></div>
     <div class="cv-form-actions">
       <button class="btn-sm" data-act="cancelar" style="border:1px solid var(--border-strong);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer">${editId?"Cancelar":"Descartar esta"}</button>
       <button class="btn-cv" data-act="guardar">${editId?"Guardar cambios":"Guardar salida"}</button>
