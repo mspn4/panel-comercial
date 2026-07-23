@@ -31,7 +31,7 @@ const CONFIG = {
     { sucursal: "Santiago del Estero",           gerente: "Depetris",  id: "1lagOoU5U0hpRl0KmgpcVJJa-_6iRsjHvR7ueZYdGpxQ" },
     { sucursal: "Norte Interior (Orán)",         gerente: "Fontana",   id: "1URImDoHMpH8efT1q0I2_-JhcA1A4n6pdtqINCiI8jzI" },
     { sucursal: "Córdoba",                       gerente: "Rodriguez", id: "1-IbUhBpupGj4m0Ne_sXHTRTYit01ccSVclSjKwFbTmI" },
-    { sucursal: "La Rioja",                      gerente: "Nieto",     id: "10ukyFt2hdxcb-VgWdqN-_7-y37YIBfBrel0rtq08wd8" },
+    { sucursal: "La Rioja",                      gerente: ["Rios","Nieto"], id: "10ukyFt2hdxcb-VgWdqN-_7-y37YIBfBrel0rtq08wd8" },
   ],
 };
 </script>
@@ -383,7 +383,7 @@ async function cargarTodo(manual){
   }
   setLoading(true,manual);
   state.sucursales=CONFIG.SUCURSALES.map(s=>({...s,estado:"load",modificado:null,error:null}));
-  let personas=[], semana="", fallaron=[];
+  let personas=[], fallaron=[];
 
   await Promise.all(state.sucursales.map(async s=>{
     try{
@@ -392,11 +392,11 @@ async function cargarTodo(manual){
       data.hojas.forEach(h=>{
         const p=parseAgenda(h.rows);
         if(!p) return;
-        const rol = norm(h.nombre).includes(norm(s.gerente)) ? "gerente" : "lider";
-        if(p.semana&&!semana) semana=p.semana;
+        const apellidos=[].concat(s.gerente);
+        const rol = apellidos.some(g=>norm(h.nombre).includes(norm(g))) ? "gerente" : "lider";
         const key=s.sucursal+"|"+h.nombre;
         personas.push({key,sucursal:s.sucursal,gerente:s.gerente,nombre:h.nombre,rol,
-          dates:p.dates,slots:p.slots,count:p.count,modificado:data.modificado,
+          dates:p.dates,slots:p.slots,count:p.count,semana:p.semana,modificado:data.modificado,
           estado:p.count>0?"ok":"vacia", visible:!state.oculta[key]});
       });
     }catch(e){ s.estado="error"; s.error=e.message; fallaron.push(s.sucursal); }
@@ -404,9 +404,12 @@ async function cargarTodo(manual){
 
   personas.sort((a,b)=> a.sucursal.localeCompare(b.sucursal) ||
     ((a.rol==="gerente"?0:1)-(b.rol==="gerente"?0:1)) || a.nombre.localeCompare(b.nombre));
-  state.personas=personas; state.semanaLabel=semana;
+  state.personas=personas;
 
   const hoy=hoyDDMM(); const ref=personas.find(p=>p.dates.length); state.offWeek=true;
+  // La etiqueta de semana se toma de la MISMA hoja que da los pills de fecha
+  // (antes tomaba la primera hoja con texto "semana", que podía ser de otra sucursal).
+  state.semanaLabel=ref?(ref.semana||""):"";
   if(ref){ const i=ref.dates.findIndex(d=>d.ddmm===hoy); if(i>=0){state.diaSel=i;state.offWeek=false;} else state.diaSel=0; }
 
   pintarNotice(personas.length>0,fallaron);

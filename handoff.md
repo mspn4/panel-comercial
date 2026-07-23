@@ -21,11 +21,12 @@ GitHub Pages (repo público)
 ├── informe-showroom-sucursales.html
 └── evolucion-vendedores.html
 
-Google Apps Script (4 scripts separados)
+Google Apps Script (5 scripts separados)
 ├── LectorAgendas.gs             ← Lee Sheets de agendas (ya deployado)
 ├── BackendPanel.gs              ← Base de conocimiento + Recursos Gráficos + layout (ya deployado)
 ├── CloudSync.gs                 ← Sync de ventas + backup GitHub (ya deployado)
-└── AIProxy.gs                   ← Proxy a Claude/ChatGPT para la pestaña IA (PENDIENTE de deploy)
+├── AIProxy.gs                   ← Proxy a Claude/ChatGPT para la pestaña IA (PENDIENTE de deploy)
+└── AgendaBackup.gs              ← Copia semanal (sábados) de los Sheets de agendas a Drive (PENDIENTE de deploy)
 ```
 
 ---
@@ -37,6 +38,15 @@ Google Apps Script (4 scripts separados)
 - **Función:** Lee las hojas de cada "Espacio de Trabajo" de sucursal (Google Sheets) y devuelve JSON con las filas de cada agenda.
 - **Restricción:** dominio @myacomercial.com (Workspace).
 - **Usado por:** `control-agendas.html`
+
+### 1b. AgendaBackup.gs ← **PENDIENTE DE DEPLOY**
+- **Función:** Todas las semanas (trigger sábados) hace `makeCopy()` de cada uno de los 10 Sheets de agendas (misma lista de IDs que `CONFIG.SUCURSALES` en `control-agendas.html`) y las guarda en Drive, dentro de `Base de Conocimiento/Backups Agendas/Semana YYYY-MM-DD/`. Copia completa (formato y todo), no un JSON — se abre directo como cualquier Sheet.
+- **Por qué esa carpeta:** usa la misma carpeta base que la Base de Conocimiento (`KNOWLEDGE_FOLDER_ID`) pero en una subcarpeta propia, para no mezclarse con los documentos que gestiona `index.html` ni con lo que lee `AIProxy.gs` como contexto de la IA.
+- **Pendiente del usuario:**
+  1. Pegar el código en un proyecto de Apps Script (puede ser el mismo de `LectorAgendas.gs`).
+  2. Activadores → Agregar activador → función `backupAgendasSemanal` → basado en tiempo → semanal → sábado.
+  3. (Opcional) Ejecutar `backupAgendasSemanal` una vez a mano para probar sin esperar al sábado.
+- No necesita deploy como Web App ni API keys — solo el trigger.
 
 ### 2. BackendPanel.gs
 - **URL exec:** `https://script.google.com/macros/s/AKfycby3TXMd0s-HJBjyi_i362KIQq_yD_89-f0brHau1K11kLuyzVC7YjbBnHQJS-JX0DmC/exec`
@@ -84,11 +94,12 @@ Google Apps Script (4 scripts separados)
 
 ### control-agendas.html (Control de Agendas)
 - Lee 10 espacios de trabajo (uno por sucursal), cada uno con pestañas por persona.
-- Detecta gerente por apellido (vs. líderes = resto de pestañas).
+- Detecta gerente por apellido (vs. líderes = resto de pestañas). `gerente` en `CONFIG.SUCURSALES` acepta un string o un array de apellidos candidatos (ej. La Rioja: `["Rios","Nieto"]`) — útil cuando no se sabe con certeza cómo está escrito el apellido en la pestaña del Sheet, o cambió la persona y no se actualizó el nombre completo.
 - 3 vistas: Por sucursal (acordeón), Gerentes (grilla plana), Líderes.
 - Acordeón desplegable por sucursal, buscador, semáforo de actualización.
 - Modal con grilla semanal al hacer click en una tarjeta.
-- Parser robusto de agenda: detecta fila de fechas por expresión regular (no depende de "Horario").
+- Parser robusto de agenda: detecta fila de fechas por expresión regular (no depende de "Horario"). **Importante:** el parser exige que la celda de fecha tenga el texto completo `dd/mm` — si un día aparece con una fecha rara (ej. de otro mes/año), es un dato mal cargado en esa celda del Sheet, no un bug del parser. Corregir directo en la planilla.
+- El label "Semana X" que se muestra arriba (y en el aviso de "no incluye hoy") sale de la misma hoja/persona que se usa como referencia para los días (`ref`) — antes podía tomar el texto "semana" de una sucursal distinta a la que daba los días, mostrando una semana que no correspondía con los pills visibles.
 - Auto-refresh cada 10 min + botón manual.
 - **Sucursales configuradas:**
 
