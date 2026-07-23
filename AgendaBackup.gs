@@ -5,10 +5,12 @@
  * historial. Se dispara sola con un trigger semanal (sábados, cierre de semana).
  *
  * ───────────────────────────── SETUP (una sola vez) ─────────────────────────────
- * 1) Pegá este código en script.google.com → Nuevo proyecto → guardá.
- *    (Puede ser el mismo proyecto de LectorAgendas.gs o uno nuevo, da igual.)
+ * 1) Pegá este código en script.google.com → puede ser un proyecto nuevo, o
+ *    un archivo nuevo (Archivos → "+" → Script) DENTRO del proyecto de
+ *    LectorAgendas.gs — a propósito todo acá tiene el prefijo AGENDA_BACKUP_
+ *    para no chocar con nada que ya exista en ese script.
  *
- * 2) Revisá la lista SUCURSALES de abajo — son los mismos IDs que ya están en
+ * 2) Revisá la lista AGENDA_BACKUP_SUCURSALES de abajo — son los mismos IDs que ya están en
  *    CONFIG.SUCURSALES dentro de control-agendas.html. Si agregás o sacás una
  *    sucursal ahí, actualizala acá también.
  *
@@ -27,7 +29,7 @@
 var BACKUP_ROOT_FOLDER_ID = "1TYavYXNhLUAWShx60ICIC90UYjYZ4Tr6"; // misma carpeta base que la Base de Conocimiento
 var BACKUP_SUBFOLDER_NAME = "Backups Agendas"; // subcarpeta propia, no se mezcla con los docs de la Base de Conocimiento
 
-var SUCURSALES = [
+var AGENDA_BACKUP_SUCURSALES = [
   { sucursal: "Jujuy", id: "1uEQFhrVYgU_pEIQwcYo7YNkwIULCBlSj-p7ED_-Of5E" },
   { sucursal: "Salta", id: "1FvqJ_-WRzo964DB_iD5bZbzuFFLf-mT8FVsTKJWWq7Q" },
   { sucursal: "Catamarca", id: "1CD5wnnnF05HzcLBZidaaOJIV8uUkCRhrWpTYGfsmGAM" },
@@ -45,7 +47,7 @@ function backupAgendasSemanal() {
   var weekFolder = getOrCreateWeekFolder_();
   var ok = 0, fallidos = [];
 
-  SUCURSALES.forEach(function (s) {
+  AGENDA_BACKUP_SUCURSALES.forEach(function (s) {
     try {
       var original = DriveApp.getFileById(s.id);
       var nombre = s.sucursal + " — " + Utilities.formatDate(new Date(), "GMT-3", "yyyy-MM-dd");
@@ -56,7 +58,7 @@ function backupAgendasSemanal() {
     }
   });
 
-  Logger.log("Backup de agendas — copiadas: " + ok + "/" + SUCURSALES.length +
+  Logger.log("Backup de agendas — copiadas: " + ok + "/" + AGENDA_BACKUP_SUCURSALES.length +
     (fallidos.length ? " | fallaron: " + fallidos.join(" · ") : ""));
 }
 

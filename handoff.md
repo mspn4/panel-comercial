@@ -43,7 +43,7 @@ Google Apps Script (5 scripts separados)
 - **Función:** Todas las semanas (trigger sábados) hace `makeCopy()` de cada uno de los 10 Sheets de agendas (misma lista de IDs que `CONFIG.SUCURSALES` en `control-agendas.html`) y las guarda en Drive, dentro de `Base de Conocimiento/Backups Agendas/Semana YYYY-MM-DD/`. Copia completa (formato y todo), no un JSON — se abre directo como cualquier Sheet.
 - **Por qué esa carpeta:** usa la misma carpeta base que la Base de Conocimiento (`KNOWLEDGE_FOLDER_ID`) pero en una subcarpeta propia, para no mezclarse con los documentos que gestiona `index.html` ni con lo que lee `AIProxy.gs` como contexto de la IA.
 - **Pendiente del usuario:**
-  1. Pegar el código en un proyecto de Apps Script (puede ser el mismo de `LectorAgendas.gs`).
+  1. Pegar el código en un proyecto de Apps Script — puede ir como archivo nuevo (Archivos → "+" → Script) dentro del mismo proyecto de `LectorAgendas.gs`, o en uno aparte. Todas las variables llevan el prefijo `AGENDA_BACKUP_` a propósito, para no chocar con nada de `LectorAgendas.gs` si van al mismo proyecto.
   2. Activadores → Agregar activador → función `backupAgendasSemanal` → basado en tiempo → semanal → sábado.
   3. (Opcional) Ejecutar `backupAgendasSemanal` una vez a mano para probar sin esperar al sábado.
 - No necesita deploy como Web App ni API keys — solo el trigger.
