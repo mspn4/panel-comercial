@@ -15,6 +15,10 @@ const CONFIG = {
   // (termina en /exec). Sin esto, el dashboard no tiene de dónde leer.
   APPSSCRIPT_URL: "https://script.google.com/a/macros/myacomercial.com/s/AKfycby2t4gMNklu9LfYJQdoUt0QW4NZ0MJ7kqU5dilAE1rZc-LBpPRfkHADvZ_2oty54DZj2g/exec",
 
+  // Backend de Base de Conocimiento (BackendPanel.gs) — mismo que usa index.html.
+  // Ahí se guardan los informes de Covente, en la categoría "Covente".
+  BACKEND_URL: "https://script.google.com/macros/s/AKfycby3TXMd0s-HJBjyi_i362KIQq_yD_89-f0brHau1K11kLuyzVC7YjbBnHQJS-JX0DmC/exec",
+
   // Cada cuántos minutos se actualiza solo (además del botón Actualizar).
   REFRESCO_MINUTOS: 10,
 
@@ -213,6 +217,42 @@ table.week td.task{padding:7px 9px;font-size:12.5px;min-width:116px}
 table.week td.task.today{background:#FAFCFF}
 table.week tr:hover td.task{background:var(--blue-tint)}
 
+/* Covente */
+.cv-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.cv-toolbar .hint{font-size:12.5px;color:var(--muted)}
+.btn-cv{font-family:inherit;font-size:13.5px;font-weight:600;border:none;border-radius:9px;
+  padding:9px 15px;cursor:pointer;background:var(--blue);color:#fff;display:inline-flex;align-items:center;gap:7px}
+.btn-cv:hover{background:#0E3F7E}
+.btn-cv.ghost{background:var(--surface);color:var(--blue);border:1px solid var(--border-strong);padding:7px 13px;font-size:12.5px}
+.btn-cv.ghost:hover{background:var(--blue-tint)}
+.btn-cv.danger{background:var(--err);padding:7px 13px;font-size:12.5px}
+.btn-cv.danger:hover{background:#B93A3D}
+.cv-mes{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);
+  margin:14px 2px 8px;display:flex;align-items:center;gap:8px}
+.cv-mes .ln{flex:1;height:1px;background:var(--border)}
+.cv-row{background:var(--page);border:1px solid var(--border);border-radius:11px;padding:11px 14px;
+  margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:13px;transition:.12s}
+.cv-row:hover{border-color:var(--blue);background:var(--blue-tint)}
+.cv-row .cv-fecha{font-weight:700;font-size:13.5px;color:var(--blue);width:52px;flex:none}
+.cv-row .cv-resumen{flex:1;font-size:13px;color:var(--text);min-width:0}
+.cv-row .cv-resumen .cv-suc{font-weight:600}
+.cv-row .cv-chip{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
+.cv-detail{padding:18px 20px;overflow:auto}
+.cv-field{margin-bottom:14px}
+.cv-field .lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:3px}
+.cv-field .val{font-size:14px;color:var(--text);white-space:pre-wrap}
+.cv-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px}
+.cv-sep{height:1px;background:var(--border);margin:16px 0}
+.cv-form{padding:18px 20px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.cv-form textarea{width:100%;min-height:220px;border:1px solid var(--border-strong);border-radius:10px;
+  padding:12px;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px;resize:vertical}
+.cv-form label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px}
+.cv-form input,.cv-form select{width:100%;border:1px solid var(--border-strong);border-radius:8px;
+  padding:8px 10px;font-family:inherit;font-size:13.5px}
+.cv-form .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cv-form .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.cv-form-actions{display:flex;gap:9px;justify-content:flex-end;padding-top:6px;border-top:1px solid var(--border)}
+
 footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center}
 @media (max-width:680px){.search{order:5;margin-left:0;width:100%}.search input{width:100%}}
 </style>
@@ -243,6 +283,7 @@ footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center
     <button class="tab active" data-view="sucursal">Por sucursal</button>
     <button class="tab" data-view="gerente">Gerentes</button>
     <button class="tab" data-view="lider">Líderes</button>
+    <button class="tab" data-view="covente">Covente</button>
   </div>
   <div class="weeklabel" id="weekLabel"></div>
   <div class="search">
@@ -284,6 +325,9 @@ const state = {
   personas:[],       // [{key,sucursal,gerente,nombre,rol,dates,slots,count,modificado,visible}]
   oculta:{},         // key -> true si está oculta
   expanded:{},       // sucursal -> true si está desplegada
+  cvCache:null,      // lista de informes Covente (kb_list filtrado a la categoría)
+  cvEditKey:null,
+  cvExpanded:{},     // sucursal -> true si está desplegada (vista Covente)
 };
 let timer=null;
 
@@ -485,6 +529,7 @@ function cardsQueAplican(){
 }
 
 function render(){
+  if(state.vista==="covente"){ $("#weekLabel").innerHTML=""; $("#dayBar").innerHTML=""; renderCoventeView(); return; }
   pintarWeekLabel(); pintarDayBar();
   const cont=$("#view"); const arr=cardsQueAplican();
   if(!state.personas.length){ cont.innerHTML=""; return; }
@@ -555,6 +600,303 @@ function setVisible(key,vis){
   if(vis) delete state.oculta[key]; else state.oculta[key]=true;
 }
 
+/* ═══════════════════════════ Covente — salidas a campo ═══════════════════════════ */
+const CV_CAT="Covente";
+const CV_MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+async function bkApi(action,params){
+  const url=CONFIG.BACKEND_URL+"?action="+action+"&"+new URLSearchParams(params||{}).toString();
+  const r=await fetch(url,{cache:"no-store"}); const d=await r.json();
+  if(d.error) throw new Error(d.error); return d;
+}
+async function bkApiPost(action,payload){
+  const r=await fetch(CONFIG.BACKEND_URL,{method:"POST",body:JSON.stringify({action,key:state.cvEditKey,...payload})});
+  const d=await r.json(); if(d.error) throw new Error(d.error); return d;
+}
+function requireCvKey(){
+  if(state.cvEditKey) return true;
+  const k=window.prompt("Clave de edición (la misma del Centro de Control):");
+  if(!k) return false;
+  state.cvEditKey=k; return true;
+}
+function cvFindCategoria(){
+  const cats=(state.cvCache&&state.cvCache.categorias)||[];
+  return cats.find(c=>norm(c.nombre)===norm(CV_CAT));
+}
+function cvMesLabel(ym){
+  const[y,m]=ym.split("-"); const n=CV_MESES[+m-1]||"";
+  return n.charAt(0).toUpperCase()+n.slice(1)+" "+y;
+}
+function cvMatchSucursal(gerenteTexto){
+  const g=norm(gerenteTexto||"");
+  return CONFIG.SUCURSALES.find(s=>g.includes(norm(s.gerente)));
+}
+
+/* Parseo del informe pegado desde WhatsApp. Tolerante a variaciones de tilde/emoji;
+   usa el "estado" (ventas/datos) para no confundir el "Detalle de productos" repetido. */
+function parseCovente(texto){
+  const lineas=(texto||"").split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  let fecha="";
+  const mF=(texto||"").match(/informe\s+(\d{1,2})[\/\-.](\d{1,2})/i);
+  if(mF) fecha=new Date().getFullYear()+"-"+mF[2].padStart(2,"0")+"-"+mF[1].padStart(2,"0");
+  const c={sucursal:"",gerente:"",acompanante:"",zona:"",visitas:"",nuevosNegocios:"",
+    ventasCantidad:"",ventasValor:"",ventasDetalle:"",condicionVenta:"",
+    datosCantidad:"",datosValor:"",datosDetalle:"",observaciones:""};
+  let seccion="ventas";
+  lineas.forEach(linea=>{
+    const m=linea.match(/^[☑✓✔️\s]*(.+?):\s*(.*)$/);
+    if(!m) return;
+    const label=norm(m[1]), val=m[2].trim();
+    if(label.includes("sucursal")) c.sucursal=val;
+    else if(label.includes("gerente")) c.gerente=val;
+    else if(label.includes("acompan")) c.acompanante=val;
+    else if(label.includes("zona")) c.zona=val;
+    else if(label.includes("nuevos negocios")) c.nuevosNegocios=val;
+    else if(label.includes("visitas")) c.visitas=val;
+    else if(label.includes("ventas realizadas")){ c.ventasCantidad=val; seccion="ventas"; }
+    else if(label.includes("valor total de las ventas")||label.includes("valor total de venta")) c.ventasValor=val;
+    else if(label.includes("condicion de venta")) c.condicionVenta=val;
+    else if(label.includes("datos recopilados")){ c.datosCantidad=val; seccion="datos"; }
+    else if(label.includes("valor total de datos")) c.datosValor=val;
+    else if(label.includes("detalle de productos")){ if(seccion==="datos") c.datosDetalle=val; else c.ventasDetalle=val; }
+    else if(label.includes("observaciones")) c.observaciones=val;
+  });
+  return {fecha, campos:c, textoOriginal:texto};
+}
+
+async function cargarCovente(){
+  if(!state.cvCache){ try{ state.cvCache=await bkApi("kb_list"); }catch(e){ state.cvCache={categorias:[]}; } }
+}
+
+function cvResumen(campos){
+  const partes=[];
+  if(campos.visitas) partes.push(campos.visitas+" visitas");
+  if(campos.ventasCantidad) partes.push(campos.ventasCantidad+" ventas"+(campos.ventasValor?" ("+campos.ventasValor+")":""));
+  if(campos.datosCantidad) partes.push(campos.datosCantidad+" datos");
+  return partes.join(" · ")||"Sin resumen";
+}
+
+async function renderCoventeView(){
+  const cont=$("#view");
+  cont.innerHTML=`<div class="empty" style="padding:50px">Cargando informes de Covente…</div>`;
+  await cargarCovente();
+  const cat=cvFindCategoria();
+  const docs=(cat&&cat.docs||[]).filter(d=>d.mimeType==="text/plain");
+  const registros=[];
+  for(const d of docs){
+    try{ const doc=await bkApi("kb_get",{id:d.id}); const r=JSON.parse(doc.texto||"{}"); r._id=d.id; registros.push(r); }
+    catch(e){ /* archivo corrupto o no-covente, se ignora */ }
+  }
+  if(state.vista!=="covente") return; // el usuario cambió de pestaña mientras cargaba
+
+  const toolbar=`<div class="cv-toolbar">
+    <button class="btn-cv" id="cvNuevo">+ Nueva salida</button>
+    <span class="hint">Pegá el informe que te mandan por WhatsApp y lo organizo acá.</span>
+  </div>`;
+
+  if(!registros.length){
+    cont.innerHTML=toolbar+`<div class="empty" style="padding:50px">Todavía no cargaste ninguna salida.</div>`;
+    wireCoventeToolbar(); return;
+  }
+
+  // agrupar por sucursal/gerente (roster conocido primero, en su orden; el resto al final)
+  const porSucursal={};
+  registros.forEach(r=>{
+    const key=r.sucursalKey||"otros";
+    (porSucursal[key]=porSucursal[key]||[]).push(r);
+  });
+  const ordenKeys=[...CONFIG.SUCURSALES.map(s=>s.sucursal), "otros"].filter(k=>porSucursal[k]);
+
+  cont.innerHTML=toolbar+ordenKeys.map(key=>{
+    const regs=porSucursal[key].slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+    const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===key);
+    const titulo=sObj?`${sObj.sucursal} — ${sObj.gerente}`:"Sin sucursal identificada";
+    const open=!!state.cvExpanded[key];
+    let body="";
+    if(open){
+      const porMes={};
+      regs.forEach(r=>{ const ym=(r.fecha||"").slice(0,7)||"sin-fecha"; (porMes[ym]=porMes[ym]||[]).push(r); });
+      const mesesOrden=Object.keys(porMes).sort().reverse();
+      body=`<div class="acc-body">${mesesOrden.map(ym=>`
+        <div class="cv-mes">${ym==="sin-fecha"?"Sin fecha":esc(cvMesLabel(ym))}<span class="ln"></span></div>
+        ${porMes[ym].map(r=>`
+          <div class="cv-row" data-cvid="${esc(r._id)}">
+            <span class="cv-fecha">${r.fecha?esc(r.fecha.slice(8,10)+"/"+r.fecha.slice(5,7)):"—"}</span>
+            <span class="cv-resumen"><span class="cv-suc">${esc(r.campos.acompanante||r.campos.gerente||"")}</span> — ${esc(cvResumen(r.campos))}</span>
+            <span class="cv-chip">${esc(r.campos.zona||"")}</span>
+          </div>`).join("")}
+      `).join("")}</div>`;
+    }
+    return `<div class="acc ${open?"open":""}">
+      <button class="acc-head" data-cvsuc="${esc(key)}">
+        <span class="chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+        <span class="acc-title">${esc(titulo)}</span>
+        <span class="badge">${regs.length} salida${regs.length===1?"":"s"}</span>
+        <span class="acc-line"></span>
+      </button>${body}</div>`;
+  }).join("");
+  wireCoventeToolbar();
+}
+
+function wireCoventeToolbar(){
+  const b=$("#cvNuevo"); if(b) b.onclick=abrirCoventeForm;
+}
+
+function abrirCoventeDetalle(id){
+  bkApi("kb_get",{id}).then(doc=>{
+    const r=JSON.parse(doc.texto||"{}"); const c=r.campos||{};
+    const F=(lbl,val)=>val?`<div class="cv-field"><div class="lbl">${esc(lbl)}</div><div class="val">${esc(val)}</div></div>`:"";
+    $("#modal").innerHTML=`
+      <div class="modal-head">
+        <div class="mt"><div class="nm">Salida · ${esc(c.sucursal||"")}</div>
+          <div class="zn">${r.fecha?esc(new Date(r.fecha+"T00:00:00").toLocaleDateString("es-AR",{day:"2-digit",month:"long",year:"numeric"})):""}</div></div>
+        <button class="btn-cv ghost" id="cvEditar">Editar</button>
+        <button class="btn-cv danger" id="cvBorrar">Borrar</button>
+        <button class="x" id="modalClose">&times;</button>
+      </div>
+      <div class="cv-detail">
+        <div class="cv-grid2">
+          ${F("Gerente",c.gerente)}${F("Vendedor/cobrador acompañado",c.acompanante)}
+          ${F("Zona trabajada",c.zona)}${F("Cantidad de visitas",c.visitas)}
+        </div>
+        <div class="cv-sep"></div>
+        <div class="cv-grid2">
+          ${F("Nuevos negocios",c.nuevosNegocios)}${F("Condición de venta",c.condicionVenta)}
+          ${F("Ventas realizadas",c.ventasCantidad)}${F("Valor total de ventas",c.ventasValor)}
+        </div>
+        ${F("Detalle de productos vendidos",c.ventasDetalle)}
+        <div class="cv-sep"></div>
+        <div class="cv-grid2">${F("Datos recopilados",c.datosCantidad)}${F("Valor total de datos",c.datosValor)}</div>
+        ${F("Detalle de productos (datos)",c.datosDetalle)}
+        <div class="cv-sep"></div>
+        ${F("Observaciones",c.observaciones)}
+      </div>`;
+    $("#modalBg").classList.add("open");
+    $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+    $("#cvEditar").onclick=()=>editarCovente(id,r);
+    $("#cvBorrar").onclick=()=>borrarCovente(id,c.sucursal);
+  }).catch(e=>toastErr("No se pudo abrir: "+e.message));
+}
+
+function toastErr(msg){ window.alert(msg); }
+
+async function borrarCovente(id,sucursalKey){
+  if(!window.confirm("¿Borrar esta salida? No se puede deshacer.")) return;
+  if(!requireCvKey()) return;
+  try{
+    await bkApiPost("kb_delete",{id});
+    state.cvCache=await bkApi("kb_list");
+    $("#modalBg").classList.remove("open");
+    renderCoventeView();
+  }catch(e){ toastErr("No se pudo borrar: "+e.message); }
+}
+
+function abrirCoventeForm(){
+  $("#modal").innerHTML=`
+    <div class="modal-head"><div class="mt"><div class="nm">Nueva salida — Covente</div>
+      <div class="zn">Pegá el texto tal cual te lo mandan por WhatsApp</div></div>
+      <button class="x" id="modalClose">&times;</button></div>
+    <div class="cv-form">
+      <div>
+        <label>Texto del informe</label>
+        <textarea id="cvTexto" placeholder="Método COVENTE - Informe 22/07&#10;☑️Sucursal: ...&#10;☑️Gerente: ..."></textarea>
+      </div>
+      <div style="display:flex;gap:9px"><button class="btn-cv" id="cvProcesar">Procesar texto</button></div>
+      <div id="cvPreview"></div>
+    </div>`;
+  $("#modalBg").classList.add("open");
+  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  $("#cvProcesar").onclick=()=>{
+    const texto=$("#cvTexto").value.trim();
+    if(!texto){ toastErr("Pegá el texto del informe primero."); return; }
+    const parsed=parseCovente(texto);
+    renderCoventeCamposForm(parsed);
+  };
+}
+
+/* Reabre el mismo informe ya guardado en el formulario de campos, para corregirlo a mano. */
+function editarCovente(id,registro){
+  $("#modal").innerHTML=`
+    <div class="modal-head"><div class="mt"><div class="nm">Editar salida — Covente</div>
+      <div class="zn">Corregí lo que haga falta y guardá</div></div>
+      <button class="x" id="modalClose">&times;</button></div>
+    <div class="cv-form"><div id="cvPreview"></div></div>`;
+  $("#modalBg").classList.add("open");
+  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  renderCoventeCamposForm({fecha:registro.fecha, campos:registro.campos, textoOriginal:registro.textoOriginal}, id);
+}
+
+function renderCoventeCamposForm(parsed, editId){
+  const c=parsed.campos;
+  const match=cvMatchSucursal(c.gerente)||CONFIG.SUCURSALES.find(s=>s.sucursal===c.sucursal);
+  const opciones=CONFIG.SUCURSALES.map(s=>`<option value="${esc(s.sucursal)}" ${match&&match.sucursal===s.sucursal?"selected":""}>${esc(s.sucursal)} — ${esc(s.gerente)}</option>`).join("");
+  $("#cvPreview").innerHTML=`
+    <div class="cv-sep"></div>
+    <div class="row">
+      <div><label>Sucursal / Gerente</label><select id="cvSucursal"><option value="">— Elegir —</option>${opciones}</select></div>
+      <div><label>Fecha de la salida</label><input type="date" id="cvFecha" value="${esc(parsed.fecha||"")}"></div>
+    </div>
+    <div class="row3">
+      <div><label>Vendedor/cobrador acompañado</label><input id="cvAcompanante" value="${esc(c.acompanante)}"></div>
+      <div><label>Zona trabajada</label><input id="cvZona" value="${esc(c.zona)}"></div>
+      <div><label>Cantidad de visitas</label><input id="cvVisitas" value="${esc(c.visitas)}"></div>
+    </div>
+    <div class="row3">
+      <div><label>Nuevos negocios</label><input id="cvNuevosNegocios" value="${esc(c.nuevosNegocios)}"></div>
+      <div><label>Ventas realizadas</label><input id="cvVentasCantidad" value="${esc(c.ventasCantidad)}"></div>
+      <div><label>Valor total de ventas</label><input id="cvVentasValor" value="${esc(c.ventasValor)}"></div>
+    </div>
+    <div><label>Detalle de productos vendidos</label><input id="cvVentasDetalle" value="${esc(c.ventasDetalle)}"></div>
+    <div><label>Condición de venta</label><input id="cvCondicionVenta" value="${esc(c.condicionVenta)}"></div>
+    <div class="row">
+      <div><label>Datos recopilados</label><input id="cvDatosCantidad" value="${esc(c.datosCantidad)}"></div>
+      <div><label>Valor total de datos</label><input id="cvDatosValor" value="${esc(c.datosValor)}"></div>
+    </div>
+    <div><label>Detalle de productos (datos)</label><input id="cvDatosDetalle" value="${esc(c.datosDetalle)}"></div>
+    <div><label>Observaciones</label><input id="cvObservaciones" value="${esc(c.observaciones)}"></div>
+    <div class="cv-form-actions">
+      <button class="btn-sm" id="cvCancelar" style="border:1px solid var(--border-strong);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer">Cancelar</button>
+      <button class="btn-cv" id="cvGuardar">${editId?"Guardar cambios":"Guardar salida"}</button>
+    </div>`;
+  $("#cvCancelar").onclick=()=>$("#modalBg").classList.remove("open");
+  $("#cvGuardar").onclick=()=>guardarCovente(parsed.textoOriginal, editId);
+}
+
+async function guardarCovente(textoOriginal, editId){
+  if(!requireCvKey()) return;
+  const sucSel=$("#cvSucursal").value;
+  const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===sucSel);
+  const campos={
+    sucursal: sucSel, gerente: sObj?sObj.gerente:"",
+    acompanante:$("#cvAcompanante").value.trim(), zona:$("#cvZona").value.trim(),
+    visitas:$("#cvVisitas").value.trim(), nuevosNegocios:$("#cvNuevosNegocios").value.trim(),
+    ventasCantidad:$("#cvVentasCantidad").value.trim(), ventasValor:$("#cvVentasValor").value.trim(),
+    ventasDetalle:$("#cvVentasDetalle").value.trim(), condicionVenta:$("#cvCondicionVenta").value.trim(),
+    datosCantidad:$("#cvDatosCantidad").value.trim(), datosValor:$("#cvDatosValor").value.trim(),
+    datosDetalle:$("#cvDatosDetalle").value.trim(), observaciones:$("#cvObservaciones").value.trim(),
+  };
+  const fecha=$("#cvFecha").value;
+  if(!sucSel){ toastErr("Elegí a qué sucursal/gerente corresponde la salida."); return; }
+  if(!fecha){ toastErr("Elegí la fecha de la salida."); return; }
+  const registro={fecha, sucursalKey:sucSel, campos, textoOriginal};
+  try{
+    if(editId){
+      await bkApiPost("kb_save",{id:editId, content:JSON.stringify(registro)});
+    } else {
+      let cat=cvFindCategoria();
+      if(!cat){ await bkApiPost("kb_create_category",{nombre:CV_CAT}); state.cvCache=await bkApi("kb_list"); cat=cvFindCategoria(); }
+      const nombre=`Covente - ${sucSel} - ${fecha} - ${Date.now()}.json`;
+      const blob=new Blob([JSON.stringify(registro)],{type:"text/plain"});
+      const file=new File([blob], nombre, {type:"text/plain"});
+      const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(file);});
+      await bkApiPost("kb_upload",{filename:nombre, mimeType:"text/plain", base64:b64, categoryId:cat.id});
+    }
+    state.cvCache=await bkApi("kb_list");
+    state.cvExpanded[sucSel]=true;
+    $("#modalBg").classList.remove("open");
+    renderCoventeView();
+  }catch(e){ toastErr("No se pudo guardar: "+e.message); }
+}
+
 /* ───────── Eventos ───────── */
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
@@ -562,8 +904,12 @@ document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
 }));
 $("#dayBar").addEventListener("click",e=>{const b=e.target.closest(".daypill");if(!b)return;state.diaSel=+b.dataset.day;render();});
 function toggleSuc(suc){ state.expanded[suc]=!state.expanded[suc]; render(); }
+function toggleCvSuc(suc){ state.cvExpanded[suc]=!state.cvExpanded[suc]; renderCoventeView(); }
 $("#view").addEventListener("click",e=>{
-  const h=e.target.closest(".acc-head"); if(h){ toggleSuc(h.dataset.suc); return; }
+  const h=e.target.closest(".acc-head");
+  if(h && h.dataset.cvsuc!==undefined){ toggleCvSuc(h.dataset.cvsuc); return; }
+  if(h){ toggleSuc(h.dataset.suc); return; }
+  const cv=e.target.closest("[data-cvid]"); if(cv){ abrirCoventeDetalle(cv.dataset.cvid); return; }
   const c=e.target.closest("[data-modal]"); if(c) abrirModal(c.dataset.modal);
 });
 let tB=null;
