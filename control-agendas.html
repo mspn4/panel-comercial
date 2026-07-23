@@ -252,6 +252,9 @@ table.week tr:hover td.task{background:var(--blue-tint)}
 .cv-form .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .cv-form .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .cv-form-actions{display:flex;gap:9px;justify-content:flex-end;padding-top:6px;border-top:1px solid var(--border)}
+.cv-preview-card{border:1px solid var(--border-strong);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:var(--page)}
+.cv-preview-num{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue);margin-bottom:2px}
+.cv-saved{background:var(--ok-tint);border:1px solid #B7E3CC;color:#1A6B46;border-radius:10px;padding:12px 14px;font-size:13.5px;font-weight:600}
 
 footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center}
 @media (max-width:680px){.search{order:5;margin-left:0;width:100%}.search input{width:100%}}
@@ -617,9 +620,11 @@ async function bkApiPost(action,payload){
 }
 function requireCvKey(){
   if(state.cvEditKey) return true;
-  const k=window.prompt("Clave de edición (la misma del Centro de Control):");
+  const guardada=localStorage.getItem("cv_edit_key");
+  if(guardada){ state.cvEditKey=guardada; return true; }
+  const k=window.prompt("Clave de edición (se guarda en este navegador, no la vuelve a pedir):");
   if(!k) return false;
-  state.cvEditKey=k; return true;
+  state.cvEditKey=k; localStorage.setItem("cv_edit_key",k); return true;
 }
 function cvFindCategoria(){
   const cats=(state.cvCache&&state.cvCache.categorias)||[];
@@ -794,26 +799,43 @@ async function borrarCovente(id,sucursalKey){
   }catch(e){ toastErr("No se pudo borrar: "+e.message); }
 }
 
+/* Divide un texto con uno o varios informes pegados juntos, usando el
+   encabezado "Método COVENTE" como separador de cada salida. */
+function splitCoventeBloques(texto){
+  const idxs=[]; const re=/m[eé]todo\s+covente/gi; let m;
+  while((m=re.exec(texto))) idxs.push(m.index);
+  if(idxs.length<=1) return [texto.trim()];
+  return idxs.map((start,i)=>texto.slice(start, i+1<idxs.length?idxs[i+1]:texto.length).trim());
+}
+
 function abrirCoventeForm(){
   $("#modal").innerHTML=`
     <div class="modal-head"><div class="mt"><div class="nm">Nueva salida — Covente</div>
-      <div class="zn">Pegá el texto tal cual te lo mandan por WhatsApp</div></div>
+      <div class="zn">Pegá uno o varios informes tal cual te los mandan por WhatsApp</div></div>
       <button class="x" id="modalClose">&times;</button></div>
     <div class="cv-form">
       <div>
-        <label>Texto del informe</label>
+        <label>Texto del informe (podés pegar varios juntos, uno atrás del otro)</label>
         <textarea id="cvTexto" placeholder="Método COVENTE - Informe 22/07&#10;☑️Sucursal: ...&#10;☑️Gerente: ..."></textarea>
       </div>
       <div style="display:flex;gap:9px"><button class="btn-cv" id="cvProcesar">Procesar texto</button></div>
-      <div id="cvPreview"></div>
+      <div id="cvPreviewList"></div>
     </div>`;
   $("#modalBg").classList.add("open");
   $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
   $("#cvProcesar").onclick=()=>{
     const texto=$("#cvTexto").value.trim();
     if(!texto){ toastErr("Pegá el texto del informe primero."); return; }
-    const parsed=parseCovente(texto);
-    renderCoventeCamposForm(parsed);
+    const bloques=splitCoventeBloques(texto);
+    const lista=$("#cvPreviewList"); lista.innerHTML="";
+    bloques.forEach((bloqueTexto,i)=>{
+      const parsed=parseCovente(bloqueTexto);
+      const card=document.createElement("div");
+      card.className="cv-preview-card";
+      card.innerHTML=bloques.length>1?`<div class="cv-preview-num">Salida ${i+1} de ${bloques.length}</div><div class="cv-fields"></div>`:`<div class="cv-fields"></div>`;
+      lista.appendChild(card);
+      renderCoventeCamposForm(parsed, null, card.querySelector(".cv-fields"));
+    });
   };
 }
 
@@ -823,62 +845,67 @@ function editarCovente(id,registro){
     <div class="modal-head"><div class="mt"><div class="nm">Editar salida — Covente</div>
       <div class="zn">Corregí lo que haga falta y guardá</div></div>
       <button class="x" id="modalClose">&times;</button></div>
-    <div class="cv-form"><div id="cvPreview"></div></div>`;
+    <div class="cv-form"><div class="cv-fields" id="cvEditFields"></div></div>`;
   $("#modalBg").classList.add("open");
   $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
-  renderCoventeCamposForm({fecha:registro.fecha, campos:registro.campos, textoOriginal:registro.textoOriginal}, id);
+  renderCoventeCamposForm({fecha:registro.fecha, campos:registro.campos, textoOriginal:registro.textoOriginal}, id, $("#cvEditFields"));
 }
 
-function renderCoventeCamposForm(parsed, editId){
+function renderCoventeCamposForm(parsed, editId, container){
   const c=parsed.campos;
   const match=cvMatchSucursal(c.gerente)||CONFIG.SUCURSALES.find(s=>s.sucursal===c.sucursal);
   const opciones=CONFIG.SUCURSALES.map(s=>`<option value="${esc(s.sucursal)}" ${match&&match.sucursal===s.sucursal?"selected":""}>${esc(s.sucursal)} — ${esc(cvGerenteLabel(s.gerente))}</option>`).join("");
-  $("#cvPreview").innerHTML=`
+  container.innerHTML=`
     <div class="cv-sep"></div>
     <div class="row">
-      <div><label>Sucursal / Gerente</label><select id="cvSucursal"><option value="">— Elegir —</option>${opciones}</select></div>
-      <div><label>Fecha de la salida</label><input type="date" id="cvFecha" value="${esc(parsed.fecha||"")}"></div>
+      <div><label>Sucursal / Gerente</label><select data-f="sucursal"><option value="">— Elegir —</option>${opciones}</select></div>
+      <div><label>Fecha de la salida</label><input type="date" data-f="fecha" value="${esc(parsed.fecha||"")}"></div>
     </div>
     <div class="row3">
-      <div><label>Vendedor/cobrador acompañado</label><input id="cvAcompanante" value="${esc(c.acompanante)}"></div>
-      <div><label>Zona trabajada</label><input id="cvZona" value="${esc(c.zona)}"></div>
-      <div><label>Cantidad de visitas</label><input id="cvVisitas" value="${esc(c.visitas)}"></div>
+      <div><label>Vendedor/cobrador acompañado</label><input data-f="acompanante" value="${esc(c.acompanante)}"></div>
+      <div><label>Zona trabajada</label><input data-f="zona" value="${esc(c.zona)}"></div>
+      <div><label>Cantidad de visitas</label><input data-f="visitas" value="${esc(c.visitas)}"></div>
     </div>
     <div class="row3">
-      <div><label>Nuevos negocios</label><input id="cvNuevosNegocios" value="${esc(c.nuevosNegocios)}"></div>
-      <div><label>Ventas realizadas</label><input id="cvVentasCantidad" value="${esc(c.ventasCantidad)}"></div>
-      <div><label>Valor total de ventas</label><input id="cvVentasValor" value="${esc(c.ventasValor)}"></div>
+      <div><label>Nuevos negocios</label><input data-f="nuevosNegocios" value="${esc(c.nuevosNegocios)}"></div>
+      <div><label>Ventas realizadas</label><input data-f="ventasCantidad" value="${esc(c.ventasCantidad)}"></div>
+      <div><label>Valor total de ventas</label><input data-f="ventasValor" value="${esc(c.ventasValor)}"></div>
     </div>
-    <div><label>Detalle de productos vendidos</label><input id="cvVentasDetalle" value="${esc(c.ventasDetalle)}"></div>
-    <div><label>Condición de venta</label><input id="cvCondicionVenta" value="${esc(c.condicionVenta)}"></div>
+    <div><label>Detalle de productos vendidos</label><input data-f="ventasDetalle" value="${esc(c.ventasDetalle)}"></div>
+    <div><label>Condición de venta</label><input data-f="condicionVenta" value="${esc(c.condicionVenta)}"></div>
     <div class="row">
-      <div><label>Datos recopilados</label><input id="cvDatosCantidad" value="${esc(c.datosCantidad)}"></div>
-      <div><label>Valor total de datos</label><input id="cvDatosValor" value="${esc(c.datosValor)}"></div>
+      <div><label>Datos recopilados</label><input data-f="datosCantidad" value="${esc(c.datosCantidad)}"></div>
+      <div><label>Valor total de datos</label><input data-f="datosValor" value="${esc(c.datosValor)}"></div>
     </div>
-    <div><label>Detalle de productos (datos)</label><input id="cvDatosDetalle" value="${esc(c.datosDetalle)}"></div>
-    <div><label>Observaciones</label><input id="cvObservaciones" value="${esc(c.observaciones)}"></div>
+    <div><label>Detalle de productos (datos)</label><input data-f="datosDetalle" value="${esc(c.datosDetalle)}"></div>
+    <div><label>Observaciones</label><input data-f="observaciones" value="${esc(c.observaciones)}"></div>
     <div class="cv-form-actions">
-      <button class="btn-sm" id="cvCancelar" style="border:1px solid var(--border-strong);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer">Cancelar</button>
-      <button class="btn-cv" id="cvGuardar">${editId?"Guardar cambios":"Guardar salida"}</button>
+      <button class="btn-sm" data-act="cancelar" style="border:1px solid var(--border-strong);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer">${editId?"Cancelar":"Descartar esta"}</button>
+      <button class="btn-cv" data-act="guardar">${editId?"Guardar cambios":"Guardar salida"}</button>
     </div>`;
-  $("#cvCancelar").onclick=()=>$("#modalBg").classList.remove("open");
-  $("#cvGuardar").onclick=()=>guardarCovente(parsed.textoOriginal, editId);
+  container.querySelector('[data-act="cancelar"]').onclick=()=>{
+    if(editId){ $("#modalBg").classList.remove("open"); return; }
+    const card=container.closest(".cv-preview-card");
+    if(card) card.remove(); else container.innerHTML="";
+  };
+  container.querySelector('[data-act="guardar"]').onclick=()=>guardarCovente(parsed.textoOriginal, editId, container);
 }
 
-async function guardarCovente(textoOriginal, editId){
+async function guardarCovente(textoOriginal, editId, container){
   if(!requireCvKey()) return;
-  const sucSel=$("#cvSucursal").value;
+  const f=name=>container.querySelector(`[data-f="${name}"]`).value.trim();
+  const sucSel=f("sucursal");
   const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===sucSel);
   const campos={
     sucursal: sucSel, gerente: sObj?cvGerenteLabel(sObj.gerente):"",
-    acompanante:$("#cvAcompanante").value.trim(), zona:$("#cvZona").value.trim(),
-    visitas:$("#cvVisitas").value.trim(), nuevosNegocios:$("#cvNuevosNegocios").value.trim(),
-    ventasCantidad:$("#cvVentasCantidad").value.trim(), ventasValor:$("#cvVentasValor").value.trim(),
-    ventasDetalle:$("#cvVentasDetalle").value.trim(), condicionVenta:$("#cvCondicionVenta").value.trim(),
-    datosCantidad:$("#cvDatosCantidad").value.trim(), datosValor:$("#cvDatosValor").value.trim(),
-    datosDetalle:$("#cvDatosDetalle").value.trim(), observaciones:$("#cvObservaciones").value.trim(),
+    acompanante:f("acompanante"), zona:f("zona"),
+    visitas:f("visitas"), nuevosNegocios:f("nuevosNegocios"),
+    ventasCantidad:f("ventasCantidad"), ventasValor:f("ventasValor"),
+    ventasDetalle:f("ventasDetalle"), condicionVenta:f("condicionVenta"),
+    datosCantidad:f("datosCantidad"), datosValor:f("datosValor"),
+    datosDetalle:f("datosDetalle"), observaciones:f("observaciones"),
   };
-  const fecha=$("#cvFecha").value;
+  const fecha=f("fecha");
   if(!sucSel){ toastErr("Elegí a qué sucursal/gerente corresponde la salida."); return; }
   if(!fecha){ toastErr("Elegí la fecha de la salida."); return; }
   const registro={fecha, sucursalKey:sucSel, campos, textoOriginal};
@@ -896,8 +923,10 @@ async function guardarCovente(textoOriginal, editId){
     }
     state.cvCache=await bkApi("kb_list");
     state.cvExpanded[sucSel]=true;
-    $("#modalBg").classList.remove("open");
-    renderCoventeView();
+    renderCoventeView(); // refresca el acordeón de fondo aunque el modal siga abierto
+    if(editId){ $("#modalBg").classList.remove("open"); return; }
+    const card=container.closest(".cv-preview-card")||container;
+    card.innerHTML=`<div class="cv-saved">✓ Guardada — ${esc(sucSel)} · ${esc(fecha.split("-").reverse().join("/"))}</div>`;
   }catch(e){ toastErr("No se pudo guardar: "+e.message); }
 }
 
