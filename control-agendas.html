@@ -629,9 +629,10 @@ function cvMesLabel(ym){
   const[y,m]=ym.split("-"); const n=CV_MESES[+m-1]||"";
   return n.charAt(0).toUpperCase()+n.slice(1)+" "+y;
 }
+function cvGerenteLabel(g){ return [].concat(g||"").join(" / "); }
 function cvMatchSucursal(gerenteTexto){
   const g=norm(gerenteTexto||"");
-  return CONFIG.SUCURSALES.find(s=>g.includes(norm(s.gerente)));
+  return CONFIG.SUCURSALES.find(s=>[].concat(s.gerente).some(ape=>g.includes(norm(ape))));
 }
 
 /* Parseo del informe pegado desde WhatsApp. Tolerante a variaciones de tilde/emoji;
@@ -712,7 +713,7 @@ async function renderCoventeView(){
   cont.innerHTML=toolbar+ordenKeys.map(key=>{
     const regs=porSucursal[key].slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
     const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===key);
-    const titulo=sObj?`${sObj.sucursal} — ${sObj.gerente}`:"Sin sucursal identificada";
+    const titulo=sObj?`${sObj.sucursal} — ${cvGerenteLabel(sObj.gerente)}`:"Sin sucursal identificada";
     const open=!!state.cvExpanded[key];
     let body="";
     if(open){
@@ -831,7 +832,7 @@ function editarCovente(id,registro){
 function renderCoventeCamposForm(parsed, editId){
   const c=parsed.campos;
   const match=cvMatchSucursal(c.gerente)||CONFIG.SUCURSALES.find(s=>s.sucursal===c.sucursal);
-  const opciones=CONFIG.SUCURSALES.map(s=>`<option value="${esc(s.sucursal)}" ${match&&match.sucursal===s.sucursal?"selected":""}>${esc(s.sucursal)} — ${esc(s.gerente)}</option>`).join("");
+  const opciones=CONFIG.SUCURSALES.map(s=>`<option value="${esc(s.sucursal)}" ${match&&match.sucursal===s.sucursal?"selected":""}>${esc(s.sucursal)} — ${esc(cvGerenteLabel(s.gerente))}</option>`).join("");
   $("#cvPreview").innerHTML=`
     <div class="cv-sep"></div>
     <div class="row">
@@ -869,7 +870,7 @@ async function guardarCovente(textoOriginal, editId){
   const sucSel=$("#cvSucursal").value;
   const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===sucSel);
   const campos={
-    sucursal: sucSel, gerente: sObj?sObj.gerente:"",
+    sucursal: sucSel, gerente: sObj?cvGerenteLabel(sObj.gerente):"",
     acompanante:$("#cvAcompanante").value.trim(), zona:$("#cvZona").value.trim(),
     visitas:$("#cvVisitas").value.trim(), nuevosNegocios:$("#cvNuevosNegocios").value.trim(),
     ventasCantidad:$("#cvVentasCantidad").value.trim(), ventasValor:$("#cvVentasValor").value.trim(),
