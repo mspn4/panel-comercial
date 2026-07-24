@@ -31,6 +31,9 @@ Sebastian es auditor comercial en M&A Equipamientos Comerciales (Tucumán, Argen
 - **Clasificación reescrita:** ahora usa `classifyEmployee(tarea, tipodven)` — prioriza la columna `tipodven` del xlsx (viene pre-clasificada de origen y separa producción/no-producción sin ambigüedad, validado 1:1 contra los datos reales); si el archivo cargado no trae esa columna (formato viejo de 7 columnas), cae a `TAREA_ALIAS` por texto de `tarea` como antes.
 - **Categoría nueva:** "Líder Redes" (`tipodven=LIDER POR REDES` / `tarea=LIDER REDES`, 2 personas), agregada en `CAT_ORDER`/`CAT_COLOR`/`CAT_SHORT`/`TAREA_ALIAS` + var CSS `--c-liderredes`.
 - Carga de xlsx (botón "Cargar plano") reconoce automáticamente `tipodven` si está en los headers (`COLS_OPT`), sin romper compatibilidad con planos viejos que no la tengan.
+- Header muestra "Actualizado dd/mm/yyyy" junto al logo (fijo en el HTML para el plano base; se actualiza solo a la fecha del día al cargar un xlsx nuevo).
+- Barra de sucursales (`.tabs-wrap`) con scrollbar horizontal visible — antes estaba oculta (`scrollbar-width:none`) y sucursales fuera del viewport parecían inaccesibles.
+- **Regla de negocio:** "vendedores de terreno" = Vendedor Senior + Vendedor Junior (`TERRENO_CATS`). Se muestra como "(N terreno)" junto al número de Vendedor Senior en la vista Global, recalculado en vivo.
 - **Pendiente:** reflejar en la app la info de la hoja de Drive `1gijnFhygEnvKz7pYp81cJCIgWAa5hIGrRGl_1zyxrfk` — bloqueado hasta que el usuario comparta acceso con `sebastianpereznieva@gmail.com` (la cuenta de Drive conectada no tenía permiso).
 
 ### cotizador-comparativo-v3.html / planes-vigentes-tarjetas.html / circuito-ventas-entes-publicos-caso2-mercaderia-remitida.html / proyeccion-gerentes-dashboard.html / informe-showroom-sucursales.html / evolucion-vendedores.html
