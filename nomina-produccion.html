@@ -124,7 +124,9 @@
   .stat .bar{position:absolute;left:0;top:0;bottom:0;width:4px;}
   .stat .sn{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-2);}
   .stat .sn .cat-dot{width:9px;height:9px;}
-  .stat .sv{font-size:33px;font-weight:700;letter-spacing:-.02em;margin-top:8px;line-height:1;}
+  .stat .sv-row{display:flex;align-items:baseline;gap:7px;margin-top:8px;}
+  .stat .sv{font-size:33px;font-weight:700;letter-spacing:-.02em;line-height:1;}
+  .stat .sv-terreno{font-size:14px;font-weight:600;color:var(--ink-3);}
   .stat .sd{font-size:11.5px;color:var(--ink-3);margin-top:6px;height:14px;}
   .stat .sd.changed b{color:var(--accent-ink);font-weight:650;}
 
@@ -315,6 +317,8 @@ function classifyEmployee(tarea, tipodven){
 const EXCLUDED_AREAS = new Set(['CASA CENTRAL']);   // se excluye por completo de producción
 
 const CAT_ORDER = ["Gerente de Área","Líder Comercial","Vendedor Senior","Vendedor Junior","Vendedor Cobrador","Vendedor de Showroom","Vendedor Redes","Líder Redes","Líder CRM","Vendedor CRM"];
+// Vendedores de terreno (trabajan en calle) = Senior + Junior. Se muestra entre paréntesis junto al número de Vendedor Senior.
+const TERRENO_CATS = ["Vendedor Senior","Vendedor Junior"];
 const CAT_COLOR = {"Gerente de Área":"var(--c-gerente)","Líder Comercial":"var(--c-lider)","Vendedor Senior":"var(--c-senior)","Vendedor Junior":"var(--c-junior)","Vendedor Cobrador":"var(--c-cobrador)","Vendedor de Showroom":"var(--c-showroom)","Vendedor Redes":"var(--c-redes)","Líder Redes":"var(--c-liderredes)","Líder CRM":"var(--c-lidercrm)","Vendedor CRM":"var(--c-vendcrm)"};
 const CAT_SHORT = {"Gerente de Área":"Gerente","Líder Comercial":"Líder Com.","Vendedor Senior":"Senior","Vendedor Junior":"Junior","Vendedor Cobrador":"Cobrador","Vendedor de Showroom":"Showroom","Vendedor Redes":"Redes","Líder Redes":"Líder Redes","Líder CRM":"Líder CRM","Vendedor CRM":"Vend. CRM"};
 const AREA_PRETTY = {"CATAMARCA":"Catamarca","CORDOBA":"Córdoba","CRM":"CRM","JUJUY":"Jujuy","LA RIOJA":"La Rioja","NORTE CENTR":"Norte Centro","NORTE INTERIOR":"Norte Interior","SALTA":"Salta","SANTIAGO":"Santiago","TUCUMAN CAPITAL":"Tucumán Capital","TUCUMAN INTERIOR":"Tucumán Interior"};
@@ -430,7 +434,8 @@ function renderGlobal(){
   const stats=CAT_ORDER.map(cat=>`<div class="stat" data-stat="${cat}">
     <span class="bar" style="background:${CAT_COLOR[cat]}"></span>
     <div class="sn"><span class="cat-dot" style="background:${CAT_COLOR[cat]}"></span>${cat}</div>
-    <div class="sv num" data-statval="${cat}">0</div><div class="sd" data-statdelta="${cat}"></div></div>`).join('');
+    <div class="sv-row"><div class="sv num" data-statval="${cat}">0</div>${cat==='Vendedor Senior'?'<span class="sv-terreno num" data-terrenoval title="Vendedores de terreno: Senior + Junior"></span>':''}</div>
+    <div class="sd" data-statdelta="${cat}"></div></div>`).join('');
 
   const headCols=CAT_ORDER.map((c,i)=>`<th data-colhead="${i}"><div class="colhead"><span class="col-dot" style="background:${CAT_COLOR[c]}"></span>${CAT_SHORT[c]}</div></th>`).join('');
   const bodyRows=AREAS.map(a=>{
@@ -488,6 +493,8 @@ function updateAllNumbers(){
       const sd=document.querySelector(`[data-statdelta="${c}"]`);
       if(sd){ if(v!==b){sd.classList.add('changed');sd.innerHTML=`base ${b} · <b>${fmtDelta(v-b)}</b>`;}else{sd.classList.remove('changed');sd.textContent=`base ${b}`;} }
     });
+    const tv=document.querySelector('[data-terrenoval]');
+    if(tv) tv.textContent = `(${TERRENO_CATS.reduce((s,c)=>s+catTotal(c),0)} terreno)`;
     AREAS.forEach(a=>{
       CAT_ORDER.forEach(c=>{
         const cell=document.querySelector(`[data-cellval="${a}|${c}"]`);
