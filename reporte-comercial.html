@@ -643,6 +643,10 @@ td .subc { color: var(--text-subtle); font-size: 11px; font-weight: 400; margin-
   color: var(--text-muted); text-align: center; line-height: 20px; border-radius: 50%;
 }
 tr.top-3 .rank { background: var(--primary); color: #ffffff; border-color: var(--primary); }
+tr.total-row { cursor: default; position: sticky; bottom: 0; z-index: 1; background: var(--surface-2); }
+tr.total-row:hover { background: var(--surface-2); }
+tr.total-row td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: none; }
+tr.total-row td.name { color: var(--text); }
 
 .mix-bar { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 10.5px; }
 .mix-bar-track {
@@ -5065,6 +5069,20 @@ function renderTable(data) {
     body.querySelectorAll('tr[data-dim]').forEach(tr => {
       tr.addEventListener('click', () => openDetail(tr.dataset.dim, tr.dataset.key));
     });
+    // Fila de totales — suma las filas visibles (respeta filtros y búsqueda activos)
+    const sumKeys = ['neto', 'contado', 'financiado', 'reservas', 'ops', 'recibos', 'clientes'];
+    const totals = {};
+    sumKeys.forEach(k => { totals[k] = rows.reduce((s, r) => s + (Number(r[k]) || 0), 0); });
+    const totalRowHTML = '<tr class="total-row">' + cols.map(c => {
+      if (c.k === 'key') return '<td class="name">Total</td>';
+      if (!sumKeys.includes(c.k)) return '<td></td>';
+      let val;
+      if (c.k === 'reservas') val = fmt.moneyShort(totals.reservas);
+      else if (c.k === 'ops' || c.k === 'recibos' || c.k === 'clientes') val = fmt.int(totals[c.k]);
+      else val = fmt.money(totals[c.k]);
+      return `<td class="${c.cls || ''}">${val}</td>`;
+    }).join('') + '</tr>';
+    body.insertAdjacentHTML('beforeend', totalRowHTML);
   }
 }
 
@@ -6598,7 +6616,7 @@ if (_importNominaExcelInput) _importNominaExcelInput.addEventListener('change', 
         const nro = isNaN(nroN) ? nroRaw : nroN;
         const nombre = getCol(row, 'Vendedor', 'Nombre');
         const sucursal = getCol(row, 'Sucursal');
-        const fuerza = getCol(row, 'FuerzadeventaFuerzaventa', 'Fuerza', 'FuerzaVenta');
+        const fuerza = getCol(row, 'Fuerza de venta', 'Fuerza Venta', 'Fuerza', 'FuerzaVenta');
         const fechaIngreso = getCol(row, 'FechaIngreso', 'Ingreso', 'Fecha');
         const sexo = getCol(row, 'Sexo').toUpperCase().slice(0,1);
         const lider = getCol(row, 'Lider', 'Líder') || null;
@@ -6616,8 +6634,11 @@ if (_importNominaExcelInput) _importNominaExcelInput.addEventListener('change', 
           cod_zona: codZona, nom_zona: nomZona, cobrador
         };
         if (existing.has(String(nro))) {
-          // Actualizar el existente
-          Object.assign(existing.get(String(nro)), entry);
+          // Actualizar el existente: solo pisa los campos que vienen con dato en el excel,
+          // para no borrar Zona/Cobrador/Lider/Sexo/Tipo equipo cargados a mano cuando
+          // el archivo no trae esas columnas (ej. exportado desde nomina-produccion.html)
+          const target = existing.get(String(nro));
+          Object.entries(entry).forEach(([k, v]) => { if (v !== '' && v != null) target[k] = v; });
           updated++;
         } else {
           nominaDraft.push(entry);
