@@ -12,6 +12,9 @@
 const CONFIG = {
   // URL del Apps Script (BackendPanel.gs), termina en /exec
   APPSSCRIPT_URL: "https://script.google.com/macros/s/AKfycby3TXMd0s-HJBjyi_i362KIQq_yD_89-f0brHau1K11kLuyzVC7YjbBnHQJS-JX0DmC/exec",
+  // Clave de edición fija (uso interno, sin prompt). Tiene que coincidir con
+  // el EDIT_KEY configurado en BackendPanel.gs.
+  EDIT_KEY: "MAeditor2026",
 };
 
 // Herramientas "link" — igual que antes. archivo = nombre exacto del .html subido.
@@ -318,7 +321,7 @@ async function apiPost(action, payload){
 
 /* ═══════════════════════════ Estado y layout ═══════════════════════════ */
 const state = {
-  editMode:false, editKey:null,
+  editMode:false, editKey:CONFIG.EDIT_KEY,
   layout:{ order:[], colors:{}, hidden:{}, custom:[] },
   query:"",
   kbCache:null,       // último kb_list
@@ -362,11 +365,7 @@ async function guardarLayout(){
 
 /* ═══════════════════════════ Modo edición ═══════════════════════════ */
 $("#btnEdit").addEventListener("click", async ()=>{
-  if(!state.editMode){
-    const k=window.prompt("Clave de edición:");
-    if(k===null) return;
-    state.editKey=k; state.editMode=true;
-  } else { state.editMode=false; state.editKey=null; }
+  state.editMode=!state.editMode;
   $("#btnEdit").classList.toggle("on", state.editMode);
   $("#editbar").classList.toggle("show", state.editMode);
   render();
@@ -455,7 +454,6 @@ function wireCardEvents(){
       el.addEventListener("drop", async e=>{
         if(!e.dataTransfer.files.length) return;
         e.preventDefault(); el.classList.remove("dropready");
-        if(!state.editKey){ const k=window.prompt("Clave de edición para subir archivos:"); if(!k) return; state.editKey=k; }
         for(const file of e.dataTransfer.files) await subirDocumento(file, "root");
         toast("Documento subido a Base de Conocimiento.");
       });
@@ -582,12 +580,7 @@ function renderKB(){
     state.kbCache=await api("kb_list"); renderKB(); toast("Documento subido.");
   });
 }
-function requireEditKey(){
-  if(state.editKey) return true;
-  const k=window.prompt("Clave de edición:");
-  if(!k) return false;
-  state.editKey=k; return true;
-}
+function requireEditKey(){ return true; }
 async function crearCategoriaKB(){
   if(!requireEditKey()) return;
   const nombre=window.prompt("Nombre de la categoría:"); if(!nombre) return;

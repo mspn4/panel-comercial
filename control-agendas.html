@@ -19,6 +19,10 @@ const CONFIG = {
   // Ahí se guardan los informes de Covente, en la categoría "Covente".
   BACKEND_URL: "https://script.google.com/macros/s/AKfycby3TXMd0s-HJBjyi_i362KIQq_yD_89-f0brHau1K11kLuyzVC7YjbBnHQJS-JX0DmC/exec",
 
+  // Clave de edición fija (uso interno, sin prompt). Tiene que coincidir con
+  // el EDIT_KEY configurado en BackendPanel.gs.
+  EDIT_KEY: "MAeditor2026",
+
   // Cada cuántos minutos se actualiza solo (además del botón Actualizar).
   REFRESCO_MINUTOS: 10,
 
@@ -265,10 +269,10 @@ footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center
 <body>
 
 <div class="topbar">
-  <div class="brand">
+  <a href="index.html" class="brand" style="text-decoration:none;color:inherit" title="Volver al Centro de Control">
     <span class="ma">M&amp;A</span>
     <span class="t">Control de Agendas<small>Departamento Comercial</small></span>
-  </div>
+  </a>
   <div class="clock" id="clock">
     <span class="lbl">Última actualización</span>
     <span class="val"><span class="dot"></span><span id="clockVal">—</span></span>
@@ -331,7 +335,7 @@ const state = {
   oculta:{},         // key -> true si está oculta
   expanded:{},       // sucursal -> true si está desplegada
   cvCache:null,      // lista de informes Covente (kb_list filtrado a la categoría)
-  cvEditKey:null,
+  cvEditKey:CONFIG.EDIT_KEY,
   cvExpanded:{},     // sucursal -> true si está desplegada (vista Covente)
 };
 let timer=null;
@@ -627,14 +631,7 @@ async function bkApiPost(action,payload){
   const r=await fetch(CONFIG.BACKEND_URL,{method:"POST",body:JSON.stringify({action,key:state.cvEditKey,...payload})});
   const d=await r.json(); if(d.error) throw new Error(d.error); return d;
 }
-function requireCvKey(){
-  if(state.cvEditKey) return true;
-  const guardada=localStorage.getItem("cv_edit_key");
-  if(guardada){ state.cvEditKey=guardada; return true; }
-  const k=window.prompt("Clave de edición (se guarda en este navegador, no la vuelve a pedir):");
-  if(!k) return false;
-  state.cvEditKey=k; localStorage.setItem("cv_edit_key",k); return true;
-}
+function requireCvKey(){ return true; }
 function cvFindCategoria(){
   const cats=(state.cvCache&&state.cvCache.categorias)||[];
   return cats.find(c=>norm(c.nombre)===norm(CV_CAT));
