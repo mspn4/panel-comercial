@@ -261,6 +261,14 @@ table.week tr:hover td.task{background:var(--blue-tint)}
 .cv-preview-card{border:1px solid var(--border-strong);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:var(--page)}
 .cv-preview-num{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue);margin-bottom:2px}
 .cv-saved{background:var(--ok-tint);border:1px solid #B7E3CC;color:#1A6B46;border-radius:10px;padding:12px 14px;font-size:13.5px;font-weight:600}
+.btn-cv[disabled]{opacity:.45;cursor:not-allowed}
+.cvr-wrap{overflow:auto;margin-top:16px;border:1px solid var(--border);border-radius:12px}
+table.cvr-tabla{border-collapse:collapse;width:100%;min-width:680px;font-size:12.5px}
+table.cvr-tabla th,table.cvr-tabla td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+table.cvr-tabla thead th{background:var(--page);color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+table.cvr-tabla tfoot td{border-top:2px solid var(--border-strong);border-bottom:none;background:var(--page)}
+table.cvr-tabla .cvr-tit{font-weight:600}
+table.cvr-tabla .cvr-mon{color:var(--muted);font-size:11.5px}
 
 footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center}
 @media (max-width:680px){.search{order:5;margin-left:0;width:100%}.search input{width:100%}}
@@ -650,46 +658,63 @@ function cvMatchSucursal(gerenteTexto){
 /* Etiquetas reconocidas: con o sin ":", con o sin plural/tilde. Cada una captura
    lo que quede en la misma línea (puede ser vacío si el valor arranca en el renglón siguiente). */
 const CV_LABELS=[
-  {campo:"sucursal",         re:/^sucursal\s*:?\s*(.*)$/i},
-  {campo:"gerente",          re:/^gerente\s*:?\s*(.*)$/i},
-  {campo:"acompanante",      re:/^vendedor[^:\n]*?acompa[ñn]ado\s*:?\s*(.*)$/i},
-  {campo:"zona",             re:/^zona\s+trabajada\s*:?\s*(.*)$/i},
-  {campo:"visitas",          re:/^cantidad\s+de\s+visitas\s*:?\s*(.*)$/i},
-  {campo:"nuevosNegocios",   re:/^cantidad\s+de\s+nuevos\s+negocios\s*:?\s*(.*)$/i},
-  {campo:"ventasCantidad",   re:/^cantidad\s+de\s+ventas\s+realizadas\s*:?\s*(.*)$/i},
-  {campo:"ventasValor",      re:/^valor\s+total\s+de\s+(?:las\s+)?ventas\s*:?\s*(.*)$/i},
-  {campo:"condicionVenta",   re:/^condici[oó]n\s+de\s+venta\s*:?\s*(.*)$/i},
-  {campo:"datosCantidad",    re:/^cantidad\s+de\s+datos\s+recopilados\s*:?\s*(.*)$/i},
-  {campo:"datosValor",       re:/^valor\s+total\s+de\s+datos\s*:?\s*(.*)$/i},
-  {campo:"detalleProductos", re:/^detalle\s+de\s+productos?\s*:?\s*(.*)$/i},
-  {campo:"observaciones",    re:/^observaciones\s*:?\s*(.*)$/i},
+  {campo:"sucursal",           re:/^sucursal\s*:?\s*(.*)$/i},
+  {campo:"gerente",            re:/^gerente\s*:?\s*(.*)$/i},
+  {campo:"acompanante",        re:/^vendedor[^:\n]*?acompa[ñn]ado\s*:?\s*(.*)$/i},
+  {campo:"zona",               re:/^zona\s+trabajada\s*:?\s*(.*)$/i},
+  {campo:"visitas",            re:/^cantidad\s+de\s+visitas\s*:?\s*(.*)$/i},
+  {campo:"nuevosNegocios",     re:/^cantidad\s+de\s+nuevos\s+negocios\s*:?\s*(.*)$/i},
+  // "ventas personales" tiene que chequearse ANTES que "ventas" a secas, si no
+  // cae en el patrón genérico (que no exige límite de palabra después de "ventas").
+  {campo:"personalesCantidad", re:/^cantidad\s+de\s+ventas\s+personales(?:\s+realizadas)?\s*:?\s*(.*)$/i},
+  {campo:"personalesValor",    re:/^valor\s+total\s+de\s+(?:las\s+)?ventas\s+personales(?:\s+realizadas)?\s*:?\s*(.*)$/i},
+  {campo:"ventasCantidad",     re:/^cantidad\s+de\s+ventas\s+realizadas\s*:?\s*(.*)$/i},
+  {campo:"ventasValor",        re:/^valor\s+total\s+de\s+(?:las\s+)?ventas\s*:?\s*(.*)$/i},
+  {campo:"datosCantidad",      re:/^cantidad\s+de\s+datos\s+recopilados\s*:?\s*(.*)$/i},
+  {campo:"datosValor",         re:/^valor\s+total\s+de\s+datos\s*:?\s*(.*)$/i},
+  // Estas dos se repiten en las 3 secciones (personales/ventas/datos) con el
+  // mismo texto — a cuál campo van depende de la "sección" activa al momento.
+  {campo:"detalleProductos",   re:/^detalle\s+de\s+productos?\s*:?\s*(.*)$/i},
+  {campo:"condicionVenta",     re:/^condici[oó]n\s+de\s+venta\s*:?\s*(.*)$/i},
+  {campo:"observaciones",      re:/^observaciones\s*:?\s*(.*)$/i},
 ];
+/* A qué campo del registro van "Detalle de productos" / "Condición de venta"
+   según la sección en la que aparecen (null = esa sección no tiene ese dato). */
+const CV_SECCION_DESTINO={
+  personales:{detalleProductos:"personalesDetalle", condicionVenta:"personalesCondicion"},
+  ventas:    {detalleProductos:"ventasDetalle",      condicionVenta:"condicionVenta"},
+  datos:     {detalleProductos:"datosDetalle",       condicionVenta:null},
+};
 
 /* Parseo del informe pegado desde WhatsApp. Cada etiqueta puede venir con o sin
    ":", y su valor puede seguir en los renglones siguientes (listas de productos,
    observaciones largas) — esos renglones se acumulan hasta la próxima etiqueta
-   reconocida. Usa la "sección" (ventas/datos) para no confundir el "Detalle de
-   productos" que aparece repetido. */
+   reconocida. Usa la "sección" (personales/ventas/datos) para no confundir el
+   "Detalle de productos" y la "Condición de venta", que aparecen repetidos. */
 function parseCovente(texto){
   const rawLines=(texto||"").split(/\r?\n/);
   let fecha="";
   const mF=(texto||"").match(/informe\s+(\d{1,2})[\/\-.](\d{1,2})/i);
   if(mF) fecha=new Date().getFullYear()+"-"+mF[2].padStart(2,"0")+"-"+mF[1].padStart(2,"0");
   const c={sucursal:"",gerente:"",acompanante:"",zona:"",visitas:"",nuevosNegocios:"",
+    personalesCantidad:"",personalesValor:"",personalesDetalle:"",personalesCondicion:"",
     ventasCantidad:"",ventasValor:"",ventasDetalle:"",condicionVenta:"",
     datosCantidad:"",datosValor:"",datosDetalle:"",observaciones:""};
-  let seccion="ventas", activo=null;
+  let seccion="personales", activo=null;
   rawLines.forEach(raw=>{
     const linea=raw.replace(/^[☑✓✔️\s]+/,"").trim();
     if(!linea) return; // línea vacía: no corta el campo que se está acumulando
     let match=null;
     for(const L of CV_LABELS){ const m=linea.match(L.re); if(m){ match={campo:L.campo,valor:(m[1]||"").trim()}; break; } }
     if(match){
+      if(match.campo==="personalesCantidad") seccion="personales";
       if(match.campo==="ventasCantidad") seccion="ventas";
       if(match.campo==="datosCantidad") seccion="datos";
-      const destino = match.campo==="detalleProductos" ? (seccion==="datos"?"datosDetalle":"ventasDetalle") : match.campo;
-      c[destino]=match.valor;
-      activo=destino;
+      let destino=match.campo;
+      if(match.campo==="detalleProductos"||match.campo==="condicionVenta"){
+        destino=(CV_SECCION_DESTINO[seccion]||{})[match.campo];
+      }
+      if(destino){ c[destino]=match.valor; activo=destino; } else activo=null;
     } else if(activo){
       c[activo]=(c[activo]?c[activo]+"\n":"")+linea;
     }
@@ -721,6 +746,7 @@ async function cargarCoventeRegistros(forzar){
 function cvResumen(campos){
   const partes=[];
   if(campos.visitas) partes.push(campos.visitas+" visitas");
+  if(campos.personalesCantidad) partes.push(campos.personalesCantidad+" venta personal"+(campos.personalesValor?" ("+campos.personalesValor+")":""));
   if(campos.ventasCantidad) partes.push(campos.ventasCantidad+" ventas"+(campos.ventasValor?" ("+campos.ventasValor+")":""));
   if(campos.datosCantidad) partes.push(campos.datosCantidad+" datos");
   return partes.join(" · ")||"Sin resumen";
@@ -735,6 +761,7 @@ async function renderCoventeView(){
 
   const toolbar=`<div class="cv-toolbar">
     <button class="btn-cv" id="cvNuevo">+ Nueva salida</button>
+    <button class="btn-cv ghost" id="cvResumenBtn" ${registros.length?"":"disabled"}>📊 Resumen</button>
     <span class="hint">Pegá el informe que te mandan por WhatsApp y lo organizo acá.</span>
   </div>`;
 
@@ -784,6 +811,7 @@ async function renderCoventeView(){
 
 function wireCoventeToolbar(){
   const b=$("#cvNuevo"); if(b) b.onclick=abrirCoventeForm;
+  const r=$("#cvResumenBtn"); if(r) r.onclick=abrirCoventeResumen;
 }
 
 async function abrirCoventeDetalle(id){
@@ -809,11 +837,19 @@ async function abrirCoventeDetalle(id){
           ${F("Zona trabajada",c.zona)}${F("Cantidad de visitas",c.visitas)}
         </div>
         <div class="cv-sep"></div>
+        ${F("Nuevos negocios",c.nuevosNegocios)}
+        <div class="cv-sep"></div>
         <div class="cv-grid2">
-          ${F("Nuevos negocios",c.nuevosNegocios)}${F("Condición de venta",c.condicionVenta)}
+          ${F("Ventas personales realizadas",c.personalesCantidad)}${F("Valor total de ventas personales",c.personalesValor)}
+        </div>
+        ${F("Detalle de productos (personales)",c.personalesDetalle)}
+        ${F("Condición de venta (personales)",c.personalesCondicion)}
+        <div class="cv-sep"></div>
+        <div class="cv-grid2">
           ${F("Ventas realizadas",c.ventasCantidad)}${F("Valor total de ventas",c.ventasValor)}
         </div>
         ${F("Detalle de productos vendidos",c.ventasDetalle)}
+        ${F("Condición de venta",c.condicionVenta)}
         <div class="cv-sep"></div>
         <div class="cv-grid2">${F("Datos recopilados",c.datosCantidad)}${F("Valor total de datos",c.datosValor)}</div>
         ${F("Detalle de productos (datos)",c.datosDetalle)}
@@ -907,13 +943,25 @@ function renderCoventeCamposForm(parsed, editId, container){
       <div><label>Zona trabajada</label><input data-f="zona" value="${esc(c.zona)}"></div>
       <div><label>Cantidad de visitas</label><input data-f="visitas" value="${esc(c.visitas)}"></div>
     </div>
-    <div class="row3">
-      <div><label>Nuevos negocios</label><input data-f="nuevosNegocios" value="${esc(c.nuevosNegocios)}"></div>
+    <div><label>Nuevos negocios</label><input data-f="nuevosNegocios" value="${esc(c.nuevosNegocios)}"></div>
+
+    <div class="cv-mes" style="margin-top:2px">Ventas personales del gerente</div>
+    <div class="row">
+      <div><label>Ventas personales realizadas</label><input data-f="personalesCantidad" value="${esc(c.personalesCantidad)}"></div>
+      <div><label>Valor total de ventas personales</label><input data-f="personalesValor" value="${esc(c.personalesValor)}"></div>
+    </div>
+    <div><label>Detalle de productos (personales)</label><textarea class="cv-mini" data-f="personalesDetalle">${esc(c.personalesDetalle)}</textarea></div>
+    <div><label>Condición de venta (personales)</label><textarea class="cv-mini" data-f="personalesCondicion">${esc(c.personalesCondicion)}</textarea></div>
+
+    <div class="cv-mes">Ventas del equipo</div>
+    <div class="row">
       <div><label>Ventas realizadas</label><input data-f="ventasCantidad" value="${esc(c.ventasCantidad)}"></div>
       <div><label>Valor total de ventas</label><input data-f="ventasValor" value="${esc(c.ventasValor)}"></div>
     </div>
     <div><label>Detalle de productos vendidos</label><textarea class="cv-mini" data-f="ventasDetalle">${esc(c.ventasDetalle)}</textarea></div>
     <div><label>Condición de venta</label><textarea class="cv-mini" data-f="condicionVenta">${esc(c.condicionVenta)}</textarea></div>
+
+    <div class="cv-mes">Datos recopilados</div>
     <div class="row">
       <div><label>Datos recopilados</label><input data-f="datosCantidad" value="${esc(c.datosCantidad)}"></div>
       <div><label>Valor total de datos</label><input data-f="datosValor" value="${esc(c.datosValor)}"></div>
@@ -941,6 +989,8 @@ async function guardarCovente(textoOriginal, editId, container){
     sucursal: sucSel, gerente: sObj?cvGerenteLabel(sObj.gerente):"",
     acompanante:f("acompanante"), zona:f("zona"),
     visitas:f("visitas"), nuevosNegocios:f("nuevosNegocios"),
+    personalesCantidad:f("personalesCantidad"), personalesValor:f("personalesValor"),
+    personalesDetalle:f("personalesDetalle"), personalesCondicion:f("personalesCondicion"),
     ventasCantidad:f("ventasCantidad"), ventasValor:f("ventasValor"),
     ventasDetalle:f("ventasDetalle"), condicionVenta:f("condicionVenta"),
     datosCantidad:f("datosCantidad"), datosValor:f("datosValor"),
@@ -969,6 +1019,105 @@ async function guardarCovente(textoOriginal, editId, container){
     const card=container.closest(".cv-preview-card")||container;
     card.innerHTML=`<div class="cv-saved">✓ Guardada — ${esc(sucSel)} · ${esc(fecha.split("-").reverse().join("/"))}</div>`;
   }catch(e){ toastErr("No se pudo guardar: "+e.message); }
+}
+
+/* ═══════════════════════════ Resumen de salidas (Covente) ═══════════════════════════ */
+function cvIsoDate(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function cvNum(s){ const n=parseInt(String(s||"").replace(/[^\d]/g,""),10); return isNaN(n)?0:n; }
+function cvFmtMoneda(n){ return "$"+n.toLocaleString("es-AR"); }
+function cvRangoSemana(){
+  const hoy=new Date(); const dow=hoy.getDay(); const off=dow===0?-6:1-dow;
+  const lunes=new Date(hoy); lunes.setDate(hoy.getDate()+off);
+  const domingo=new Date(lunes); domingo.setDate(lunes.getDate()+6);
+  return {desde:cvIsoDate(lunes), hasta:cvIsoDate(domingo)};
+}
+function cvRangoMes(){
+  const hoy=new Date();
+  const desde=new Date(hoy.getFullYear(),hoy.getMonth(),1);
+  const hasta=new Date(hoy.getFullYear(),hoy.getMonth()+1,0);
+  return {desde:cvIsoDate(desde), hasta:cvIsoDate(hasta)};
+}
+
+function abrirCoventeResumen(){
+  const semana=cvRangoSemana();
+  $("#modal").className="modal"; $("#modal").style.maxWidth="";
+  $("#modal").innerHTML=`
+    <div class="modal-head"><div class="mt"><div class="nm">Resumen de salidas</div>
+      <div class="zn">Por gerente/sucursal, en el rango que elijas</div></div>
+      <button class="x" id="modalClose">&times;</button></div>
+    <div class="cv-form">
+      <div class="row3">
+        <div><label>Rango</label>
+          <select id="cvrRango">
+            <option value="semana">Esta semana</option>
+            <option value="mes">Este mes</option>
+            <option value="custom">Personalizado</option>
+          </select>
+        </div>
+        <div><label>Desde</label><input type="date" id="cvrDesde" value="${semana.desde}"></div>
+        <div><label>Hasta</label><input type="date" id="cvrHasta" value="${semana.hasta}"></div>
+      </div>
+      <div id="cvrTabla"></div>
+    </div>`;
+  $("#modalBg").classList.add("open");
+  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  const selRango=$("#cvrRango"), inDesde=$("#cvrDesde"), inHasta=$("#cvrHasta");
+  function aplicarPreset(){
+    if(selRango.value==="semana"){ const r=cvRangoSemana(); inDesde.value=r.desde; inHasta.value=r.hasta; }
+    if(selRango.value==="mes"){ const r=cvRangoMes(); inDesde.value=r.desde; inHasta.value=r.hasta; }
+    inDesde.disabled=inHasta.disabled=selRango.value!=="custom";
+    renderCoventeResumenTabla(inDesde.value, inHasta.value);
+  }
+  selRango.addEventListener("change", aplicarPreset);
+  inDesde.addEventListener("change", ()=>renderCoventeResumenTabla(inDesde.value, inHasta.value));
+  inHasta.addEventListener("change", ()=>renderCoventeResumenTabla(inDesde.value, inHasta.value));
+  aplicarPreset();
+}
+
+function renderCoventeResumenTabla(desde, hasta){
+  const el=$("#cvrTabla"); if(!el) return;
+  if(!desde||!hasta){ el.innerHTML=`<div class="empty">Elegí un rango de fechas.</div>`; return; }
+  const registros=(state.cvRegistros||[]).filter(r=>r.fecha && r.fecha>=desde && r.fecha<=hasta);
+  if(!registros.length){ el.innerHTML=`<div class="empty" style="padding:30px">No hay salidas cargadas en ese rango.</div>`; return; }
+
+  const porSucursal={};
+  registros.forEach(r=>{ const key=r.sucursalKey||"otros"; (porSucursal[key]=porSucursal[key]||[]).push(r); });
+  const ordenKeys=[...CONFIG.SUCURSALES.map(s=>s.sucursal), "otros"].filter(k=>porSucursal[k]);
+
+  const filas=ordenKeys.map(key=>{
+    const regs=porSucursal[key];
+    const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===key);
+    const titulo=sObj?`${sObj.sucursal} — ${cvGerenteLabel(sObj.gerente)}`:"Sin identificar";
+    const t={visitas:0,nuevosNegocios:0,persCant:0,persValor:0,ventCant:0,ventValor:0,datCant:0,datValor:0};
+    regs.forEach(r=>{
+      const c=r.campos||{};
+      t.visitas+=cvNum(c.visitas); t.nuevosNegocios+=cvNum(c.nuevosNegocios);
+      t.persCant+=cvNum(c.personalesCantidad); t.persValor+=cvNum(c.personalesValor);
+      t.ventCant+=cvNum(c.ventasCantidad); t.ventValor+=cvNum(c.ventasValor);
+      t.datCant+=cvNum(c.datosCantidad); t.datValor+=cvNum(c.datosValor);
+    });
+    return {titulo, salidas:regs.length, ...t};
+  });
+  const total=filas.reduce((a,f)=>({
+    salidas:a.salidas+f.salidas, visitas:a.visitas+f.visitas, nuevosNegocios:a.nuevosNegocios+f.nuevosNegocios,
+    persCant:a.persCant+f.persCant, persValor:a.persValor+f.persValor,
+    ventCant:a.ventCant+f.ventCant, ventValor:a.ventValor+f.ventValor,
+    datCant:a.datCant+f.datCant, datValor:a.datValor+f.datValor,
+  }), {salidas:0,visitas:0,nuevosNegocios:0,persCant:0,persValor:0,ventCant:0,ventValor:0,datCant:0,datValor:0});
+
+  const fila=f=>`<tr>
+    <td class="cvr-tit">${esc(f.titulo)}</td>
+    <td>${f.salidas}</td><td>${f.visitas}</td><td>${f.nuevosNegocios}</td>
+    <td>${f.persCant}${f.persValor?` <span class="cvr-mon">(${esc(cvFmtMoneda(f.persValor))})</span>`:""}</td>
+    <td>${f.ventCant}${f.ventValor?` <span class="cvr-mon">(${esc(cvFmtMoneda(f.ventValor))})</span>`:""}</td>
+    <td>${f.datCant}${f.datValor?` <span class="cvr-mon">(${esc(cvFmtMoneda(f.datValor))})</span>`:""}</td>
+  </tr>`;
+
+  el.innerHTML=`<div class="cvr-wrap"><table class="cvr-tabla">
+    <thead><tr><th>Gerente / Sucursal</th><th>Salidas</th><th>Visitas</th><th>Neg. nuevos</th><th>Vtas. personales</th><th>Vtas. equipo</th><th>Datos</th></tr></thead>
+    <tbody>${filas.map(fila).join("")}</tbody>
+    <tfoot>${fila({...total,titulo:"Total"}).replace('class="cvr-tit"','class="cvr-tit" style="font-weight:700"')}</tfoot>
+  </table></div>`;
 }
 
 /* ───────── Eventos ───────── */
