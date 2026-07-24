@@ -15,6 +15,14 @@ const CONFIG = {
   // (termina en /exec). Sin esto, el dashboard no tiene de dónde leer.
   APPSSCRIPT_URL: "https://script.google.com/a/macros/myacomercial.com/s/AKfycby2t4gMNklu9LfYJQdoUt0QW4NZ0MJ7kqU5dilAE1rZc-LBpPRfkHADvZ_2oty54DZj2g/exec",
 
+  // Backend de Base de Conocimiento (BackendPanel.gs) — mismo que usa index.html.
+  // Ahí se guardan los informes de Covente, en la categoría "Covente".
+  BACKEND_URL: "https://script.google.com/macros/s/AKfycby3TXMd0s-HJBjyi_i362KIQq_yD_89-f0brHau1K11kLuyzVC7YjbBnHQJS-JX0DmC/exec",
+
+  // Clave de edición fija (uso interno, sin prompt). Tiene que coincidir con
+  // el EDIT_KEY configurado en BackendPanel.gs.
+  EDIT_KEY: "MAeditor2026",
+
   // Cada cuántos minutos se actualiza solo (además del botón Actualizar).
   REFRESCO_MINUTOS: 10,
 
@@ -213,6 +221,55 @@ table.week td.task{padding:7px 9px;font-size:12.5px;min-width:116px}
 table.week td.task.today{background:#FAFCFF}
 table.week tr:hover td.task{background:var(--blue-tint)}
 
+/* Covente */
+.cv-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.cv-toolbar .hint{font-size:12.5px;color:var(--muted)}
+.btn-cv{font-family:inherit;font-size:13.5px;font-weight:600;border:none;border-radius:9px;
+  padding:9px 15px;cursor:pointer;background:var(--blue);color:#fff;display:inline-flex;align-items:center;gap:7px}
+.btn-cv:hover{background:#0E3F7E}
+.btn-cv.ghost{background:var(--surface);color:var(--blue);border:1px solid var(--border-strong);padding:7px 13px;font-size:12.5px}
+.btn-cv.ghost:hover{background:var(--blue-tint)}
+.btn-cv.danger{background:var(--err);padding:7px 13px;font-size:12.5px}
+.btn-cv.danger:hover{background:#B93A3D}
+.cv-mes{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);
+  margin:14px 2px 8px;display:flex;align-items:center;gap:8px}
+.cv-mes .ln{flex:1;height:1px;background:var(--border)}
+.cv-row{background:var(--page);border:1px solid var(--border);border-radius:11px;padding:11px 14px;
+  margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:13px;transition:.12s}
+.cv-row:hover{border-color:var(--blue);background:var(--blue-tint)}
+.cv-row .cv-fecha{font-weight:700;font-size:13.5px;color:var(--blue);width:52px;flex:none}
+.cv-row .cv-resumen{flex:1;font-size:13px;color:var(--text);min-width:0}
+.cv-row .cv-resumen .cv-suc{font-weight:600}
+.cv-row .cv-chip{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
+.cv-detail{padding:18px 20px;overflow:auto}
+.cv-field{margin-bottom:14px}
+.cv-field .lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:3px}
+.cv-field .val{font-size:14px;color:var(--text);white-space:pre-wrap}
+.cv-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px}
+.cv-sep{height:1px;background:var(--border);margin:16px 0}
+.cv-form{padding:18px 20px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.cv-form textarea{width:100%;min-height:220px;border:1px solid var(--border-strong);border-radius:10px;
+  padding:12px;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px;resize:vertical}
+.cv-form textarea.cv-mini{min-height:46px;font-family:inherit;font-size:13.5px;padding:8px 10px;border-radius:8px}
+.cv-form textarea.cv-mini.cv-obs{min-height:90px}
+.cv-form label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px}
+.cv-form input,.cv-form select{width:100%;border:1px solid var(--border-strong);border-radius:8px;
+  padding:8px 10px;font-family:inherit;font-size:13.5px}
+.cv-form .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cv-form .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.cv-form-actions{display:flex;gap:9px;justify-content:flex-end;padding-top:6px;border-top:1px solid var(--border)}
+.cv-preview-card{border:1px solid var(--border-strong);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:var(--page)}
+.cv-preview-num{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue);margin-bottom:2px}
+.cv-saved{background:var(--ok-tint);border:1px solid #B7E3CC;color:#1A6B46;border-radius:10px;padding:12px 14px;font-size:13.5px;font-weight:600}
+.btn-cv[disabled]{opacity:.45;cursor:not-allowed}
+.cvr-wrap{overflow:auto;margin-top:16px;border:1px solid var(--border);border-radius:12px}
+table.cvr-tabla{border-collapse:collapse;width:100%;min-width:680px;font-size:12.5px}
+table.cvr-tabla th,table.cvr-tabla td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+table.cvr-tabla thead th{background:var(--page);color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+table.cvr-tabla tfoot td{border-top:2px solid var(--border-strong);border-bottom:none;background:var(--page)}
+table.cvr-tabla .cvr-tit{font-weight:600}
+table.cvr-tabla .cvr-mon{color:var(--muted);font-size:11.5px}
+
 footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center}
 @media (max-width:680px){.search{order:5;margin-left:0;width:100%}.search input{width:100%}}
 </style>
@@ -220,10 +277,10 @@ footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center
 <body>
 
 <div class="topbar">
-  <div class="brand">
+  <a href="index.html" class="brand" style="text-decoration:none;color:inherit" title="Volver al Centro de Control">
     <span class="ma">M&amp;A</span>
     <span class="t">Control de Agendas<small>Departamento Comercial</small></span>
-  </div>
+  </a>
   <div class="clock" id="clock">
     <span class="lbl">Última actualización</span>
     <span class="val"><span class="dot"></span><span id="clockVal">—</span></span>
@@ -243,6 +300,7 @@ footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center
     <button class="tab active" data-view="sucursal">Por sucursal</button>
     <button class="tab" data-view="gerente">Gerentes</button>
     <button class="tab" data-view="lider">Líderes</button>
+    <button class="tab" data-view="covente">Covente</button>
   </div>
   <div class="weeklabel" id="weekLabel"></div>
   <div class="search">
@@ -279,11 +337,15 @@ footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center
 <script>
 /* ───────── Estado ───────── */
 const state = {
-  vista:"sucursal", diaSel:0, query:"", semanaLabel:"", offWeek:false,
+  vista:"sucursal", diaSel:hoyDDMM(), query:"",
   sucursales:[],     // [{sucursal,gerente,id, estado, modificado, error}]
   personas:[],       // [{key,sucursal,gerente,nombre,rol,dates,slots,count,modificado,visible}]
   oculta:{},         // key -> true si está oculta
   expanded:{},       // sucursal -> true si está desplegada
+  cvCache:null,      // lista de informes Covente (kb_list filtrado a la categoría)
+  cvRegistros:null,  // registros ya leídos (kb_get de cada uno) — evita releer todo al abrir/cerrar un acordeón
+  cvEditKey:CONFIG.EDIT_KEY,
+  cvExpanded:{},     // sucursal -> true si está desplegada (vista Covente)
 };
 let timer=null;
 
@@ -294,6 +356,20 @@ const iniciales=n=>{const p=(n||"?").trim().split(/\s+/);return (((p[0]||"")[0]|
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function hoyDDMM(){const d=new Date();return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");}
 function ddmmDe(t){const m=(t||"").match(/(\d{1,2})[\/\-.](\d{1,2})/);return m?m[1].padStart(2,"0")+"/"+m[2].padStart(2,"0"):"";}
+/* Semana real de calendario (lunes a domingo de hoy), independiente de lo que
+   diga cualquier agenda en Drive — así el selector de fecha nunca depende de
+   si un gerente en particular se olvidó de actualizar su hoja. */
+const DIAS_SEMANA=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+function semanaRealActual(){
+  const hoy=new Date(); const dow=hoy.getDay(); const off=dow===0?-6:1-dow;
+  const lunes=new Date(hoy); lunes.setDate(hoy.getDate()+off);
+  const hoyStr=hoyDDMM();
+  return DIAS_SEMANA.map((dia,i)=>{
+    const d=new Date(lunes); d.setDate(lunes.getDate()+i);
+    const ddmm=String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");
+    return {dia, ddmm, esHoy:ddmm===hoyStr};
+  });
+}
 function haceCuanto(iso){
   if(!iso) return "";
   const d=new Date(iso), seg=(new Date()-d)/1000;
@@ -406,12 +482,6 @@ async function cargarTodo(manual){
     ((a.rol==="gerente"?0:1)-(b.rol==="gerente"?0:1)) || a.nombre.localeCompare(b.nombre));
   state.personas=personas;
 
-  const hoy=hoyDDMM(); const ref=personas.find(p=>p.dates.length); state.offWeek=true;
-  // La etiqueta de semana se toma de la MISMA hoja que da los pills de fecha
-  // (antes tomaba la primera hoja con texto "semana", que podía ser de otra sucursal).
-  state.semanaLabel=ref?(ref.semana||""):"";
-  if(ref){ const i=ref.dates.findIndex(d=>d.ddmm===hoy); if(i>=0){state.diaSel=i;state.offWeek=false;} else state.diaSel=0; }
-
   pintarNotice(personas.length>0,fallaron);
   marcarReloj(); setLoading(false); render(); renderDrawer();
 }
@@ -433,32 +503,30 @@ function pintarNotice(ok,fallaron){
     return;
   }
   const partes=[];
-  if(state.offWeek) partes.push(`La semana cargada no incluye hoy — muestro el primer día disponible${state.semanaLabel?` (semana ${esc(state.semanaLabel)})`:""}.`);
   if(fallaron.length) partes.push(`No cargó: <b>${esc(fallaron.join(", "))}</b>.`);
   if(partes.length) el.innerHTML=`<div class="notice">ℹ️ <div>${partes.join("<br>")}</div></div>`;
 }
 function pintarWeekLabel(){
-  $("#weekLabel").innerHTML=state.semanaLabel?
-    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg> Semana <b>${esc(state.semanaLabel)}</b>`:"";
+  const s=semanaRealActual();
+  $("#weekLabel").innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg> Semana <b>${esc(s[0].ddmm)} al ${esc(s[6].ddmm)}</b>`;
 }
 function highlight(t){const x=esc(t);if(!state.query)return x;
   const re=new RegExp("("+state.query.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig");return x.replace(re,"<mark>$1</mark>");}
 
 function pintarDayBar(){
-  const ref=state.personas.find(p=>p.dates.length); const bar=$("#dayBar");
-  if(!ref){bar.innerHTML="";return;}
-  const hoy=hoyDDMM();
-  bar.innerHTML=ref.dates.map((d,i)=>`<button class="daypill ${i===state.diaSel?"active":""} ${d.ddmm===hoy?"today":""}" data-day="${i}">
-    <span class="d">${esc(d.dia||("Día "+(i+1)))}</span><span class="f">${esc(d.ddmm||d.fecha)}</span></button>`).join("");
+  const semana=semanaRealActual();
+  $("#dayBar").innerHTML=semana.map(d=>`<button class="daypill ${d.ddmm===state.diaSel?"active":""} ${d.esHoy?"today":""}" data-day="${esc(d.ddmm)}">
+    <span class="d">${esc(d.dia)}</span><span class="f">${esc(d.ddmm)}</span></button>`).join("");
 }
 
 /* ───────── Tarjeta ───────── */
 function tarjeta(p){
-  const d=p.dates[state.diaSel];
-  let items=(p.slots||[]).map(s=>({hora:s.hora,tk:(d?s.tareas[state.diaSel]:"")||""})).filter(s=>s.tk);
+  const idx=p.dates.findIndex(d=>d.ddmm===state.diaSel);
+  let items = idx>=0 ? (p.slots||[]).map(s=>({hora:s.hora,tk:s.tareas[idx]||""})).filter(s=>s.tk) : [];
   if(state.query) items=items.filter(s=>norm(s.tk).includes(norm(state.query)));
   let cuerpo;
-  if(!items.length) cuerpo=`<div class="empty">${state.query?"Sin coincidencias":"Sin tareas para este día"}</div>`;
+  if(idx<0) cuerpo=`<div class="empty">Agenda desactualizada — no tiene cargado este día.</div>`;
+  else if(!items.length) cuerpo=`<div class="empty">${state.query?"Sin coincidencias":"Sin tareas para este día"}</div>`;
   else cuerpo=items.map(s=>`<div class="slot"><div class="h ${s.hora?"":"none"}">${esc(s.hora||"·")}</div><div class="tk">${highlight(s.tk)}</div></div>`).join("");
   const estTxt={ok:`${p.count} tareas`,vacia:"Sin tareas",error:"No cargó"}[p.estado]||"";
   return `<div class="card ${p.rol}">
@@ -480,14 +548,16 @@ function cardsQueAplican(){
   if(state.vista==="lider")   arr=arr.filter(p=>p.rol==="lider");
   if(state.query){
     arr=arr.filter(p=>{
-      const d=p.dates[state.diaSel];
-      return (p.slots||[]).some(s=>{const t=d?s.tareas[state.diaSel]:"";return t&&norm(t).includes(norm(state.query));});
+      const idx=p.dates.findIndex(d=>d.ddmm===state.diaSel);
+      if(idx<0) return false;
+      return (p.slots||[]).some(s=>{const t=s.tareas[idx];return t&&norm(t).includes(norm(state.query));});
     });
   }
   return arr;
 }
 
 function render(){
+  if(state.vista==="covente"){ $("#weekLabel").innerHTML=""; $("#dayBar").innerHTML=""; renderCoventeView(); return; }
   pintarWeekLabel(); pintarDayBar();
   const cont=$("#view"); const arr=cardsQueAplican();
   if(!state.personas.length){ cont.innerHTML=""; return; }
@@ -558,15 +628,511 @@ function setVisible(key,vis){
   if(vis) delete state.oculta[key]; else state.oculta[key]=true;
 }
 
+/* ═══════════════════════════ Covente — salidas a campo ═══════════════════════════ */
+const CV_CAT="Covente";
+const CV_MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+async function bkApi(action,params){
+  const url=CONFIG.BACKEND_URL+"?action="+action+"&"+new URLSearchParams(params||{}).toString();
+  const r=await fetch(url,{cache:"no-store"}); const d=await r.json();
+  if(d.error) throw new Error(d.error); return d;
+}
+async function bkApiPost(action,payload){
+  const r=await fetch(CONFIG.BACKEND_URL,{method:"POST",body:JSON.stringify({action,key:state.cvEditKey,...payload})});
+  const d=await r.json(); if(d.error) throw new Error(d.error); return d;
+}
+function requireCvKey(){ return true; }
+function cvFindCategoria(){
+  const cats=(state.cvCache&&state.cvCache.categorias)||[];
+  return cats.find(c=>norm(c.nombre)===norm(CV_CAT));
+}
+function cvMesLabel(ym){
+  const[y,m]=ym.split("-"); const n=CV_MESES[+m-1]||"";
+  return n.charAt(0).toUpperCase()+n.slice(1)+" "+y;
+}
+function cvGerenteLabel(g){ return [].concat(g||"").join(" / "); }
+function cvMatchSucursal(gerenteTexto){
+  const g=norm(gerenteTexto||"");
+  return CONFIG.SUCURSALES.find(s=>[].concat(s.gerente).some(ape=>g.includes(norm(ape))));
+}
+
+/* Etiquetas reconocidas: con o sin ":", con o sin plural/tilde. Cada una captura
+   lo que quede en la misma línea (puede ser vacío si el valor arranca en el renglón siguiente). */
+const CV_LABELS=[
+  {campo:"sucursal",           re:/^sucursal\s*:?\s*(.*)$/i},
+  {campo:"gerente",            re:/^gerente\s*:?\s*(.*)$/i},
+  {campo:"acompanante",        re:/^vendedor[^:\n]*?acompa[ñn]ado\s*:?\s*(.*)$/i},
+  {campo:"zona",               re:/^zona\s+trabajada\s*:?\s*(.*)$/i},
+  {campo:"visitas",            re:/^cantidad\s+de\s+visitas\s*:?\s*(.*)$/i},
+  {campo:"nuevosNegocios",     re:/^cantidad\s+de\s+nuevos\s+negocios\s*:?\s*(.*)$/i},
+  // "ventas personales" tiene que chequearse ANTES que "ventas" a secas, si no
+  // cae en el patrón genérico (que no exige límite de palabra después de "ventas").
+  {campo:"personalesCantidad", re:/^cantidad\s+de\s+ventas\s+personales(?:\s+realizadas)?\s*:?\s*(.*)$/i},
+  {campo:"personalesValor",    re:/^valor\s+total\s+de\s+(?:las\s+)?ventas\s+personales(?:\s+realizadas)?\s*:?\s*(.*)$/i},
+  {campo:"ventasCantidad",     re:/^cantidad\s+de\s+ventas\s+realizadas\s*:?\s*(.*)$/i},
+  {campo:"ventasValor",        re:/^valor\s+total\s+de\s+(?:las\s+)?ventas\s*:?\s*(.*)$/i},
+  {campo:"datosCantidad",      re:/^cantidad\s+de\s+datos\s+recopilados\s*:?\s*(.*)$/i},
+  {campo:"datosValor",         re:/^valor\s+total\s+de\s+datos\s*:?\s*(.*)$/i},
+  // Estas dos se repiten en las 3 secciones (personales/ventas/datos) con el
+  // mismo texto — a cuál campo van depende de la "sección" activa al momento.
+  {campo:"detalleProductos",   re:/^detalle\s+de\s+productos?\s*:?\s*(.*)$/i},
+  {campo:"condicionVenta",     re:/^condici[oó]n\s+de\s+venta\s*:?\s*(.*)$/i},
+  {campo:"observaciones",      re:/^observaciones\s*:?\s*(.*)$/i},
+];
+/* A qué campo del registro van "Detalle de productos" / "Condición de venta"
+   según la sección en la que aparecen (null = esa sección no tiene ese dato). */
+const CV_SECCION_DESTINO={
+  personales:{detalleProductos:"personalesDetalle", condicionVenta:"personalesCondicion"},
+  ventas:    {detalleProductos:"ventasDetalle",      condicionVenta:"condicionVenta"},
+  datos:     {detalleProductos:"datosDetalle",       condicionVenta:null},
+};
+
+/* Parseo del informe pegado desde WhatsApp. Cada etiqueta puede venir con o sin
+   ":", y su valor puede seguir en los renglones siguientes (listas de productos,
+   observaciones largas) — esos renglones se acumulan hasta la próxima etiqueta
+   reconocida. Usa la "sección" (personales/ventas/datos) para no confundir el
+   "Detalle de productos" y la "Condición de venta", que aparecen repetidos. */
+function parseCovente(texto){
+  const rawLines=(texto||"").split(/\r?\n/);
+  let fecha="";
+  const mF=(texto||"").match(/informe\s+(\d{1,2})[\/\-.](\d{1,2})/i);
+  if(mF) fecha=new Date().getFullYear()+"-"+mF[2].padStart(2,"0")+"-"+mF[1].padStart(2,"0");
+  const c={sucursal:"",gerente:"",acompanante:"",zona:"",visitas:"",nuevosNegocios:"",
+    personalesCantidad:"",personalesValor:"",personalesDetalle:"",personalesCondicion:"",
+    ventasCantidad:"",ventasValor:"",ventasDetalle:"",condicionVenta:"",
+    datosCantidad:"",datosValor:"",datosDetalle:"",observaciones:""};
+  let seccion="personales", activo=null;
+  rawLines.forEach(raw=>{
+    const linea=raw.replace(/^[☑✓✔️\s]+/,"").trim();
+    if(!linea) return; // línea vacía: no corta el campo que se está acumulando
+    let match=null;
+    for(const L of CV_LABELS){ const m=linea.match(L.re); if(m){ match={campo:L.campo,valor:(m[1]||"").trim()}; break; } }
+    if(match){
+      if(match.campo==="personalesCantidad") seccion="personales";
+      if(match.campo==="ventasCantidad") seccion="ventas";
+      if(match.campo==="datosCantidad") seccion="datos";
+      let destino=match.campo;
+      if(match.campo==="detalleProductos"||match.campo==="condicionVenta"){
+        destino=(CV_SECCION_DESTINO[seccion]||{})[match.campo];
+      }
+      if(destino){ c[destino]=match.valor; activo=destino; } else activo=null;
+    } else if(activo){
+      c[activo]=(c[activo]?c[activo]+"\n":"")+linea;
+    }
+  });
+  Object.keys(c).forEach(k=>c[k]=(c[k]||"").trim());
+  return {fecha, campos:c, textoOriginal:texto};
+}
+
+async function cargarCovente(){
+  if(!state.cvCache){ try{ state.cvCache=await bkApi("kb_list"); }catch(e){ state.cvCache={categorias:[]}; } }
+}
+
+/* Trae y cachea el contenido de cada salida. Una vez cargado no se vuelve a pedir
+   al backend (abrir/cerrar acordeones no debe releer todo) — solo se invalida
+   explícitamente después de guardar/borrar una salida. */
+async function cargarCoventeRegistros(forzar){
+  if(state.cvRegistros && !forzar) return state.cvRegistros;
+  await cargarCovente();
+  const cat=cvFindCategoria();
+  const docs=(cat&&cat.docs||[]).filter(d=>d.mimeType==="text/plain");
+  const registros=(await Promise.all(docs.map(async d=>{
+    try{ const doc=await bkApi("kb_get",{id:d.id}); const r=JSON.parse(doc.texto||"{}"); r._id=d.id; return r; }
+    catch(e){ return null; } // archivo corrupto o no-covente, se ignora
+  }))).filter(Boolean);
+  state.cvRegistros=registros;
+  return registros;
+}
+
+function cvResumen(campos){
+  const partes=[];
+  if(campos.visitas) partes.push(campos.visitas+" visitas");
+  if(campos.personalesCantidad) partes.push(campos.personalesCantidad+" venta personal"+(campos.personalesValor?" ("+campos.personalesValor+")":""));
+  if(campos.ventasCantidad) partes.push(campos.ventasCantidad+" ventas"+(campos.ventasValor?" ("+campos.ventasValor+")":""));
+  if(campos.datosCantidad) partes.push(campos.datosCantidad+" datos");
+  return partes.join(" · ")||"Sin resumen";
+}
+
+async function renderCoventeView(){
+  const cont=$("#view");
+  const yaHayCache=!!state.cvRegistros;
+  if(!yaHayCache) cont.innerHTML=`<div class="empty" style="padding:50px">Cargando informes de Covente…</div>`;
+  const registros=await cargarCoventeRegistros();
+  if(state.vista!=="covente") return; // el usuario cambió de pestaña mientras cargaba
+
+  const toolbar=`<div class="cv-toolbar">
+    <button class="btn-cv" id="cvNuevo">+ Nueva salida</button>
+    <button class="btn-cv ghost" id="cvResumenBtn" ${registros.length?"":"disabled"}>📊 Resumen</button>
+    <span class="hint">Pegá el informe que te mandan por WhatsApp y lo organizo acá.</span>
+  </div>`;
+
+  if(!registros.length){
+    cont.innerHTML=toolbar+`<div class="empty" style="padding:50px">Todavía no cargaste ninguna salida.</div>`;
+    wireCoventeToolbar(); return;
+  }
+
+  // agrupar por sucursal/gerente (roster conocido primero, en su orden; el resto al final)
+  const porSucursal={};
+  registros.forEach(r=>{
+    const key=r.sucursalKey||"otros";
+    (porSucursal[key]=porSucursal[key]||[]).push(r);
+  });
+  const ordenKeys=[...CONFIG.SUCURSALES.map(s=>s.sucursal), "otros"].filter(k=>porSucursal[k]);
+
+  cont.innerHTML=toolbar+ordenKeys.map(key=>{
+    const regs=porSucursal[key].slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+    const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===key);
+    const titulo=sObj?`${sObj.sucursal} — ${cvGerenteLabel(sObj.gerente)}`:"Sin sucursal identificada";
+    const open=!!state.cvExpanded[key];
+    let body="";
+    if(open){
+      const porMes={};
+      regs.forEach(r=>{ const ym=(r.fecha||"").slice(0,7)||"sin-fecha"; (porMes[ym]=porMes[ym]||[]).push(r); });
+      const mesesOrden=Object.keys(porMes).sort().reverse();
+      body=`<div class="acc-body">${mesesOrden.map(ym=>`
+        <div class="cv-mes">${ym==="sin-fecha"?"Sin fecha":esc(cvMesLabel(ym))}<span class="ln"></span></div>
+        ${porMes[ym].map(r=>`
+          <div class="cv-row" data-cvid="${esc(r._id)}">
+            <span class="cv-fecha">${r.fecha?esc(r.fecha.slice(8,10)+"/"+r.fecha.slice(5,7)):"—"}</span>
+            <span class="cv-resumen"><span class="cv-suc">${esc(r.campos.acompanante||r.campos.gerente||"")}</span> — ${esc(cvResumen(r.campos))}</span>
+            <span class="cv-chip">${esc(r.campos.zona||"")}</span>
+          </div>`).join("")}
+      `).join("")}</div>`;
+    }
+    return `<div class="acc ${open?"open":""}">
+      <button class="acc-head" data-cvsuc="${esc(key)}">
+        <span class="chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+        <span class="acc-title">${esc(titulo)}</span>
+        <span class="badge">${regs.length} salida${regs.length===1?"":"s"}</span>
+        <span class="acc-line"></span>
+      </button>${body}</div>`;
+  }).join("");
+  wireCoventeToolbar();
+}
+
+function wireCoventeToolbar(){
+  const b=$("#cvNuevo"); if(b) b.onclick=abrirCoventeForm;
+  const r=$("#cvResumenBtn"); if(r) r.onclick=abrirCoventeResumen;
+}
+
+async function abrirCoventeDetalle(id){
+  let r=(state.cvRegistros||[]).find(x=>x._id===id);
+  if(!r){
+    try{ const doc=await bkApi("kb_get",{id}); r=JSON.parse(doc.texto||"{}"); r._id=id; }
+    catch(e){ toastErr("No se pudo abrir: "+e.message); return; }
+  }
+  {
+    const c=r.campos||{};
+    const F=(lbl,val)=>val?`<div class="cv-field"><div class="lbl">${esc(lbl)}</div><div class="val">${esc(val)}</div></div>`:"";
+    $("#modal").innerHTML=`
+      <div class="modal-head">
+        <div class="mt"><div class="nm">Salida · ${esc(c.sucursal||"")}</div>
+          <div class="zn">${r.fecha?esc(new Date(r.fecha+"T00:00:00").toLocaleDateString("es-AR",{day:"2-digit",month:"long",year:"numeric"})):""}</div></div>
+        <button class="btn-cv ghost" id="cvEditar">Editar</button>
+        <button class="btn-cv danger" id="cvBorrar">Borrar</button>
+        <button class="x" id="modalClose">&times;</button>
+      </div>
+      <div class="cv-detail">
+        <div class="cv-grid2">
+          ${F("Gerente",c.gerente)}${F("Vendedor/cobrador acompañado",c.acompanante)}
+          ${F("Zona trabajada",c.zona)}${F("Cantidad de visitas",c.visitas)}
+        </div>
+        <div class="cv-sep"></div>
+        ${F("Nuevos negocios",c.nuevosNegocios)}
+        <div class="cv-sep"></div>
+        <div class="cv-grid2">
+          ${F("Ventas personales realizadas",c.personalesCantidad)}${F("Valor total de ventas personales",c.personalesValor)}
+        </div>
+        ${F("Detalle de productos (personales)",c.personalesDetalle)}
+        ${F("Condición de venta (personales)",c.personalesCondicion)}
+        <div class="cv-sep"></div>
+        <div class="cv-grid2">
+          ${F("Ventas realizadas",c.ventasCantidad)}${F("Valor total de ventas",c.ventasValor)}
+        </div>
+        ${F("Detalle de productos vendidos",c.ventasDetalle)}
+        ${F("Condición de venta",c.condicionVenta)}
+        <div class="cv-sep"></div>
+        <div class="cv-grid2">${F("Datos recopilados",c.datosCantidad)}${F("Valor total de datos",c.datosValor)}</div>
+        ${F("Detalle de productos (datos)",c.datosDetalle)}
+        <div class="cv-sep"></div>
+        ${F("Observaciones",c.observaciones)}
+      </div>`;
+    $("#modalBg").classList.add("open");
+    $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+    $("#cvEditar").onclick=()=>editarCovente(id,r);
+    $("#cvBorrar").onclick=()=>borrarCovente(id,c.sucursal);
+  }
+}
+
+function toastErr(msg){ window.alert(msg); }
+
+async function borrarCovente(id,sucursalKey){
+  if(!window.confirm("¿Borrar esta salida? No se puede deshacer.")) return;
+  if(!requireCvKey()) return;
+  try{
+    await bkApiPost("kb_delete",{id});
+    state.cvCache=await bkApi("kb_list"); state.cvRegistros=null;
+    $("#modalBg").classList.remove("open");
+    renderCoventeView();
+  }catch(e){ toastErr("No se pudo borrar: "+e.message); }
+}
+
+/* Divide un texto con uno o varios informes pegados juntos, usando el
+   encabezado "Método COVENTE" como separador de cada salida. */
+function splitCoventeBloques(texto){
+  const idxs=[]; const re=/m[eé]todo\s+covente/gi; let m;
+  while((m=re.exec(texto))) idxs.push(m.index);
+  if(idxs.length<=1) return [texto.trim()];
+  return idxs.map((start,i)=>texto.slice(start, i+1<idxs.length?idxs[i+1]:texto.length).trim());
+}
+
+function abrirCoventeForm(){
+  $("#modal").innerHTML=`
+    <div class="modal-head"><div class="mt"><div class="nm">Nueva salida — Covente</div>
+      <div class="zn">Pegá uno o varios informes tal cual te los mandan por WhatsApp</div></div>
+      <button class="x" id="modalClose">&times;</button></div>
+    <div class="cv-form">
+      <div>
+        <label>Texto del informe (podés pegar varios juntos, uno atrás del otro)</label>
+        <textarea id="cvTexto" placeholder="Método COVENTE - Informe 22/07&#10;☑️Sucursal: ...&#10;☑️Gerente: ..."></textarea>
+      </div>
+      <div style="display:flex;gap:9px"><button class="btn-cv" id="cvProcesar">Procesar texto</button></div>
+      <div id="cvPreviewList"></div>
+    </div>`;
+  $("#modalBg").classList.add("open");
+  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  $("#cvProcesar").onclick=()=>{
+    const texto=$("#cvTexto").value.trim();
+    if(!texto){ toastErr("Pegá el texto del informe primero."); return; }
+    const bloques=splitCoventeBloques(texto);
+    const lista=$("#cvPreviewList"); lista.innerHTML="";
+    bloques.forEach((bloqueTexto,i)=>{
+      const parsed=parseCovente(bloqueTexto);
+      const card=document.createElement("div");
+      card.className="cv-preview-card";
+      card.innerHTML=bloques.length>1?`<div class="cv-preview-num">Salida ${i+1} de ${bloques.length}</div><div class="cv-fields"></div>`:`<div class="cv-fields"></div>`;
+      lista.appendChild(card);
+      renderCoventeCamposForm(parsed, null, card.querySelector(".cv-fields"));
+    });
+  };
+}
+
+/* Reabre el mismo informe ya guardado en el formulario de campos, para corregirlo a mano. */
+function editarCovente(id,registro){
+  $("#modal").innerHTML=`
+    <div class="modal-head"><div class="mt"><div class="nm">Editar salida — Covente</div>
+      <div class="zn">Corregí lo que haga falta y guardá</div></div>
+      <button class="x" id="modalClose">&times;</button></div>
+    <div class="cv-form"><div class="cv-fields" id="cvEditFields"></div></div>`;
+  $("#modalBg").classList.add("open");
+  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  renderCoventeCamposForm({fecha:registro.fecha, campos:registro.campos, textoOriginal:registro.textoOriginal}, id, $("#cvEditFields"));
+}
+
+function renderCoventeCamposForm(parsed, editId, container){
+  const c=parsed.campos;
+  const match=cvMatchSucursal(c.gerente)||CONFIG.SUCURSALES.find(s=>s.sucursal===c.sucursal);
+  const opciones=CONFIG.SUCURSALES.map(s=>`<option value="${esc(s.sucursal)}" ${match&&match.sucursal===s.sucursal?"selected":""}>${esc(s.sucursal)} — ${esc(cvGerenteLabel(s.gerente))}</option>`).join("");
+  container.innerHTML=`
+    <div class="cv-sep"></div>
+    <div class="row">
+      <div><label>Sucursal / Gerente</label><select data-f="sucursal"><option value="">— Elegir —</option>${opciones}</select></div>
+      <div><label>Fecha de la salida</label><input type="date" data-f="fecha" value="${esc(parsed.fecha||"")}"></div>
+    </div>
+    <div class="row3">
+      <div><label>Vendedor/cobrador acompañado</label><input data-f="acompanante" value="${esc(c.acompanante)}"></div>
+      <div><label>Zona trabajada</label><input data-f="zona" value="${esc(c.zona)}"></div>
+      <div><label>Cantidad de visitas</label><input data-f="visitas" value="${esc(c.visitas)}"></div>
+    </div>
+    <div><label>Nuevos negocios</label><input data-f="nuevosNegocios" value="${esc(c.nuevosNegocios)}"></div>
+
+    <div class="cv-mes" style="margin-top:2px">Ventas personales del gerente</div>
+    <div class="row">
+      <div><label>Ventas personales realizadas</label><input data-f="personalesCantidad" value="${esc(c.personalesCantidad)}"></div>
+      <div><label>Valor total de ventas personales</label><input data-f="personalesValor" value="${esc(c.personalesValor)}"></div>
+    </div>
+    <div><label>Detalle de productos (personales)</label><textarea class="cv-mini" data-f="personalesDetalle">${esc(c.personalesDetalle)}</textarea></div>
+    <div><label>Condición de venta (personales)</label><textarea class="cv-mini" data-f="personalesCondicion">${esc(c.personalesCondicion)}</textarea></div>
+
+    <div class="cv-mes">Ventas del equipo</div>
+    <div class="row">
+      <div><label>Ventas realizadas</label><input data-f="ventasCantidad" value="${esc(c.ventasCantidad)}"></div>
+      <div><label>Valor total de ventas</label><input data-f="ventasValor" value="${esc(c.ventasValor)}"></div>
+    </div>
+    <div><label>Detalle de productos vendidos</label><textarea class="cv-mini" data-f="ventasDetalle">${esc(c.ventasDetalle)}</textarea></div>
+    <div><label>Condición de venta</label><textarea class="cv-mini" data-f="condicionVenta">${esc(c.condicionVenta)}</textarea></div>
+
+    <div class="cv-mes">Datos recopilados</div>
+    <div class="row">
+      <div><label>Datos recopilados</label><input data-f="datosCantidad" value="${esc(c.datosCantidad)}"></div>
+      <div><label>Valor total de datos</label><input data-f="datosValor" value="${esc(c.datosValor)}"></div>
+    </div>
+    <div><label>Detalle de productos (datos)</label><textarea class="cv-mini" data-f="datosDetalle">${esc(c.datosDetalle)}</textarea></div>
+    <div><label>Observaciones</label><textarea class="cv-mini cv-obs" data-f="observaciones">${esc(c.observaciones)}</textarea></div>
+    <div class="cv-form-actions">
+      <button class="btn-sm" data-act="cancelar" style="border:1px solid var(--border-strong);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer">${editId?"Cancelar":"Descartar esta"}</button>
+      <button class="btn-cv" data-act="guardar">${editId?"Guardar cambios":"Guardar salida"}</button>
+    </div>`;
+  container.querySelector('[data-act="cancelar"]').onclick=()=>{
+    if(editId){ $("#modalBg").classList.remove("open"); return; }
+    const card=container.closest(".cv-preview-card");
+    if(card) card.remove(); else container.innerHTML="";
+  };
+  container.querySelector('[data-act="guardar"]').onclick=()=>guardarCovente(parsed.textoOriginal, editId, container);
+}
+
+async function guardarCovente(textoOriginal, editId, container){
+  if(!requireCvKey()) return;
+  const f=name=>container.querySelector(`[data-f="${name}"]`).value.trim();
+  const sucSel=f("sucursal");
+  const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===sucSel);
+  const campos={
+    sucursal: sucSel, gerente: sObj?cvGerenteLabel(sObj.gerente):"",
+    acompanante:f("acompanante"), zona:f("zona"),
+    visitas:f("visitas"), nuevosNegocios:f("nuevosNegocios"),
+    personalesCantidad:f("personalesCantidad"), personalesValor:f("personalesValor"),
+    personalesDetalle:f("personalesDetalle"), personalesCondicion:f("personalesCondicion"),
+    ventasCantidad:f("ventasCantidad"), ventasValor:f("ventasValor"),
+    ventasDetalle:f("ventasDetalle"), condicionVenta:f("condicionVenta"),
+    datosCantidad:f("datosCantidad"), datosValor:f("datosValor"),
+    datosDetalle:f("datosDetalle"), observaciones:f("observaciones"),
+  };
+  const fecha=f("fecha");
+  if(!sucSel){ toastErr("Elegí a qué sucursal/gerente corresponde la salida."); return; }
+  if(!fecha){ toastErr("Elegí la fecha de la salida."); return; }
+  const registro={fecha, sucursalKey:sucSel, campos, textoOriginal};
+  try{
+    if(editId){
+      await bkApiPost("kb_save",{id:editId, content:JSON.stringify(registro)});
+    } else {
+      let cat=cvFindCategoria();
+      if(!cat){ await bkApiPost("kb_create_category",{nombre:CV_CAT}); state.cvCache=await bkApi("kb_list"); cat=cvFindCategoria(); }
+      const nombre=`Covente - ${sucSel} - ${fecha} - ${Date.now()}.json`;
+      const blob=new Blob([JSON.stringify(registro)],{type:"text/plain"});
+      const file=new File([blob], nombre, {type:"text/plain"});
+      const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(file);});
+      await bkApiPost("kb_upload",{filename:nombre, mimeType:"text/plain", base64:b64, categoryId:cat.id});
+    }
+    state.cvCache=await bkApi("kb_list"); state.cvRegistros=null;
+    state.cvExpanded[sucSel]=true;
+    renderCoventeView(); // refresca el acordeón de fondo aunque el modal siga abierto
+    if(editId){ $("#modalBg").classList.remove("open"); return; }
+    const card=container.closest(".cv-preview-card")||container;
+    card.innerHTML=`<div class="cv-saved">✓ Guardada — ${esc(sucSel)} · ${esc(fecha.split("-").reverse().join("/"))}</div>`;
+  }catch(e){ toastErr("No se pudo guardar: "+e.message); }
+}
+
+/* ═══════════════════════════ Resumen de salidas (Covente) ═══════════════════════════ */
+function cvIsoDate(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function cvNum(s){ const n=parseInt(String(s||"").replace(/[^\d]/g,""),10); return isNaN(n)?0:n; }
+function cvFmtMoneda(n){ return "$"+n.toLocaleString("es-AR"); }
+function cvRangoSemana(){
+  const hoy=new Date(); const dow=hoy.getDay(); const off=dow===0?-6:1-dow;
+  const lunes=new Date(hoy); lunes.setDate(hoy.getDate()+off);
+  const domingo=new Date(lunes); domingo.setDate(lunes.getDate()+6);
+  return {desde:cvIsoDate(lunes), hasta:cvIsoDate(domingo)};
+}
+function cvRangoMes(){
+  const hoy=new Date();
+  const desde=new Date(hoy.getFullYear(),hoy.getMonth(),1);
+  const hasta=new Date(hoy.getFullYear(),hoy.getMonth()+1,0);
+  return {desde:cvIsoDate(desde), hasta:cvIsoDate(hasta)};
+}
+
+function abrirCoventeResumen(){
+  const semana=cvRangoSemana();
+  $("#modal").className="modal"; $("#modal").style.maxWidth="";
+  $("#modal").innerHTML=`
+    <div class="modal-head"><div class="mt"><div class="nm">Resumen de salidas</div>
+      <div class="zn">Por gerente/sucursal, en el rango que elijas</div></div>
+      <button class="x" id="modalClose">&times;</button></div>
+    <div class="cv-form">
+      <div class="row3">
+        <div><label>Rango</label>
+          <select id="cvrRango">
+            <option value="semana">Esta semana</option>
+            <option value="mes">Este mes</option>
+            <option value="custom">Personalizado</option>
+          </select>
+        </div>
+        <div><label>Desde</label><input type="date" id="cvrDesde" value="${semana.desde}"></div>
+        <div><label>Hasta</label><input type="date" id="cvrHasta" value="${semana.hasta}"></div>
+      </div>
+      <div id="cvrTabla"></div>
+    </div>`;
+  $("#modalBg").classList.add("open");
+  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  const selRango=$("#cvrRango"), inDesde=$("#cvrDesde"), inHasta=$("#cvrHasta");
+  function aplicarPreset(){
+    if(selRango.value==="semana"){ const r=cvRangoSemana(); inDesde.value=r.desde; inHasta.value=r.hasta; }
+    if(selRango.value==="mes"){ const r=cvRangoMes(); inDesde.value=r.desde; inHasta.value=r.hasta; }
+    inDesde.disabled=inHasta.disabled=selRango.value!=="custom";
+    renderCoventeResumenTabla(inDesde.value, inHasta.value);
+  }
+  selRango.addEventListener("change", aplicarPreset);
+  inDesde.addEventListener("change", ()=>renderCoventeResumenTabla(inDesde.value, inHasta.value));
+  inHasta.addEventListener("change", ()=>renderCoventeResumenTabla(inDesde.value, inHasta.value));
+  aplicarPreset();
+}
+
+function renderCoventeResumenTabla(desde, hasta){
+  const el=$("#cvrTabla"); if(!el) return;
+  if(!desde||!hasta){ el.innerHTML=`<div class="empty">Elegí un rango de fechas.</div>`; return; }
+  const registros=(state.cvRegistros||[]).filter(r=>r.fecha && r.fecha>=desde && r.fecha<=hasta);
+  if(!registros.length){ el.innerHTML=`<div class="empty" style="padding:30px">No hay salidas cargadas en ese rango.</div>`; return; }
+
+  const porSucursal={};
+  registros.forEach(r=>{ const key=r.sucursalKey||"otros"; (porSucursal[key]=porSucursal[key]||[]).push(r); });
+  const ordenKeys=[...CONFIG.SUCURSALES.map(s=>s.sucursal), "otros"].filter(k=>porSucursal[k]);
+
+  const filas=ordenKeys.map(key=>{
+    const regs=porSucursal[key];
+    const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===key);
+    const titulo=sObj?`${sObj.sucursal} — ${cvGerenteLabel(sObj.gerente)}`:"Sin identificar";
+    const t={visitas:0,nuevosNegocios:0,persCant:0,persValor:0,ventCant:0,ventValor:0,datCant:0,datValor:0};
+    regs.forEach(r=>{
+      const c=r.campos||{};
+      t.visitas+=cvNum(c.visitas); t.nuevosNegocios+=cvNum(c.nuevosNegocios);
+      t.persCant+=cvNum(c.personalesCantidad); t.persValor+=cvNum(c.personalesValor);
+      t.ventCant+=cvNum(c.ventasCantidad); t.ventValor+=cvNum(c.ventasValor);
+      t.datCant+=cvNum(c.datosCantidad); t.datValor+=cvNum(c.datosValor);
+    });
+    return {titulo, salidas:regs.length, ...t};
+  });
+  const total=filas.reduce((a,f)=>({
+    salidas:a.salidas+f.salidas, visitas:a.visitas+f.visitas, nuevosNegocios:a.nuevosNegocios+f.nuevosNegocios,
+    persCant:a.persCant+f.persCant, persValor:a.persValor+f.persValor,
+    ventCant:a.ventCant+f.ventCant, ventValor:a.ventValor+f.ventValor,
+    datCant:a.datCant+f.datCant, datValor:a.datValor+f.datValor,
+  }), {salidas:0,visitas:0,nuevosNegocios:0,persCant:0,persValor:0,ventCant:0,ventValor:0,datCant:0,datValor:0});
+
+  const fila=f=>`<tr>
+    <td class="cvr-tit">${esc(f.titulo)}</td>
+    <td>${f.salidas}</td><td>${f.visitas}</td><td>${f.nuevosNegocios}</td>
+    <td>${f.persCant}${f.persValor?` <span class="cvr-mon">(${esc(cvFmtMoneda(f.persValor))})</span>`:""}</td>
+    <td>${f.ventCant}${f.ventValor?` <span class="cvr-mon">(${esc(cvFmtMoneda(f.ventValor))})</span>`:""}</td>
+    <td>${f.datCant}${f.datValor?` <span class="cvr-mon">(${esc(cvFmtMoneda(f.datValor))})</span>`:""}</td>
+  </tr>`;
+
+  el.innerHTML=`<div class="cvr-wrap"><table class="cvr-tabla">
+    <thead><tr><th>Gerente / Sucursal</th><th>Salidas</th><th>Visitas</th><th>Neg. nuevos</th><th>Vtas. personales</th><th>Vtas. equipo</th><th>Datos</th></tr></thead>
+    <tbody>${filas.map(fila).join("")}</tbody>
+    <tfoot>${fila({...total,titulo:"Total"}).replace('class="cvr-tit"','class="cvr-tit" style="font-weight:700"')}</tfoot>
+  </table></div>`;
+}
+
 /* ───────── Eventos ───────── */
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
   t.classList.add("active"); state.vista=t.dataset.view; render();
 }));
-$("#dayBar").addEventListener("click",e=>{const b=e.target.closest(".daypill");if(!b)return;state.diaSel=+b.dataset.day;render();});
+$("#dayBar").addEventListener("click",e=>{const b=e.target.closest(".daypill");if(!b)return;state.diaSel=b.dataset.day;render();});
 function toggleSuc(suc){ state.expanded[suc]=!state.expanded[suc]; render(); }
+function toggleCvSuc(suc){ state.cvExpanded[suc]=!state.cvExpanded[suc]; renderCoventeView(); }
 $("#view").addEventListener("click",e=>{
-  const h=e.target.closest(".acc-head"); if(h){ toggleSuc(h.dataset.suc); return; }
+  const h=e.target.closest(".acc-head");
+  if(h && h.dataset.cvsuc!==undefined){ toggleCvSuc(h.dataset.cvsuc); return; }
+  if(h){ toggleSuc(h.dataset.suc); return; }
+  const cv=e.target.closest("[data-cvid]"); if(cv){ abrirCoventeDetalle(cv.dataset.cvid); return; }
   const c=e.target.closest("[data-modal]"); if(c) abrirModal(c.dataset.modal);
 });
 let tB=null;
