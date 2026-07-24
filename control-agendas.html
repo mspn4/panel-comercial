@@ -325,7 +325,7 @@ footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center
 <script>
 /* ───────── Estado ───────── */
 const state = {
-  vista:"sucursal", diaSel:0, query:"", semanaLabel:"", offWeek:false,
+  vista:"sucursal", diaSel:hoyDDMM(), query:"",
   sucursales:[],     // [{sucursal,gerente,id, estado, modificado, error}]
   personas:[],       // [{key,sucursal,gerente,nombre,rol,dates,slots,count,modificado,visible}]
   oculta:{},         // key -> true si está oculta
@@ -343,6 +343,20 @@ const iniciales=n=>{const p=(n||"?").trim().split(/\s+/);return (((p[0]||"")[0]|
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function hoyDDMM(){const d=new Date();return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");}
 function ddmmDe(t){const m=(t||"").match(/(\d{1,2})[\/\-.](\d{1,2})/);return m?m[1].padStart(2,"0")+"/"+m[2].padStart(2,"0"):"";}
+/* Semana real de calendario (lunes a domingo de hoy), independiente de lo que
+   diga cualquier agenda en Drive — así el selector de fecha nunca depende de
+   si un gerente en particular se olvidó de actualizar su hoja. */
+const DIAS_SEMANA=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+function semanaRealActual(){
+  const hoy=new Date(); const dow=hoy.getDay(); const off=dow===0?-6:1-dow;
+  const lunes=new Date(hoy); lunes.setDate(hoy.getDate()+off);
+  const hoyStr=hoyDDMM();
+  return DIAS_SEMANA.map((dia,i)=>{
+    const d=new Date(lunes); d.setDate(lunes.getDate()+i);
+    const ddmm=String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");
+    return {dia, ddmm, esHoy:ddmm===hoyStr};
+  });
+}
 function haceCuanto(iso){
   if(!iso) return "";
   const d=new Date(iso), seg=(new Date()-d)/1000;
@@ -455,12 +469,6 @@ async function cargarTodo(manual){
     ((a.rol==="gerente"?0:1)-(b.rol==="gerente"?0:1)) || a.nombre.localeCompare(b.nombre));
   state.personas=personas;
 
-  const hoy=hoyDDMM(); const ref=personas.find(p=>p.dates.length); state.offWeek=true;
-  // La etiqueta de semana se toma de la MISMA hoja que da los pills de fecha
-  // (antes tomaba la primera hoja con texto "semana", que podía ser de otra sucursal).
-  state.semanaLabel=ref?(ref.semana||""):"";
-  if(ref){ const i=ref.dates.findIndex(d=>d.ddmm===hoy); if(i>=0){state.diaSel=i;state.offWeek=false;} else state.diaSel=0; }
-
   pintarNotice(personas.length>0,fallaron);
   marcarReloj(); setLoading(false); render(); renderDrawer();
 }
@@ -482,32 +490,30 @@ function pintarNotice(ok,fallaron){
     return;
   }
   const partes=[];
-  if(state.offWeek) partes.push(`La semana cargada no incluye hoy — muestro el primer día disponible${state.semanaLabel?` (semana ${esc(state.semanaLabel)})`:""}.`);
   if(fallaron.length) partes.push(`No cargó: <b>${esc(fallaron.join(", "))}</b>.`);
   if(partes.length) el.innerHTML=`<div class="notice">ℹ️ <div>${partes.join("<br>")}</div></div>`;
 }
 function pintarWeekLabel(){
-  $("#weekLabel").innerHTML=state.semanaLabel?
-    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg> Semana <b>${esc(state.semanaLabel)}</b>`:"";
+  const s=semanaRealActual();
+  $("#weekLabel").innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg> Semana <b>${esc(s[0].ddmm)} al ${esc(s[6].ddmm)}</b>`;
 }
 function highlight(t){const x=esc(t);if(!state.query)return x;
   const re=new RegExp("("+state.query.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig");return x.replace(re,"<mark>$1</mark>");}
 
 function pintarDayBar(){
-  const ref=state.personas.find(p=>p.dates.length); const bar=$("#dayBar");
-  if(!ref){bar.innerHTML="";return;}
-  const hoy=hoyDDMM();
-  bar.innerHTML=ref.dates.map((d,i)=>`<button class="daypill ${i===state.diaSel?"active":""} ${d.ddmm===hoy?"today":""}" data-day="${i}">
-    <span class="d">${esc(d.dia||("Día "+(i+1)))}</span><span class="f">${esc(d.ddmm||d.fecha)}</span></button>`).join("");
+  const semana=semanaRealActual();
+  $("#dayBar").innerHTML=semana.map(d=>`<button class="daypill ${d.ddmm===state.diaSel?"active":""} ${d.esHoy?"today":""}" data-day="${esc(d.ddmm)}">
+    <span class="d">${esc(d.dia)}</span><span class="f">${esc(d.ddmm)}</span></button>`).join("");
 }
 
 /* ───────── Tarjeta ───────── */
 function tarjeta(p){
-  const d=p.dates[state.diaSel];
-  let items=(p.slots||[]).map(s=>({hora:s.hora,tk:(d?s.tareas[state.diaSel]:"")||""})).filter(s=>s.tk);
+  const idx=p.dates.findIndex(d=>d.ddmm===state.diaSel);
+  let items = idx>=0 ? (p.slots||[]).map(s=>({hora:s.hora,tk:s.tareas[idx]||""})).filter(s=>s.tk) : [];
   if(state.query) items=items.filter(s=>norm(s.tk).includes(norm(state.query)));
   let cuerpo;
-  if(!items.length) cuerpo=`<div class="empty">${state.query?"Sin coincidencias":"Sin tareas para este día"}</div>`;
+  if(idx<0) cuerpo=`<div class="empty">Agenda desactualizada — no tiene cargado este día.</div>`;
+  else if(!items.length) cuerpo=`<div class="empty">${state.query?"Sin coincidencias":"Sin tareas para este día"}</div>`;
   else cuerpo=items.map(s=>`<div class="slot"><div class="h ${s.hora?"":"none"}">${esc(s.hora||"·")}</div><div class="tk">${highlight(s.tk)}</div></div>`).join("");
   const estTxt={ok:`${p.count} tareas`,vacia:"Sin tareas",error:"No cargó"}[p.estado]||"";
   return `<div class="card ${p.rol}">
@@ -529,8 +535,9 @@ function cardsQueAplican(){
   if(state.vista==="lider")   arr=arr.filter(p=>p.rol==="lider");
   if(state.query){
     arr=arr.filter(p=>{
-      const d=p.dates[state.diaSel];
-      return (p.slots||[]).some(s=>{const t=d?s.tareas[state.diaSel]:"";return t&&norm(t).includes(norm(state.query));});
+      const idx=p.dates.findIndex(d=>d.ddmm===state.diaSel);
+      if(idx<0) return false;
+      return (p.slots||[]).some(s=>{const t=s.tareas[idx];return t&&norm(t).includes(norm(state.query));});
     });
   }
   return arr;
@@ -956,7 +963,7 @@ document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
   t.classList.add("active"); state.vista=t.dataset.view; render();
 }));
-$("#dayBar").addEventListener("click",e=>{const b=e.target.closest(".daypill");if(!b)return;state.diaSel=+b.dataset.day;render();});
+$("#dayBar").addEventListener("click",e=>{const b=e.target.closest(".daypill");if(!b)return;state.diaSel=b.dataset.day;render();});
 function toggleSuc(suc){ state.expanded[suc]=!state.expanded[suc]; render(); }
 function toggleCvSuc(suc){ state.cvExpanded[suc]=!state.cvExpanded[suc]; renderCoventeView(); }
 $("#view").addEventListener("click",e=>{
