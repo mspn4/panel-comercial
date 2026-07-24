@@ -29,17 +29,30 @@ const CONFIG = {
   // Una línea por sucursal. "gerente" = apellido del gerente (su pestaña).
   // El resto de las pestañas del archivo se toman como líderes automáticamente.
   // "id" es lo que va entre /d/ y /edit en el link del espacio de trabajo.
+  // "cobradores" = apellidos tal como figuran en la nómina (VENDEDOR COBRADOR).
+  // Es una foto de la nómina de hoy: si entra/sale alguien hay que actualizar
+  // esta lista a mano, no se lee en vivo desde nomina-produccion.html.
   SUCURSALES: [
-    { sucursal: "Jujuy",                         gerente: "Arjona",    id: "1uEQFhrVYgU_pEIQwcYo7YNkwIULCBlSj-p7ED_-Of5E" },
-    { sucursal: "Salta",                         gerente: "Gomez",     id: "1FvqJ_-WRzo964DB_iD5bZbzuFFLf-mT8FVsTKJWWq7Q" },
-    { sucursal: "Catamarca",                     gerente: "Ludueña",   id: "1CD5wnnnF05HzcLBZidaaOJIV8uUkCRhrWpTYGfsmGAM" },
-    { sucursal: "Norte Centro (Metán)",          gerente: "Guipponi",  id: "1Jf00dhHO0YXeyppkaoiCVhOWuyxXTh0pYHpR_O2yklE" },
-    { sucursal: "Tucumán Capital",               gerente: "Roig",      id: "1DTkJ0jk_XFXx1o2j34lnws_Eqk6xCAXerBn10qkDemY" },
-    { sucursal: "Tucumán Interior (Concepción)", gerente: "Yamil",     id: "1m2UAqC7sXm54UeTWSGrPPRPEZrQ3ojUlH3pMdX_iRqs" },
-    { sucursal: "Santiago del Estero",           gerente: "Depetris",  id: "1lagOoU5U0hpRl0KmgpcVJJa-_6iRsjHvR7ueZYdGpxQ" },
-    { sucursal: "Norte Interior (Orán)",         gerente: "Fontana",   id: "1URImDoHMpH8efT1q0I2_-JhcA1A4n6pdtqINCiI8jzI" },
-    { sucursal: "Córdoba",                       gerente: "Rodriguez", id: "1-IbUhBpupGj4m0Ne_sXHTRTYit01ccSVclSjKwFbTmI" },
-    { sucursal: "La Rioja",                      gerente: ["Rios","Nieto"], id: "10ukyFt2hdxcb-VgWdqN-_7-y37YIBfBrel0rtq08wd8" },
+    { sucursal: "Jujuy",                         gerente: "Arjona",    id: "1uEQFhrVYgU_pEIQwcYo7YNkwIULCBlSj-p7ED_-Of5E",
+      cobradores: ["Valda","Valdiviezo","Genovese","Ayarde","Gimenez"] },
+    { sucursal: "Salta",                         gerente: "Gomez",     id: "1FvqJ_-WRzo964DB_iD5bZbzuFFLf-mT8FVsTKJWWq7Q",
+      cobradores: ["Villa","Cortez","Gomez","Rodriguez","Avellaneda","Obrador","Santucho"] },
+    { sucursal: "Catamarca",                     gerente: "Ludueña",   id: "1CD5wnnnF05HzcLBZidaaOJIV8uUkCRhrWpTYGfsmGAM",
+      cobradores: ["Lencina","Constantino Ama","Caminos Vega","Roldan"] },
+    { sucursal: "Norte Centro (Metán)",          gerente: "Guipponi",  id: "1Jf00dhHO0YXeyppkaoiCVhOWuyxXTh0pYHpR_O2yklE",
+      cobradores: ["Rivadeo","Cabezas","Valencia Gimene","Ibañez"] },
+    { sucursal: "Tucumán Capital",               gerente: "Roig",      id: "1DTkJ0jk_XFXx1o2j34lnws_Eqk6xCAXerBn10qkDemY",
+      cobradores: ["Suarez","Aballay","Apas","Vazquez","Blanco","Senrra","Aguero","Haure","Loza","Diaz"] },
+    { sucursal: "Tucumán Interior (Concepción)", gerente: ["Yamil","Isa Massa"], id: "1m2UAqC7sXm54UeTWSGrPPRPEZrQ3ojUlH3pMdX_iRqs",
+      cobradores: ["Sanchez","Campos","Reinoso","Soria"] },
+    { sucursal: "Santiago del Estero",           gerente: "Depetris",  id: "1lagOoU5U0hpRl0KmgpcVJJa-_6iRsjHvR7ueZYdGpxQ",
+      cobradores: ["Puntano","Hoyos","Beltran","Ruiz","Rodriguez"] },
+    { sucursal: "Norte Interior (Orán)",         gerente: "Fontana",   id: "1URImDoHMpH8efT1q0I2_-JhcA1A4n6pdtqINCiI8jzI",
+      cobradores: ["Jaldin Gonzalez","Burgos","Gallardo","Flores","Arias"] },
+    { sucursal: "Córdoba",                       gerente: "Rodriguez", id: "1-IbUhBpupGj4m0Ne_sXHTRTYit01ccSVclSjKwFbTmI",
+      cobradores: ["Barrionuevo","Valdivieso","Andrada Cabeza","Danelutti","Abate"] },
+    { sucursal: "La Rioja",                      gerente: ["Rios","Nieto"], id: "10ukyFt2hdxcb-VgWdqN-_7-y37YIBfBrel0rtq08wd8",
+      cobradores: ["Rojas","Velez","Picon Torres","Almonacid"] },
   ],
 };
 </script>
@@ -154,12 +167,12 @@ main{padding:16px 22px 60px}
 .card-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:11px;cursor:pointer}
 .card-head:hover{background:var(--blue-tint)}
 .avatar{width:38px;height:38px;border-radius:10px;flex:none;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff}
-.avatar.g{background:var(--blue)}.avatar.l{background:#7C8AA0}
+.avatar.g{background:var(--blue)}.avatar.l{background:#7C8AA0}.avatar.c{background:var(--orange)}
 .card-head .who{flex:1;min-width:0}
 .card-head .nm{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-head .zn{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .rolchip{font-size:10px;font-weight:700;letter-spacing:.4px;padding:1px 6px;border-radius:6px;text-transform:uppercase}
-.rolchip.g{background:var(--blue-tint);color:var(--blue)}.rolchip.l{background:#EEF1F5;color:#5C6B7E}
+.rolchip.g{background:var(--blue-tint);color:var(--blue)}.rolchip.l{background:#EEF1F5;color:#5C6B7E}.rolchip.c{background:var(--orange-tint);color:#9A5411}
 .statedot{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;white-space:nowrap}
 .statedot .c{width:8px;height:8px;border-radius:50%}
 .statedot.ok{color:var(--ok)}.statedot.ok .c{background:var(--ok)}
@@ -300,6 +313,7 @@ footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center
     <button class="tab active" data-view="sucursal">Por sucursal</button>
     <button class="tab" data-view="gerente">Gerentes</button>
     <button class="tab" data-view="lider">Líderes</button>
+    <button class="tab" data-view="cobrador">Cobradores</button>
     <button class="tab" data-view="covente">Covente</button>
   </div>
   <div class="weeklabel" id="weekLabel"></div>
@@ -353,6 +367,7 @@ let timer=null;
 const $=s=>document.querySelector(s);
 const norm=s=>(s||"").toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const iniciales=n=>{const p=(n||"?").trim().split(/\s+/);return (((p[0]||"")[0]||"")+((p[1]||"")[0]||"")||"?").toUpperCase();};
+const ROL_INFO={ gerente:{clase:"g",label:"Gerente"}, lider:{clase:"l",label:"Líder"}, cobrador:{clase:"c",label:"Cobrador"} };
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function hoyDDMM(){const d=new Date();return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");}
 function ddmmDe(t){const m=(t||"").match(/(\d{1,2})[\/\-.](\d{1,2})/);return m?m[1].padStart(2,"0")+"/"+m[2].padStart(2,"0"):"";}
@@ -468,8 +483,11 @@ async function cargarTodo(manual){
       data.hojas.forEach(h=>{
         const p=parseAgenda(h.rows);
         if(!p) return;
-        const apellidos=[].concat(s.gerente);
-        const rol = apellidos.some(g=>norm(h.nombre).includes(norm(g))) ? "gerente" : "lider";
+        const apellidosGerente=[].concat(s.gerente);
+        const apellidosCobrador=s.cobradores||[];
+        let rol="lider";
+        if(apellidosGerente.some(g=>norm(h.nombre).includes(norm(g)))) rol="gerente";
+        else if(apellidosCobrador.some(c=>norm(h.nombre).includes(norm(c)))) rol="cobrador";
         const key=s.sucursal+"|"+h.nombre;
         personas.push({key,sucursal:s.sucursal,gerente:s.gerente,nombre:h.nombre,rol,
           dates:p.dates,slots:p.slots,count:p.count,semana:p.semana,modificado:data.modificado,
@@ -478,8 +496,9 @@ async function cargarTodo(manual){
     }catch(e){ s.estado="error"; s.error=e.message; fallaron.push(s.sucursal); }
   }));
 
+  const ordenRol={gerente:0,lider:1,cobrador:2};
   personas.sort((a,b)=> a.sucursal.localeCompare(b.sucursal) ||
-    ((a.rol==="gerente"?0:1)-(b.rol==="gerente"?0:1)) || a.nombre.localeCompare(b.nombre));
+    (ordenRol[a.rol]-ordenRol[b.rol]) || a.nombre.localeCompare(b.nombre));
   state.personas=personas;
 
   pintarNotice(personas.length>0,fallaron);
@@ -531,10 +550,10 @@ function tarjeta(p){
   const estTxt={ok:`${p.count} tareas`,vacia:"Sin tareas",error:"No cargó"}[p.estado]||"";
   return `<div class="card ${p.rol}">
     <div class="card-head" data-modal="${esc(p.key)}">
-      <div class="avatar ${p.rol==="gerente"?"g":"l"}">${esc(iniciales(p.nombre))}</div>
+      <div class="avatar ${ROL_INFO[p.rol].clase}">${esc(iniciales(p.nombre))}</div>
       <div class="who">
         <div class="nm">${esc(p.nombre)}</div>
-        <div class="zn"><span class="rolchip ${p.rol==="gerente"?"g":"l"}">${p.rol==="gerente"?"Gerente":"Líder"}</span> ${esc(p.sucursal)}</div>
+        <div class="zn"><span class="rolchip ${ROL_INFO[p.rol].clase}">${ROL_INFO[p.rol].label}</span> ${esc(p.sucursal)}</div>
         ${p.modificado?`<div class="upd"><span class="updot" style="background:${frescura(p.modificado)}"></span>${esc(fmtActualizacion(p.modificado))}</div>`:""}
       </div>
       <div class="statedot ${p.estado}"><span class="c"></span>${estTxt}</div>
@@ -546,6 +565,7 @@ function cardsQueAplican(){
   let arr=state.personas.filter(p=>p.visible);
   if(state.vista==="gerente") arr=arr.filter(p=>p.rol==="gerente");
   if(state.vista==="lider")   arr=arr.filter(p=>p.rol==="lider");
+  if(state.vista==="cobrador") arr=arr.filter(p=>p.rol==="cobrador");
   if(state.query){
     arr=arr.filter(p=>{
       const idx=p.dates.findIndex(d=>d.ddmm===state.diaSel);
@@ -565,7 +585,7 @@ function render(){
 
   if(state.vista==="gerente"){ cont.innerHTML=`<div class="board">${arr.map(tarjeta).join("")}</div>`; return; }
 
-  // Agrupado por sucursal en acordeón (vistas "sucursal" y "lider")
+  // Agrupado por sucursal en acordeón (vistas "sucursal", "lider" y "cobrador")
   const grupos={};
   arr.forEach(p=>{(grupos[p.sucursal]=grupos[p.sucursal]||[]).push(p);});
   const orden=state.sucursales.map(s=>s.sucursal).filter(s=>grupos[s]);
@@ -573,8 +593,8 @@ function render(){
     const ps=grupos[suc];
     const sObj=state.sucursales.find(x=>x.sucursal===suc)||{};
     const mod=sObj.modificado;
-    const nG=ps.filter(p=>p.rol==="gerente").length, nL=ps.filter(p=>p.rol==="lider").length;
-    const resumen=[nG?nG+" gerente":"", nL?nL+(nL===1?" líder":" líderes"):""].filter(Boolean).join(" · ");
+    const nG=ps.filter(p=>p.rol==="gerente").length, nL=ps.filter(p=>p.rol==="lider").length, nC=ps.filter(p=>p.rol==="cobrador").length;
+    const resumen=[nG?nG+" gerente":"", nL?nL+(nL===1?" líder":" líderes"):"", nC?nC+(nC===1?" cobrador":" cobradores"):""].filter(Boolean).join(" · ");
     const meta=mod?`<span class="dot" style="background:${frescura(mod)}"></span>actualizado ${esc(haceCuanto(mod))}`:"";
     const open=state.query?true:!!state.expanded[suc];
     const body=open?`<div class="acc-body"><div class="board">${ps.map(tarjeta).join("")}</div></div>`:"";
@@ -602,9 +622,9 @@ function abrirModal(key){
   }
   $("#modal").innerHTML=`
     <div class="modal-head">
-      <div class="avatar ${p.rol==="gerente"?"g":"l"}">${esc(iniciales(p.nombre))}</div>
+      <div class="avatar ${ROL_INFO[p.rol].clase}">${esc(iniciales(p.nombre))}</div>
       <div class="mt"><div class="nm">${esc(p.nombre)}</div>
-        <div class="zn"><span class="rolchip ${p.rol==="gerente"?"g":"l"}">${p.rol==="gerente"?"Gerente":"Líder"}</span> ${esc(p.sucursal)}${p.modificado?" · "+esc(fmtActualizacion(p.modificado)):""}</div></div>
+        <div class="zn"><span class="rolchip ${ROL_INFO[p.rol].clase}">${ROL_INFO[p.rol].label}</span> ${esc(p.sucursal)}${p.modificado?" · "+esc(fmtActualizacion(p.modificado)):""}</div></div>
       <button class="x" id="modalClose">&times;</button>
     </div>${grid}`;
   $("#modalBg").classList.add("open");
@@ -620,7 +640,7 @@ function renderDrawer(){
     ${grupos[suc].map(p=>`<label class="chk">
       <input type="checkbox" data-key="${esc(p.key)}" ${p.visible?"checked":""}>
       <span class="cn">${esc(p.nombre)}</span>
-      <span class="cr">${p.rol==="gerente"?"Gerente":"Líder"}</span></label>`).join("")}
+      <span class="cr">${ROL_INFO[p.rol].label}</span></label>`).join("")}
   `).join("")||`<div class="empty" style="padding:30px">Todavía no hay agendas cargadas.</div>`;
 }
 function setVisible(key,vis){
