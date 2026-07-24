@@ -335,6 +335,7 @@ const state = {
   oculta:{},         // key -> true si está oculta
   expanded:{},       // sucursal -> true si está desplegada
   cvCache:null,      // lista de informes Covente (kb_list filtrado a la categoría)
+  cvRegistros:null,  // registros ya leídos (kb_get de cada uno) — evita releer todo al abrir/cerrar un acordeón
   cvEditKey:CONFIG.EDIT_KEY,
   cvExpanded:{},     // sucursal -> true si está desplegada (vista Covente)
 };
@@ -701,6 +702,22 @@ async function cargarCovente(){
   if(!state.cvCache){ try{ state.cvCache=await bkApi("kb_list"); }catch(e){ state.cvCache={categorias:[]}; } }
 }
 
+/* Trae y cachea el contenido de cada salida. Una vez cargado no se vuelve a pedir
+   al backend (abrir/cerrar acordeones no debe releer todo) — solo se invalida
+   explícitamente después de guardar/borrar una salida. */
+async function cargarCoventeRegistros(forzar){
+  if(state.cvRegistros && !forzar) return state.cvRegistros;
+  await cargarCovente();
+  const cat=cvFindCategoria();
+  const docs=(cat&&cat.docs||[]).filter(d=>d.mimeType==="text/plain");
+  const registros=(await Promise.all(docs.map(async d=>{
+    try{ const doc=await bkApi("kb_get",{id:d.id}); const r=JSON.parse(doc.texto||"{}"); r._id=d.id; return r; }
+    catch(e){ return null; } // archivo corrupto o no-covente, se ignora
+  }))).filter(Boolean);
+  state.cvRegistros=registros;
+  return registros;
+}
+
 function cvResumen(campos){
   const partes=[];
   if(campos.visitas) partes.push(campos.visitas+" visitas");
@@ -711,15 +728,9 @@ function cvResumen(campos){
 
 async function renderCoventeView(){
   const cont=$("#view");
-  cont.innerHTML=`<div class="empty" style="padding:50px">Cargando informes de Covente…</div>`;
-  await cargarCovente();
-  const cat=cvFindCategoria();
-  const docs=(cat&&cat.docs||[]).filter(d=>d.mimeType==="text/plain");
-  const registros=[];
-  for(const d of docs){
-    try{ const doc=await bkApi("kb_get",{id:d.id}); const r=JSON.parse(doc.texto||"{}"); r._id=d.id; registros.push(r); }
-    catch(e){ /* archivo corrupto o no-covente, se ignora */ }
-  }
+  const yaHayCache=!!state.cvRegistros;
+  if(!yaHayCache) cont.innerHTML=`<div class="empty" style="padding:50px">Cargando informes de Covente…</div>`;
+  const registros=await cargarCoventeRegistros();
   if(state.vista!=="covente") return; // el usuario cambió de pestaña mientras cargaba
 
   const toolbar=`<div class="cv-toolbar">
@@ -775,9 +786,14 @@ function wireCoventeToolbar(){
   const b=$("#cvNuevo"); if(b) b.onclick=abrirCoventeForm;
 }
 
-function abrirCoventeDetalle(id){
-  bkApi("kb_get",{id}).then(doc=>{
-    const r=JSON.parse(doc.texto||"{}"); const c=r.campos||{};
+async function abrirCoventeDetalle(id){
+  let r=(state.cvRegistros||[]).find(x=>x._id===id);
+  if(!r){
+    try{ const doc=await bkApi("kb_get",{id}); r=JSON.parse(doc.texto||"{}"); r._id=id; }
+    catch(e){ toastErr("No se pudo abrir: "+e.message); return; }
+  }
+  {
+    const c=r.campos||{};
     const F=(lbl,val)=>val?`<div class="cv-field"><div class="lbl">${esc(lbl)}</div><div class="val">${esc(val)}</div></div>`:"";
     $("#modal").innerHTML=`
       <div class="modal-head">
@@ -808,7 +824,7 @@ function abrirCoventeDetalle(id){
     $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
     $("#cvEditar").onclick=()=>editarCovente(id,r);
     $("#cvBorrar").onclick=()=>borrarCovente(id,c.sucursal);
-  }).catch(e=>toastErr("No se pudo abrir: "+e.message));
+  }
 }
 
 function toastErr(msg){ window.alert(msg); }
@@ -818,7 +834,7 @@ async function borrarCovente(id,sucursalKey){
   if(!requireCvKey()) return;
   try{
     await bkApiPost("kb_delete",{id});
-    state.cvCache=await bkApi("kb_list");
+    state.cvCache=await bkApi("kb_list"); state.cvRegistros=null;
     $("#modalBg").classList.remove("open");
     renderCoventeView();
   }catch(e){ toastErr("No se pudo borrar: "+e.message); }
@@ -946,7 +962,7 @@ async function guardarCovente(textoOriginal, editId, container){
       const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(file);});
       await bkApiPost("kb_upload",{filename:nombre, mimeType:"text/plain", base64:b64, categoryId:cat.id});
     }
-    state.cvCache=await bkApi("kb_list");
+    state.cvCache=await bkApi("kb_list"); state.cvRegistros=null;
     state.cvExpanded[sucSel]=true;
     renderCoventeView(); // refresca el acordeón de fondo aunque el modal siga abierto
     if(editId){ $("#modalBg").classList.remove("open"); return; }
