@@ -4,9 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard de Producción por Zona</title>
+<script>
+/* Tema claro/oscuro sincronizado con el panel (localStorage compartido). Va acá arriba de todo,
+   antes de cualquier otro script (Chart.defaults incluido), para que no haya flash del tema
+   equivocado y para que los defaults de Chart.js lean ya el color correcto. */
+document.documentElement.setAttribute('data-theme', localStorage.getItem('panelTheme')==='dark' ? 'dark' : 'light');
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300..800;1,300..800&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -16,49 +22,84 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js" crossorigin=""></script>
 <style>
+/* Paleta: design-system/panel-comercial/MASTER.md (Notion). Mismos nombres de variable que ya
+   usaba este archivo (--primary/--text/--surface/etc) — solo se redefinen los valores, así no
+   hace falta tocar cada regla de las ~9800 líneas que ya las referencian. */
 :root {
   /* Surfaces (light) */
-  --bg: #f5f6f8;
+  --bg: #F6F5F4;
   --bg-2: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f7f8fa;
-  --surface-hi: #eef1f5;
-  --border: #e4e7ec;
-  --border-strong: #cbd2db;
+  --surface-2: #F2F1EF;
+  --surface-hi: #F0EEEA;
+  --border: #E6E6E6;
+  --border-strong: #C9C4BE;
 
   /* Text */
-  --text: #0b1220;
-  --text-muted: #566579;
-  --text-subtle: #8a95a6;
+  --text: #000000;
+  --text-muted: #615D59;
+  --text-subtle: #A39E98;
 
   /* Corporate M&A */
-  --primary: #1e4fa3;
-  --primary-soft: rgba(30,79,163,0.08);
-  --primary-strong: #163d82;
-  --secondary: #f78d2d;
-  --secondary-soft: rgba(247,141,45,0.10);
-  --secondary-strong: #dc7519;
+  --primary: #0075DE;
+  --primary-soft: rgba(0,117,222,0.08);
+  --primary-strong: #005BAB;
+  --secondary: #DD5B00;
+  --secondary-soft: rgba(221,91,0,0.10);
+  --secondary-strong: #B84A00;
 
   /* Aliases para compat con JS */
   --accent: var(--primary);
   --accent-warm: var(--secondary);
 
   /* Semantic */
-  --positive: #10a172;
-  --negative: #e0544c;
-  --info: #0b7fc2;
-  --violet: #7b4fd3;
-  --teal: #0fa39a;
-  --rose: #e1548a;
-  --lime: #4c9f1f;
+  --positive: #1AAE39;
+  --negative: #D7484B;
+  --info: #3396F0;
+  --violet: #6D28D9;
+  --teal: #0FA39A;
+  --rose: #E1548A;
+  --lime: #4C9F1F;
 
-  --font-display: 'Instrument Serif', Georgia, serif;
-  --font-sans: 'Montserrat', system-ui, sans-serif;
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  --shadow-sm: 0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.04);
-  --shadow-md: 0 4px 12px rgba(15,23,42,0.05), 0 2px 4px rgba(15,23,42,0.04);
-  --shadow-lg: 0 20px 50px rgba(15,23,42,0.12);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 20px 50px rgba(0,0,0,0.12);
+}
+html[data-theme="dark"] {
+  --bg: #191919;
+  --bg-2: #242424;
+  --surface: #242424;
+  --surface-2: #2A2A2A;
+  --surface-hi: #2E2E2E;
+  --border: #3A3A3A;
+  --border-strong: #4A4A4A;
+
+  --text: #EDECE9;
+  --text-muted: #9B968F;
+  --text-subtle: #6E6A64;
+
+  --primary: #3396F0;
+  --primary-soft: rgba(51,150,240,0.16);
+  --primary-strong: #62AEF0;
+  --secondary: #FF7A26;
+  --secondary-soft: rgba(255,122,38,0.18);
+  --secondary-strong: #FFA766;
+
+  --positive: #2ECC58;
+  --negative: #FF6B6E;
+  --info: #62AEF0;
+  --violet: #9159E8;
+  --teal: #2DBFB5;
+  --rose: #F07AA8;
+  --lime: #7FCB4A;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.3);
+  --shadow-lg: 0 20px 50px rgba(0,0,0,0.5);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
@@ -66,8 +107,8 @@ body {
   font-family: var(--font-sans); background: var(--bg); color: var(--text);
   line-height: 1.5; font-size: 14px; min-height: 100vh;
   background-image:
-    radial-gradient(ellipse 1000px 500px at 85% -120px, rgba(30,79,163,0.05), transparent 60%),
-    radial-gradient(ellipse 700px 360px at 0% 100%, rgba(247,141,45,0.04), transparent 60%);
+    radial-gradient(ellipse 1000px 500px at 85% -120px, var(--primary-soft), transparent 60%),
+    radial-gradient(ellipse 700px 360px at 0% 100%, var(--secondary-soft), transparent 60%);
 }
 .container { max-width: 1600px; margin: 0 auto; padding: 32px 40px 64px; }
 
@@ -1444,8 +1485,82 @@ body.modo-directorio .mapa-toolbar [data-admin-only] {
 .ia-inputbar button { align-self: flex-end; }
 
 </style>
+<style>
+#panelAuthOverlay{display:none;visibility:visible;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#F6F5F4;font-family:'Inter',system-ui,-apple-system,sans-serif;padding:20px;box-sizing:border-box}
+html[data-theme="dark"] #panelAuthOverlay{background:#191919}
+html.panel-locked body{visibility:hidden}
+html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
+#panelAuthOverlay .pa-card{width:100%;max-width:360px;background:#fff;border:1px solid #E6E6E6;border-radius:12px;padding:36px 32px;box-shadow:0 20px 50px rgba(0,0,0,.12);box-sizing:border-box}
+html[data-theme="dark"] #panelAuthOverlay .pa-card{background:#242424;border-color:#3A3A3A;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+#panelAuthOverlay .pa-brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+#panelAuthOverlay .pa-ma{font-weight:600;font-size:13px;letter-spacing:.5px;background:#DD5B00;color:#fff;padding:4px 8px;border-radius:5px;flex:none}
+html[data-theme="dark"] #panelAuthOverlay .pa-ma{background:#FF7A26}
+#panelAuthOverlay .pa-ttl b{display:block;font-weight:700;font-size:15px;color:#000;letter-spacing:-.2px}
+html[data-theme="dark"] #panelAuthOverlay .pa-ttl b{color:#EDECE9}
+#panelAuthOverlay .pa-ttl span{display:block;font-size:10px;color:#615D59;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+html[data-theme="dark"] #panelAuthOverlay .pa-ttl span{color:#9B968F}
+#panelAuthOverlay h2{font-size:16px;font-weight:700;color:#000;margin:0 0 5px}
+html[data-theme="dark"] #panelAuthOverlay h2{color:#EDECE9}
+#panelAuthOverlay p.pa-sub{font-size:12.5px;color:#615D59;margin:0 0 22px;line-height:1.4}
+html[data-theme="dark"] #panelAuthOverlay p.pa-sub{color:#9B968F}
+#panelAuthOverlay label{display:block;font-size:11px;font-weight:600;color:#615D59;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px}
+html[data-theme="dark"] #panelAuthOverlay label{color:#9B968F}
+#panelAuthOverlay input{width:100%;box-sizing:border-box;padding:9px 11px;font-size:14px;font-family:inherit;border:1px solid #E6E6E6;border-radius:6px;background:#fff;color:#000;margin-bottom:16px;outline:none}
+html[data-theme="dark"] #panelAuthOverlay input{background:#191919;border-color:#3A3A3A;color:#EDECE9}
+#panelAuthOverlay input:focus{border-color:#0075DE}
+html[data-theme="dark"] #panelAuthOverlay input:focus{border-color:#3396F0}
+#panelAuthOverlay button{width:100%;padding:10px;font-size:14px;font-weight:600;font-family:inherit;color:#fff;background:#0075DE;border:none;border-radius:6px;cursor:pointer;margin-top:2px}
+html[data-theme="dark"] #panelAuthOverlay button{background:#3396F0}
+#panelAuthOverlay button:hover{background:#005BAB}
+html[data-theme="dark"] #panelAuthOverlay button:hover{background:#62AEF0}
+#panelAuthOverlay .pa-error{font-size:12.5px;color:#D7484B;margin:-8px 0 14px;min-height:16px}
+html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
+#panelAuthOverlay .pa-card.pa-shake{animation:pa-shake .4s}
+@keyframes pa-shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
+</style>
 </head>
 <body>
+<div id="panelAuthOverlay">
+  <div class="pa-card">
+    <div class="pa-brand">
+      <span class="pa-ma">M&amp;A</span>
+      <div class="pa-ttl"><b>Acceso</b><span>Departamento Comercial</span></div>
+    </div>
+    <h2>Ingresá tus credenciales</h2>
+    <p class="pa-sub">Panel interno de uso exclusivo del equipo.</p>
+    <form id="panelAuthForm" autocomplete="off">
+      <label for="paUser">Usuario</label>
+      <input type="text" id="paUser" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+      <label for="paPass">Contraseña</label>
+      <input type="password" id="paPass" autocomplete="current-password" required>
+      <div class="pa-error" id="paError"></div>
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  if (localStorage.getItem('panelAuthOK') === '1') return;
+  document.documentElement.classList.add('panel-locked');
+  document.getElementById('panelAuthForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var u = document.getElementById('paUser').value.trim();
+    var p = document.getElementById('paPass').value;
+    if (u === 'wsenieva' && p === '379604191919abcde!') {
+      localStorage.setItem('panelAuthOK', '1');
+      document.documentElement.classList.remove('panel-locked');
+    } else {
+      document.getElementById('paError').textContent = 'Usuario o contraseña incorrectos.';
+      var card = document.querySelector('#panelAuthOverlay .pa-card');
+      card.classList.remove('pa-shake');
+      void card.offsetWidth;
+      card.classList.add('pa-shake');
+      document.getElementById('paPass').value = '';
+      document.getElementById('paPass').focus();
+    }
+  });
+})();
+</script>
 
 <div class="container">
 
@@ -2799,9 +2914,16 @@ buildEnriched();
 // ====================== CHART DEFAULTS ======================
 Chart.register(ChartDataLabels);
 Chart.defaults.plugins.datalabels.display = false;
-Chart.defaults.font.family = "'Montserrat', system-ui, sans-serif";
-Chart.defaults.color = '#566579';
-Chart.defaults.borderColor = '#e4e7ec';
+function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.color = cssVar('--text-muted');
+Chart.defaults.borderColor = cssVar('--border');
+function aplicarTema(t){
+  document.documentElement.setAttribute('data-theme', t);
+  Chart.defaults.color = cssVar('--text-muted');
+  Chart.defaults.borderColor = cssVar('--border');
+}
+window.addEventListener('storage', e => { if (e.key === 'panelTheme') aplicarTema(e.newValue === 'dark' ? 'dark' : 'light'); });
 const PALETTE = ['#1e4fa3','#f78d2d','#10a172','#7b4fd3','#e1548a','#4c9f1f','#0b7fc2','#dc7519','#e0544c','#6366f1','#0fa39a','#f59e0b'];
 
 const state = {
@@ -3397,7 +3519,7 @@ function barConfig(items, color, opts={}) {
             },
             value: {
               anchor: 'end', align: 'end', offset: 6,
-              color: '#0b1220', font: { family: "'IBM Plex Mono', monospace", size: 11, weight: 500 },
+              color: cssVar('--text'), font: { family: "'IBM Plex Mono', monospace", size: 11, weight: 500 },
               formatter: v => mode === 'pct' ? v.toFixed(1) + '%' : fmt.moneyShort(v)
             }
           }
@@ -3677,7 +3799,7 @@ function renderCharts(data) {
               value: {
                 display: ctx => ctx.datasetIndex === 1,
                 anchor: 'end', align: 'end', offset: 6,
-                color: '#0b1220', font: { family: "'IBM Plex Mono', monospace", size: 11, weight: 500 },
+                color: cssVar('--text'), font: { family: "'IBM Plex Mono', monospace", size: 11, weight: 500 },
                 formatter: (_, ctx) => {
                   const tot = valsTotal[ctx.dataIndex];
                   return _eqMode === 'pct' ? tot.toFixed(1) + '%' : fmt.moneyShort(tot);
@@ -4119,11 +4241,11 @@ function renderVarChart(r) {
       plugins: {
         legend: r.group ? {
           display: true, position: 'bottom',
-          labels: { color: '#0b1220', font: { size: 11, family: "'Montserrat', sans-serif" }, boxWidth: 12, boxHeight: 12, padding: 10 }
+          labels: { color: cssVar('--text'), font: { size: 11, family: "'Inter', sans-serif" }, boxWidth: 12, boxHeight: 12, padding: 10 }
         } : { display: false },
         datalabels: (r.group || chartType !== 'bar') ? { display: false } : {
           display: true, anchor: 'end', align: 'top', offset: 4,
-          color: '#0b1220',
+          color: cssVar('--text'),
           font: { family: "'IBM Plex Mono', monospace", size: 10, weight: 600 },
           formatter: v => isPct ? fmt.pct(v) : formatter(v)
         },
@@ -4151,10 +4273,10 @@ function renderVarChart(r) {
         }
       },
       scales: {
-        x: { grid: { color: '#eef1f5' }, ticks: { color: '#566579', font: { size: 11 } } },
+        x: { grid: { color: cssVar('--border') }, ticks: { color: cssVar('--text-muted'), font: { size: 11 } } },
         y: {
-          grid: { color: '#eef1f5' },
-          ticks: { color: '#566579', font: { size: 11 }, callback: v => isPct ? fmt.pct(v) : formatter(v) },
+          grid: { color: cssVar('--border') },
+          ticks: { color: cssVar('--text-muted'), font: { size: 11 }, callback: v => isPct ? fmt.pct(v) : formatter(v) },
           beginAtZero: !isPct
         }
       }
@@ -4536,8 +4658,8 @@ function renderEvolZonas(data) {
     const ctx = document.getElementById('chart_evol_zonas').getContext('2d');
     ctx.canvas.height = 200;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.fillStyle = '#8a95a6';
-    ctx.font = "italic 14px 'Instrument Serif', serif";
+    ctx.fillStyle = cssVar('--text-subtle');
+    ctx.font = "italic 14px 'Inter', sans-serif";
     ctx.textAlign = 'center';
     ctx.fillText('Seleccioná zonas en el panel de arriba para ver su evolución', ctx.canvas.width/2, 100);
     return;
@@ -4555,7 +4677,7 @@ function renderEvolZonas(data) {
       plugins: {
         legend: {
           display: true, position: 'bottom',
-          labels: { color: '#0b1220', font: { size: 11, family: "'Montserrat', sans-serif" }, boxWidth: 10, boxHeight: 10, padding: 10, usePointStyle: true, pointStyle: 'circle' }
+          labels: { color: cssVar('--text'), font: { size: 11, family: "'Inter', sans-serif" }, boxWidth: 10, boxHeight: 10, padding: 10, usePointStyle: true, pointStyle: 'circle' }
         },
         datalabels: { display: false },
         tooltip: {
@@ -4584,11 +4706,11 @@ function renderEvolZonas(data) {
         }
       },
       scales: {
-        x: { grid: { color: '#eef1f5' }, ticks: { color: '#566579', font: { size: 11 } } },
+        x: { grid: { color: cssVar('--border') }, ticks: { color: cssVar('--text-muted'), font: { size: 11 } } },
         y: {
-          grid: { color: '#eef1f5' },
-          ticks: { color: '#566579', font: { size: 11 }, callback: v => formatter(v) },
-          title: { display: isIdx, text: 'Índice (mes inicial = 100)', color: '#566579', font: { size: 10 } }
+          grid: { color: cssVar('--border') },
+          ticks: { color: cssVar('--text-muted'), font: { size: 11 }, callback: v => formatter(v) },
+          title: { display: isIdx, text: 'Índice (mes inicial = 100)', color: cssVar('--text-muted'), font: { size: 10 } }
         }
       }
     }
@@ -4703,8 +4825,8 @@ function renderEvolMensualGen(data) {
         }
       },
       scales: {
-        x: { grid: { color: '#eef1f5' }, ticks: { color: '#566579', font: { size: 11 }, maxRotation: 0, autoSkip: true } },
-        y: { grid: { color: '#eef1f5' }, ticks: { color: '#566579', font: { size: 11 }, callback: v => fmt.moneyShort(v) } }
+        x: { grid: { color: cssVar('--border') }, ticks: { color: cssVar('--text-muted'), font: { size: 11 }, maxRotation: 0, autoSkip: true } },
+        y: { grid: { color: cssVar('--border') }, ticks: { color: cssVar('--text-muted'), font: { size: 11 }, callback: v => fmt.moneyShort(v) } }
       }
     }
   });
@@ -5259,8 +5381,8 @@ function openDetail(dim, key) {
         }
       },
       scales: {
-        x: { grid: { color: '#eef1f5' }, ticks: { color: '#566579', font: { size: useMensual ? 11 : 9 }, maxRotation: useMensual ? 0 : 60, autoSkip: true, autoSkipPadding: 8 } },
-        y: { grid: { color: '#eef1f5' }, ticks: { color: '#566579', font: { size: 10 }, callback: v => fmt.moneyShort(v) } }
+        x: { grid: { color: cssVar('--border') }, ticks: { color: cssVar('--text-muted'), font: { size: useMensual ? 11 : 9 }, maxRotation: useMensual ? 0 : 60, autoSkip: true, autoSkipPadding: 8 } },
+        y: { grid: { color: cssVar('--border') }, ticks: { color: cssVar('--text-muted'), font: { size: 10 }, callback: v => fmt.moneyShort(v) } }
       }
     }
   });
@@ -5421,7 +5543,7 @@ function renderEquipoCobrador(cobradorName) {
       plugins: {
         legend: { display: false },
         datalabels: {
-          anchor: 'end', align: 'end', clamp: true, color: '#566579',
+          anchor: 'end', align: 'end', clamp: true, color: cssVar('--text-muted'),
           font: { family: "'IBM Plex Mono', monospace", size: 10 },
           formatter: (v, ctx) => fmt.moneyShort(v) + ' · ' + fmt.int(teamMembers[ctx.dataIndex].ops) + ' ops'
         },
@@ -5708,7 +5830,7 @@ function renderModalReservas(dim, key) {
           plugins: {
             legend: { display: false },
             datalabels: {
-              anchor: 'end', align: 'end', clamp: true, color: '#566579',
+              anchor: 'end', align: 'end', clamp: true, color: cssVar('--text-muted'),
               font: { family: "'IBM Plex Mono', monospace", size: 10 },
               formatter: (v, ctx) => fmt.moneyShort(v) + ' · ' + fmt.int(dataCounts[ctx.dataIndex]),
               display: true
@@ -8164,7 +8286,7 @@ function renderReservasRankings(rows) {
         plugins:{
           legend:{display:false},
           datalabels:{
-            anchor:'end', align:'end', clamp:true, color:'#566579',
+            anchor:'end', align:'end', clamp:true, color:cssVar('--text-muted'),
             font:{family:"'IBM Plex Mono', monospace", size:10},
             formatter: (v, ctx) => {
               const c = counts[ctx.dataIndex];
@@ -8463,7 +8585,7 @@ function render() {
               },
               value: {
                 anchor: 'end', align: 'end', offset: 6,
-                color: '#0b1220', font: { family: "'IBM Plex Mono', monospace", size: 11, weight: 500 },
+                color: cssVar('--text'), font: { family: "'IBM Plex Mono', monospace", size: 11, weight: 500 },
                 formatter: v => mode === 'pct' ? v.toFixed(1) + '%' : fmt.moneyShort(v)
               }
             }
@@ -8807,7 +8929,7 @@ function render() {
           plugins: { legend: { display: false },
             datalabels: showLabels ? { display: true, anchor: 'end', align: 'top', offset: 6, color: '#fff', backgroundColor: 'rgba(11,18,32,0.95)', borderColor: '#1e293b', borderWidth: 1, borderRadius: 3, padding: { top: 3, bottom: 3, left: 6, right: 6 }, font: { family: "'IBM Plex Mono', monospace", size: 10 }, formatter: v => fmt.moneyShort(v) } : { display: false }
           },
-          scales: { x: { grid: { color: '#eef1f5' } }, y: { grid: { color: '#eef1f5' }, ticks: { callback: v => fmt.moneyShort(v) } } } }
+          scales: { x: { grid: { color: cssVar('--border') } }, y: { grid: { color: cssVar('--border') }, ticks: { callback: v => fmt.moneyShort(v) } } } }
       });
     }
 
