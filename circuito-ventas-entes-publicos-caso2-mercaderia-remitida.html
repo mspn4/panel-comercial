@@ -66,12 +66,10 @@
   /* header */
   .top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:26px}
   .id{display:flex;align-items:center;gap:14px}
-  .mono-tile{
-    width:50px;height:50px;border-radius:13px;flex:none;display:grid;place-items:center;
-    font-family:"Inter",monospace;font-weight:700;font-size:16px;color:#fff;
-    background:linear-gradient(135deg,var(--brand-orange),var(--brand-orange));
-    box-shadow:0 8px 18px -6px rgba(221,91,0,.7);
-  }
+  .brand-logo-img{height:50px;width:auto;flex:none;display:none}
+  .brand-logo-light{display:block}
+  html[data-theme="dark"] .brand-logo-light{display:none}
+  html[data-theme="dark"] .brand-logo-dark{display:block}
   .id .eb{font-family:"Inter",sans-serif;font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand-orange);margin:0 0 3px}
   .id h1{margin:0;font-size:29px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
   .id .sub{margin:4px 0 0;font-size:14px;color:var(--ink-soft)}
@@ -284,7 +282,8 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
 <div class="stage" id="stage">
   <div class="top">
     <a href="index.html" class="id" style="text-decoration:none;color:inherit" title="Volver al Centro de Control">
-      <div class="mono-tile">M&amp;A</div>
+      <img src="assets/logo.png" alt="M&amp;A" class="brand-logo-img brand-logo-light">
+      <img src="assets/logo-blanco.png" alt="M&amp;A" class="brand-logo-img brand-logo-dark">
       <div>
         <p class="eb">Circuito comercial · Procedimiento interno</p>
         <h1>Ventas a Entes Públicos con Saldo Pendiente</h1>
@@ -397,7 +396,8 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
 <div class="stage" id="stage2">
   <div class="top">
     <a href="index.html" class="id" style="text-decoration:none;color:inherit" title="Volver al Centro de Control">
-      <div class="mono-tile" style="background:linear-gradient(135deg,var(--c-admin),var(--c-admin));box-shadow:0 8px 18px -6px rgba(109,40,217,.7)">M&amp;A</div>
+      <img src="assets/logo.png" alt="M&amp;A" class="brand-logo-img brand-logo-light">
+      <img src="assets/logo-blanco.png" alt="M&amp;A" class="brand-logo-img brand-logo-dark">
       <div>
         <p class="eb" style="color:var(--c-admin)">Caso especial · Ventas a entes públicos</p>
         <h1>Clientes alternativos</h1>

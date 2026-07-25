@@ -43,10 +43,10 @@
   /* HEADER */
   .head{display:flex;justify-content:space-between;align-items:flex-start;}
   .brand{display:flex;align-items:center;gap:14px;}
-  .logo{width:50px;height:50px;border-radius:14px;background:linear-gradient(135deg,var(--navy),var(--navy-2));
-    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:19px;letter-spacing:.5px;
-    box-shadow:var(--shadow-btn);}
-  .logo b{color:var(--orange);}
+  .brand-logo-img{height:50px;width:auto;flex:none;display:none}
+  .brand-logo-light{display:block}
+  html[data-theme="dark"] .brand-logo-light{display:none}
+  html[data-theme="dark"] .brand-logo-dark{display:block}
   .h-txt h1{font-size:22px;font-weight:700;letter-spacing:-.4px;line-height:1.1;}
   .h-txt p{font-size:13px;color:var(--ink-2);margin-top:3px;font-weight:500;}
   .head-right{display:flex;align-items:center;gap:10px;}
@@ -185,7 +185,8 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
     <div id="stage">
       <div class="head">
         <a href="index.html" class="brand" style="text-decoration:none;color:inherit" title="Volver al Centro de Control">
-          <div class="logo">M<b>&</b>A</div>
+          <img src="assets/logo.png" alt="M&amp;A" class="brand-logo-img brand-logo-light">
+          <img src="assets/logo-blanco.png" alt="M&amp;A" class="brand-logo-img brand-logo-dark">
           <div class="h-txt">
             <h1>Proyección de Facturación · Gerentes</h1>
             <p>Departamento Comercial · Cierre de mes Junio 2026</p>

@@ -105,8 +105,11 @@ body{font-family:"Inter",system-ui,sans-serif;background:var(--page);color:var(-
 /* Barra superior */
 .topbar{position:sticky;top:0;z-index:40;background:var(--navy);color:#fff;
   border-bottom:3px solid var(--orange);padding:13px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
-.brand .ma{font-weight:700;font-size:20px;letter-spacing:.5px;background:var(--orange);color:var(--navy);padding:2px 9px;border-radius:7px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.brand .brand-logo-img{height:32px;width:auto;flex:none;display:none}
+.brand .brand-logo-light{display:block}
+html[data-theme="dark"] .brand .brand-logo-light{display:none}
+html[data-theme="dark"] .brand .brand-logo-dark{display:block}
 .brand .t{font-weight:600;font-size:17px}
 .brand .t small{display:block;font-weight:400;font-size:12px;color:#9FB2C9}
 .clock{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25}
@@ -171,7 +174,7 @@ main{padding:16px 22px 60px}
 .acc-head:hover{background:var(--blue-tint)}
 .acc .chev{display:flex;color:var(--muted-2);transition:transform .2s}
 .acc.open .chev{transform:rotate(90deg);color:var(--blue)}
-.acc-title{font-size:16px;font-weight:700;letter-spacing:.2px}
+.acc-title{font-size:16px;font-weight:700;letter-spacing:.2px;color:var(--text)}
 .acc-head .badge{font-size:11px;font-weight:600;background:var(--blue-tint-2);color:var(--blue);padding:2px 9px;border-radius:7px;white-space:nowrap}
 .acc-line{flex:1;height:1px;background:var(--border)}
 .acc-meta{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
@@ -388,7 +391,8 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
 
 <div class="topbar">
   <a href="index.html" class="brand" style="text-decoration:none;color:inherit" title="Volver al Centro de Control">
-    <span class="ma">M&amp;A</span>
+    <img src="assets/logo.png" alt="M&amp;A" class="brand-logo-img brand-logo-light">
+    <img src="assets/logo-blanco.png" alt="M&amp;A" class="brand-logo-img brand-logo-dark">
     <span class="t">Control de Agendas<small>Departamento Comercial</small></span>
   </a>
   <div class="clock" id="clock">

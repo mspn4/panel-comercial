@@ -121,7 +121,8 @@
   }
   .slide-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
   .slide-title{font-size:clamp(15px,1.9vw,20px);font-weight:800;color:var(--navy);letter-spacing:-.01em}
-  .slide-brand{font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--orange);text-transform:uppercase}
+  .slide-brand{height:15px}
+  .slide-brand img{height:100%;width:auto;display:block}
   .slide-canvas{flex:1;position:relative;min-height:0}
 
   /* KPI */
@@ -338,7 +339,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
       <div class="slide-block">
         <div class="slide-tools"><button class="btn btn-ghost btn-sm" data-chart="fact">⬇ PNG 16:9</button></div>
         <div class="slide" id="slide-fact">
-          <div class="slide-head"><div class="slide-title">Facturación por Sucursal (ARS)</div><div class="slide-brand">M&amp;A</div></div>
+          <div class="slide-head"><div class="slide-title">Facturación por Sucursal (ARS)</div><div class="slide-brand"><img src="assets/logo.png" alt="M&amp;A"></div></div>
           <div class="slide-canvas"><canvas id="ch-fact"></canvas></div>
         </div>
       </div>
@@ -347,7 +348,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
       <div class="slide-block">
         <div class="slide-tools"><button class="btn btn-ghost btn-sm" data-chart="conv">⬇ PNG 16:9</button></div>
         <div class="slide" id="slide-conv">
-          <div class="slide-head"><div class="slide-title">Conversión por Sucursal (%)</div><div class="slide-brand">M&amp;A</div></div>
+          <div class="slide-head"><div class="slide-title">Conversión por Sucursal (%)</div><div class="slide-brand"><img src="assets/logo.png" alt="M&amp;A"></div></div>
           <div class="slide-canvas"><canvas id="ch-conv"></canvas></div>
         </div>
       </div>
@@ -356,7 +357,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
       <div class="slide-block">
         <div class="slide-tools"><button class="btn btn-ghost btn-sm" data-chart="scatter">⬇ PNG 16:9</button></div>
         <div class="slide" id="slide-scatter">
-          <div class="slide-head"><div class="slide-title">Clientes Atendidos vs. Conversión</div><div class="slide-brand">M&amp;A</div></div>
+          <div class="slide-head"><div class="slide-title">Clientes Atendidos vs. Conversión</div><div class="slide-brand"><img src="assets/logo.png" alt="M&amp;A"></div></div>
           <div class="slide-canvas"><canvas id="ch-scatter"></canvas></div>
         </div>
       </div>
