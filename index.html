@@ -573,7 +573,12 @@ function tarjeta(c, idx){
     </div>`;
   const cls=`tool ${state.editMode?"editing":""} ${oculta?"hidden-card":""} ${activa?"active":""}`;
   const style=`style="--accent:${color}"`;
-  return `<div class="${cls}" ${style} draggable="${state.editMode}" data-key="${esc(c.key)}" data-tipo="${c.tipo}" data-archivo="${esc(c.archivo||"")}" title="${esc(c.desc||"")}">${inner}</div>`;
+  const attrs=`class="${cls}" ${style} draggable="${state.editMode}" data-key="${esc(c.key)}" data-tipo="${c.tipo}" data-archivo="${esc(c.archivo||"")}" data-nombre="${esc(c.nombre||"")}" title="${esc(c.desc||"")}"`;
+  // Tarjetas tipo "link" son <a href> de verdad: click normal abre en el iframe (SPA),
+  // pero click con Ctrl/Cmd/Shift, click de rueda o click derecho los maneja el navegador solo
+  // (pestaña nueva / ventana nueva / menú contextual), como cualquier link.
+  if(c.tipo==="link" && c.archivo) return `<a href="${esc(c.archivo)}" ${attrs}>${inner}</a>`;
+  return `<div ${attrs}>${inner}</div>`;
 }
 
 /* Marca la fila activa en la sidebar y (si es tipo link) carga el archivo en el iframe central */
@@ -583,9 +588,11 @@ function marcarActivo(key){
   const el=document.querySelector(`.tool[data-key="${CSS.escape(key)}"]`);
   if(el) el.classList.add("active");
 }
-function abrirArchivo(key, archivo){
+const APP_TITLE_DEFAULT=document.title;
+function abrirArchivo(key, archivo, nombre){
   marcarActivo(key);
   $("#contentFrame").src=archivo;
+  document.title=nombre?`${nombre} · M&A`:APP_TITLE_DEFAULT;
 }
 
 function render(){
@@ -609,12 +616,21 @@ function render(){
 function wireCardEvents(){
   $$(".tool[data-tipo]").forEach(el=>{
     el.addEventListener("click", e=>{
-      if(state.editMode){ if(e.target.closest(".edit-controls")) return; return; }
-      const tipo=el.dataset.tipo, archivo=el.dataset.archivo, key=el.dataset.key;
+      const tipo=el.dataset.tipo, archivo=el.dataset.archivo, key=el.dataset.key, nombre=el.dataset.nombre;
+      if(state.editMode){
+        if(e.target.closest(".edit-controls")) return;
+        if(tipo==="link") e.preventDefault(); // no navegar mientras se edita, es <a href> de verdad
+        return;
+      }
+      if(tipo==="link"){
+        if(e.ctrlKey||e.metaKey||e.shiftKey) return; // dejar que el navegador abra pestaña/ventana nueva
+        e.preventDefault();
+        if(archivo) abrirArchivo(key, archivo, nombre);
+        return;
+      }
       if(tipo==="kb"){ marcarActivo(key); abrirKB(); }
       else if(tipo==="graphics"){ marcarActivo(key); abrirGraphics(); }
       else if(tipo==="gerencial"){ marcarActivo(key); abrirGerencial(); }
-      else if(tipo==="link" && archivo) abrirArchivo(key, archivo);
     });
     // drag & drop de archivos directo sobre la card de Base de Conocimiento
     if(el.dataset.tipo==="kb"){
@@ -1375,7 +1391,7 @@ $("#btnTheme").addEventListener("click", ()=>{
   await cargarLayout();
   render();
   const agendas=TOOLS.find(t=>t.key==="agendas.html");
-  if(agendas) abrirArchivo(agendas.key, agendas.archivo);
+  if(agendas) abrirArchivo(agendas.key, agendas.archivo, agendas.nombre);
 })();
 </script>
 </body>
