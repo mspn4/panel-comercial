@@ -233,8 +233,9 @@ html[data-theme="dark"] .sidebar-brand .brand-logo-dark{display:block}
 
 /* Visor de documento */
 .docview{display:flex;flex-direction:column;height:100%;gap:10px}
-.docview textarea{flex:1;width:100%;border:1px solid var(--border-strong);border-radius:10px;padding:12px;
-  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;resize:none}
+.docview textarea,.docview [contenteditable]{flex:1;width:100%;border:1px solid var(--border-strong);border-radius:10px;padding:12px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;resize:none;white-space:pre-wrap;word-wrap:break-word;overflow:auto;outline:none;color:var(--text)}
+.docview [contenteditable]:empty:before,.gnotes [contenteditable]:empty:before{content:attr(data-placeholder);color:var(--muted-2)}
 .docview iframe{flex:1;width:100%;border:1px solid var(--border-strong);border-radius:10px}
 .docview .dvbar{display:flex;gap:8px;flex:none}
 
@@ -259,8 +260,14 @@ html[data-theme="dark"] .sidebar-brand .brand-logo-dark{display:block}
 .gsplit iframe{flex:1.4;border:none;border-right:1px solid var(--border);min-width:0}
 .gnotes{flex:1;display:flex;flex-direction:column;background:var(--page);min-width:0}
 .gnotes .gnbar{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;flex:none}
-.gnotes textarea{flex:1;border:none;background:transparent;resize:none;padding:14px;
-  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;outline:none;color:var(--text)}
+.gnotes textarea,.gnotes [contenteditable]{flex:1;border:none;background:transparent;resize:none;padding:14px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;outline:none;color:var(--text);
+  white-space:pre-wrap;word-wrap:break-word;overflow:auto}
+
+/* Notas ricas — imagen pegada con resize nativo (arrastrar esquina inferior derecha) */
+.ger-img-wrap{display:inline-block;position:relative;vertical-align:top;max-width:100%;min-width:60px;min-height:40px;
+  overflow:hidden;resize:both;margin:4px 6px 4px 0;border:1px solid var(--border-strong);border-radius:6px;line-height:0}
+.ger-img-wrap img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;user-select:none}
 
 /* Notas globales — vista agregada */
 .gnotas-global{max-width:840px;margin:0 auto}
@@ -269,6 +276,7 @@ html[data-theme="dark"] .sidebar-brand .brand-logo-dark{display:block}
 .gng-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;margin-bottom:8px}
 .gng-h .gng-f{margin-left:auto;font-weight:500;font-size:11.5px;color:var(--muted-2)}
 .gng-txt{white-space:pre-wrap;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px;color:var(--text);line-height:1.55}
+.gng-txt .ger-img-wrap{resize:none}
 
 /* Recursos Gráficos */
 .folder-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
@@ -794,6 +802,108 @@ function gerTabIcon(t){
 }
 function gerNombreNota(t){ return `${t.title} — notas.txt`; }
 
+/* ── Notas ricas: contenteditable + pegado de imágenes con resize ──
+   El contenido se sigue guardando como string plano (kb_save no sabe de HTML),
+   pero ahora ese string puede ser HTML envuelto en <div data-ger-rich="1">…</div>.
+   Notas viejas (texto plano, sin ese wrapper) se siguen mostrando bien: se
+   escapan y los saltos de línea se convierten a <br> al cargarlas. */
+const GER_RICH_ATTR='data-ger-rich';
+const GER_IMG_MAX_DIM=1100;   // px, tope al que se achica una imagen pegada antes de guardarla
+const GER_IMG_INIT_W=420;     // px, ancho inicial visible (el usuario después la resizea a mano)
+
+function gerIsRich(raw){ return /^\s*<div\s+data-ger-rich="1">/.test(raw||""); }
+
+function gerContentToHtml(raw){
+  if(!gerIsRich(raw)) return esc(raw||"").replace(/\n/g,"<br>");
+  const tmp=document.createElement("div"); tmp.innerHTML=raw;
+  const wrap=tmp.querySelector(`[${GER_RICH_ATTR}]`);
+  return wrap?wrap.innerHTML:esc(raw).replace(/\n/g,"<br>");
+}
+function gerHtmlToContent(innerHtml){ return `<div ${GER_RICH_ATTR}="1">${innerHtml}</div>`; }
+
+function gerDownscaleImage(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(reader.error);
+    reader.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error("No se pudo leer la imagen"));
+      img.onload=()=>{
+        let w=img.naturalWidth, h=img.naturalHeight;
+        if(w>GER_IMG_MAX_DIM||h>GER_IMG_MAX_DIM){
+          const r=Math.min(GER_IMG_MAX_DIM/w, GER_IMG_MAX_DIM/h);
+          w=Math.round(w*r); h=Math.round(h*r);
+        }
+        const canvas=document.createElement("canvas");
+        canvas.width=w; canvas.height=h;
+        canvas.getContext("2d").drawImage(img,0,0,w,h);
+        resolve({dataUrl:canvas.toDataURL("image/jpeg",0.85), w, h});
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function gerImgWrapHtml(dataUrl,w,h){
+  const dispW=Math.min(w,GER_IMG_INIT_W), dispH=Math.round(dispW*h/Math.max(w,1));
+  return `<span class="ger-img-wrap" contenteditable="false" style="width:${dispW}px;height:${dispH}px"><img src="${dataUrl}" alt=""></span>`;
+}
+
+function gerInsertHtmlAtCursor(el, html){
+  el.focus();
+  const sel=window.getSelection();
+  let range;
+  if(sel && sel.rangeCount && el.contains(sel.anchorNode)){
+    range=sel.getRangeAt(0);
+  } else {
+    range=document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+  }
+  range.deleteContents();
+  const frag=range.createContextualFragment(html+"​"); // espacio de ancho cero, para poder seguir tipeando después de la imagen
+  const lastNode=frag.lastChild;
+  range.insertNode(frag);
+  if(lastNode){
+    const r2=document.createRange();
+    r2.setStartAfter(lastNode); r2.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r2);
+  }
+}
+
+function gerWatchImages(el, onDirty){
+  if(!window.ResizeObserver) return;
+  el.querySelectorAll(".ger-img-wrap").forEach(wrap=>{
+    if(wrap._gerObserved) return;
+    wrap._gerObserved=true;
+    let first=true;
+    const ro=new ResizeObserver(()=>{ if(first){first=false;return;} onDirty(); }); // el primer disparo es el tamaño inicial, no un resize real
+    ro.observe(wrap);
+  });
+}
+
+// Engancha paste-de-imagen + resize + tipeo normal en un <div contenteditable>.
+// onDirty() se llama cada vez que cambia algo (texto, imagen pegada, o imagen resizeada).
+function gerInitRichEditor(el, onDirty){
+  el.addEventListener("paste", async e=>{
+    const items=Array.from((e.clipboardData&&e.clipboardData.items)||[]);
+    const imgItem=items.find(it=>it.type&&it.type.indexOf("image/")===0);
+    if(!imgItem) return; // texto normal: dejar que el navegador lo pegue solo
+    e.preventDefault();
+    const file=imgItem.getAsFile();
+    if(!file) return;
+    try{
+      const {dataUrl,w,h}=await gerDownscaleImage(file);
+      gerInsertHtmlAtCursor(el, gerImgWrapHtml(dataUrl,w,h));
+      gerWatchImages(el, onDirty);
+      onDirty();
+    }catch(err){ toast("No se pudo pegar la imagen."); }
+  });
+  el.addEventListener("input", onDirty);
+  gerWatchImages(el, onDirty);
+}
+
 function cerrarModalGerencial(){
   $("#modalBg").classList.remove("open");
   $("#modal").classList.remove("modal-wide");
@@ -890,7 +1000,7 @@ async function renderGerNotasGlobales(){
   body.innerHTML=`<div class="gnotas-global">${bloques.map((b,i)=>`
     <div class="gng-bloque" id="gngb-${i}">
       <div class="gng-h"><span class="gng-ico">${b.tipo==="doc"?"📘":"📝"}</span><span class="gng-t">${esc(b.titulo)}</span><span class="gng-f">${fmtFecha(b.fecha)}</span></div>
-      <div class="gng-txt">${b.texto?esc(b.texto):'<span style="opacity:.5">(sin contenido)</span>'}</div>
+      <div class="gng-txt">${b.texto?gerContentToHtml(b.texto):'<span style="opacity:.5">(sin contenido)</span>'}</div>
     </div>`).join("")}</div>`;
   bloques.forEach((b,i)=>{
     $("#gngb-"+i).addEventListener("click", ()=>{
@@ -963,18 +1073,18 @@ async function renderGerDoc(t){
     <iframe src="https://drive.google.com/file/d/${esc(t.docId)}/preview"></iframe>
     <div class="gnotes">
       <div class="gnbar"><span>📝 Notas — ${esc(t.title)}</span><span id="gnStatus" style="margin-left:auto;color:var(--muted-2)"></span></div>
-      <textarea id="gnText" placeholder="Escribí tus notas sobre este manual a medida que lo leés…">${esc(t.noteContent||"")}</textarea>
+      <div id="gnText" contenteditable="true" data-placeholder="Escribí tus notas sobre este manual a medida que lo leés… (podés pegar imágenes)">${gerContentToHtml(t.noteContent||"")}</div>
     </div>
   </div>`;
   const ta=$("#gnText");
   if(!t.noteLoaded){
-    ta.disabled=true; $("#gnStatus").textContent="Cargando notas…";
+    ta.contentEditable="false"; $("#gnStatus").textContent="Cargando notas…";
     await gerCargarNotaDoc(t);
-    if(gerTab(t.id)===t && state.gerActive===t.id){ ta.value=t.noteContent||""; ta.disabled=false; $("#gnStatus").textContent=""; }
+    if(gerTab(t.id)===t && state.gerActive===t.id){ ta.innerHTML=gerContentToHtml(t.noteContent||""); ta.contentEditable="true"; $("#gnStatus").textContent=""; }
   }
   let debounce;
-  ta.addEventListener("input", ()=>{
-    t.noteContent=ta.value;
+  gerInitRichEditor(ta, ()=>{
+    t.noteContent=gerHtmlToContent(ta.innerHTML);
     $("#gnStatus").textContent="Sin guardar";
     clearTimeout(debounce);
     debounce=setTimeout(()=>gerGuardarNotaGenerica(t, gerNombreNota(t), t.noteContent, "#gnStatus"), 1200);
@@ -1000,15 +1110,17 @@ function renderGerNote(t){
       <span id="gnnStatus" style="margin-left:auto;color:var(--muted-2);font-size:12px;align-self:center"></span>
       <button class="btn-sm primary" id="gnnSave">Guardar</button>
     </div>
-    <textarea id="gnnText">${esc(t.content||"")}</textarea>
+    <div id="gnnText" contenteditable="true" data-placeholder="Escribí tu nota… (podés pegar imágenes)">${gerContentToHtml(t.content||"")}</div>
   </div>`;
   $("#gnTitle").addEventListener("input", e=>{
     t.title=e.target.value||"Nueva pestaña";
     const lbl=document.querySelector(`.gtab[data-id="${t.id}"] .gttxt`);
     if(lbl) lbl.textContent=t.title;
   });
-  $("#gnnText").addEventListener("input", e=>{ t.content=e.target.value; $("#gnnStatus").textContent="Sin guardar"; });
+  const gnnEl=$("#gnnText");
+  gerInitRichEditor(gnnEl, ()=>{ t.content=gerHtmlToContent(gnnEl.innerHTML); $("#gnnStatus").textContent="Sin guardar"; });
   $("#gnnSave").onclick=async ()=>{
+    t.content=gerHtmlToContent(gnnEl.innerHTML);
     await gerGuardarNotaGenerica(t, t.noteId?null:(t.title||"Nueva pestaña").trim()+((t.title||"").toLowerCase().endsWith(".txt")?"":".txt"), t.content, "#gnnStatus");
     toast("Nota guardada.");
   };
