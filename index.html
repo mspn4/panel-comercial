@@ -242,7 +242,8 @@ html[data-theme="dark"] .sidebar-brand .brand-logo-dark{display:block}
 /* Gerente Regional — pestañas tipo navegador */
 .modal-bg.full{padding:0}
 .modal.modal-wide{width:100vw;height:100vh;max-width:none;border-radius:0}
-.gtabbar{display:flex;align-items:flex-end;gap:3px;background:var(--navy);padding:8px 10px 0;overflow-x:auto;flex:none}
+.gtabbar{display:flex;align-items:flex-end;background:var(--navy);padding:8px 10px 0;flex:none}
+.gtabbar-scroll{display:flex;align-items:flex-end;gap:3px;overflow-x:auto;flex:1;min-width:0}
 .gtab{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.07);color:#C7D3E3;
   border-radius:9px 9px 0 0;padding:8px 8px 8px 12px;font-size:12.5px;font-weight:600;cursor:pointer;
   max-width:190px;min-width:110px;white-space:nowrap;flex:none;transition:.12s}
@@ -255,10 +256,16 @@ html[data-theme="dark"] .sidebar-brand .brand-logo-dark{display:block}
 .gtab.active .gtx:hover{background:var(--page)}
 .gtab.plus{min-width:0;max-width:none;padding:8px 13px;color:#8DA0B8;font-weight:700;font-size:16px;background:transparent}
 .gtab.plus:hover{color:#fff;background:rgba(255,255,255,.1)}
-.gtab.pin{border-right:1px solid rgba(255,255,255,.14);margin-right:5px;padding-right:15px}
+.gtab.pin{min-width:0;max-width:none}
+.gtab.pin-end{border-right:1px solid rgba(255,255,255,.14);margin-right:5px;padding-right:15px}
+.gtabbar .gx-close{flex:none;align-self:center;margin:0 4px 8px 8px;color:#C7D3E3;background:transparent;border:none;
+  font-size:22px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:6px}
+.gtabbar .gx-close:hover{color:#fff;background:rgba(255,255,255,.13)}
 .gsplit{display:flex;flex:1;width:100%;height:100%;min-width:0}
-.gsplit iframe{flex:1.4;border:none;border-right:1px solid var(--border);min-width:0}
-.gnotes{flex:1;display:flex;flex-direction:column;background:var(--page);min-width:0}
+.gsplit iframe{flex:1;border:none;min-width:0}
+.gsplit-handle{flex:none;width:7px;cursor:col-resize;background:var(--border);position:relative;transition:background .12s}
+.gsplit-handle:hover,.gsplit-handle.dragging{background:var(--blue)}
+.gnotes{flex:none;width:420px;min-width:280px;max-width:70vw;display:flex;flex-direction:column;background:var(--page)}
 .gnotes .gnbar{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;flex:none}
 .gnotes textarea,.gnotes [contenteditable]{flex:1;border:none;background:transparent;resize:none;padding:14px;
   font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;outline:none;color:var(--text);
@@ -935,6 +942,23 @@ function nuevaPestanaGer(){
   state.gerTabs.push(t); state.gerActive=t.id; renderGerencial();
 }
 
+function abrirGerNotaSuelta(id, nombre){
+  const existente=state.gerTabs.find(x=>x.kind==="note"&&x.noteId===id);
+  if(existente){ state.gerActive=existente.id; renderGerencial(); return; }
+  const t={id:"tab-"+(++gerTabSeq), kind:"note", noteId:id, title:nombre, content:"", loading:true};
+  state.gerTabs.push(t); state.gerActive=t.id; renderGerencial();
+  (async()=>{
+    try{ const doc=await api("kb_get",{id}); t.content=doc.texto||""; }catch(e){}
+    t.loading=false;
+    if(state.gerActive===t.id) renderGerencial();
+  })();
+}
+
+function nuevaNotaEnBlanco(){
+  const t={id:"tab-"+(++gerTabSeq),kind:"note",title:"Nueva pestaña",content:"",noteId:null};
+  state.gerTabs.push(t); state.gerActive=t.id; renderGerencial();
+}
+
 function cerrarGerTab(id){
   const idx=state.gerTabs.findIndex(t=>t.id===id);
   if(idx<0) return;
@@ -948,7 +972,9 @@ function cerrarGerTab(id){
 }
 
 function renderGerencial(){
-  const pinHtml=`<div class="gtab pin ${state.gerActive==="global"?"active":""}" id="gtabGlobal" title="Todas las notas en un solo lugar">
+  const homeHtml=`<div class="gtab pin" id="gtabHome" title="Volver al inicio de Gerente Regional">
+    <span class="gtico">🏠</span><span class="gttxt">Inicio</span></div>`;
+  const pinHtml=`<div class="gtab pin pin-end ${state.gerActive==="global"?"active":""}" id="gtabGlobal" title="Todas las notas en un solo lugar">
     <span class="gtico">📚</span><span class="gttxt">Notas globales</span></div>`;
   const tabsHtml=state.gerTabs.map(t=>`
     <div class="gtab ${t.id===state.gerActive?"active":""}" data-id="${esc(t.id)}">
@@ -957,11 +983,13 @@ function renderGerencial(){
       <span class="gtx" data-close="${esc(t.id)}">&times;</span>
     </div>`).join("");
   $("#modal").innerHTML=`
-    <div class="modal-head"><div class="mico">🧭</div><h2>Gerente Regional</h2>
-      <button class="x" id="modalClose">&times;</button></div>
-    <div class="gtabbar" id="gtabbar">${pinHtml}${tabsHtml}<div class="gtab plus" id="gtabNew" title="Nueva pestaña">+</div></div>
+    <div class="gtabbar" id="gtabbar">
+      <div class="gtabbar-scroll">${homeHtml}${pinHtml}${tabsHtml}<div class="gtab plus" id="gtabNew" title="Nueva pestaña">+</div></div>
+      <button class="x gx-close" id="modalClose" title="Cerrar">&times;</button>
+    </div>
     <div class="modal-body" id="gerBody" style="padding:0;overflow:hidden;display:flex;flex-direction:column"></div>`;
   $("#modalClose").onclick=cerrarModalGerencial;
+  $("#gtabHome").onclick=()=>{ state.gerActive="home"; renderGerencial(); };
   $("#gtabGlobal").onclick=()=>{ state.gerActive="global"; renderGerencial(); };
   $$("#gtabbar .gtab[data-id]").forEach(el=>{
     el.addEventListener("click", e=>{
@@ -974,6 +1002,7 @@ function renderGerencial(){
 }
 
 function renderGerBody(){
+  if(state.gerActive==="home"){ renderGerHome(); return; }
   if(state.gerActive==="global"){ renderGerNotasGlobales(); return; }
   const t=gerTab(state.gerActive);
   if(!t) return;
@@ -1018,13 +1047,11 @@ async function renderGerNotasGlobales(){
   });
 }
 
-function renderGerNuevaPestana(t){
-  const body=$("#gerBody");
-  body.style.cssText="padding:22px 20px;overflow:auto;display:block";
-  const cat=gerFindCategoria();
+// Grilla de manuales + notas sueltas, compartida entre la pestaña "Nueva pestaña" y "Inicio".
+function gerManualesGridHtml(cat){
   const manuales=(cat&&cat.docs||[]).filter(d=>d.mimeType!=="text/plain");
   const notas=(cat&&cat.docs||[]).filter(d=>d.mimeType==="text/plain");
-  body.innerHTML=`
+  return `
     <div style="max-width:760px;margin:0 auto">
       <div style="text-align:center;margin-bottom:20px">
         <div style="font-size:32px">🧭</div>
@@ -1045,6 +1072,27 @@ function renderGerNuevaPestana(t){
             <div><div class="dnm">${esc(d.nombre)}</div><div class="dmeta">${fmtFecha(d.modificado)}</div></div>
           </div>`).join("")}</div>`:""}
     </div>`;
+}
+
+// Pestaña fija "Inicio": misma vista que "Nueva pestaña", pero nunca se transforma
+// en un documento — cada click abre/activa una pestaña real aparte.
+function renderGerHome(){
+  const body=$("#gerBody");
+  body.style.cssText="padding:22px 20px;overflow:auto;display:block";
+  body.innerHTML=gerManualesGridHtml(gerFindCategoria());
+  $("#gerBtnNota").onclick=nuevaNotaEnBlanco;
+  $$("#gerBody .doc[data-id]").forEach(el=>el.addEventListener("click",()=>{
+    abrirGerDoc(el.dataset.id, el.dataset.nombre, el.dataset.mime);
+  }));
+  $$("#gerBody .doc[data-note]").forEach(el=>el.addEventListener("click",()=>{
+    abrirGerNotaSuelta(el.dataset.note, el.dataset.nombre.replace(/\.txt$/i,""));
+  }));
+}
+
+function renderGerNuevaPestana(t){
+  const body=$("#gerBody");
+  body.style.cssText="padding:22px 20px;overflow:auto;display:block";
+  body.innerHTML=gerManualesGridHtml(gerFindCategoria());
   $("#gerBtnNota").onclick=()=>{ t.kind="note"; t.content=""; t.noteId=null; t.title="Nueva pestaña"; renderGerencial(); };
   $$("#gerBody .doc[data-id]").forEach(el=>el.addEventListener("click",()=>{
     const id=el.dataset.id;
@@ -1071,11 +1119,13 @@ async function renderGerDoc(t){
   body.style.cssText="padding:0;overflow:hidden;display:flex";
   body.innerHTML=`<div class="gsplit">
     <iframe src="https://drive.google.com/file/d/${esc(t.docId)}/preview"></iframe>
-    <div class="gnotes">
+    <div class="gsplit-handle" id="gsplitHandle" title="Arrastrar para cambiar el ancho"></div>
+    <div class="gnotes" id="gnotesPane">
       <div class="gnbar"><span>📝 Notas — ${esc(t.title)}</span><span id="gnStatus" style="margin-left:auto;color:var(--muted-2)"></span></div>
       <div id="gnText" contenteditable="true" data-placeholder="Escribí tus notas sobre este manual a medida que lo leés… (podés pegar imágenes)">${gerContentToHtml(t.noteContent||"")}</div>
     </div>
   </div>`;
+  gerInitSplitter();
   const ta=$("#gnText");
   if(!t.noteLoaded){
     ta.contentEditable="false"; $("#gnStatus").textContent="Cargando notas…";
@@ -1088,6 +1138,34 @@ async function renderGerDoc(t){
     $("#gnStatus").textContent="Sin guardar";
     clearTimeout(debounce);
     debounce=setTimeout(()=>gerGuardarNotaGenerica(t, gerNombreNota(t), t.noteContent, "#gnStatus"), 1200);
+  });
+}
+
+// Divisor arrastrable entre el visor del documento y el panel de notas.
+// Guarda el ancho elegido en localStorage para la próxima vez.
+const GER_SPLIT_KEY="gerSplitWidth";
+function gerInitSplitter(){
+  const handle=$("#gsplitHandle"), notes=$("#gnotesPane");
+  if(!handle||!notes) return;
+  const saved=parseInt(localStorage.getItem(GER_SPLIT_KEY)||"",10);
+  if(saved) notes.style.width=Math.max(280,Math.min(saved, window.innerWidth*0.7))+"px";
+  handle.addEventListener("mousedown", e=>{
+    e.preventDefault();
+    const startX=e.clientX, startW=notes.getBoundingClientRect().width;
+    handle.classList.add("dragging"); document.body.style.userSelect="none";
+    function onMove(ev){
+      let w=startW+(startX-ev.clientX); // arrastrar hacia la izquierda agranda el panel de notas
+      w=Math.max(280, Math.min(w, window.innerWidth*0.7));
+      notes.style.width=w+"px";
+    }
+    function onUp(){
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      handle.classList.remove("dragging"); document.body.style.userSelect="";
+      localStorage.setItem(GER_SPLIT_KEY, String(Math.round(notes.getBoundingClientRect().width)));
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
   });
 }
 
