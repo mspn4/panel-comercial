@@ -269,19 +269,24 @@ html[data-theme="dark"] .sidebar-brand .brand-logo-dark{display:block}
   font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;outline:none;color:var(--text);
   white-space:pre-wrap;word-wrap:break-word;overflow:auto}
 
-/* Notas ricas — imagen pegada con resize nativo (arrastrar esquina inferior derecha) */
+/* Notas ricas — imagen pegada, clickeable para seleccionar + handle visible para resizear */
 .ger-img-wrap{display:inline-block;position:relative;vertical-align:top;max-width:100%;min-width:60px;min-height:40px;
-  overflow:hidden;resize:both;margin:4px 6px 4px 0;border:1px solid var(--border-strong);border-radius:6px;line-height:0}
+  overflow:hidden;margin:4px 6px 4px 0;border:1px solid var(--border-strong);border-radius:6px;line-height:0;cursor:pointer}
 .ger-img-wrap img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;user-select:none}
+.ger-img-wrap.selected{outline:2px solid var(--blue);outline-offset:1px}
+.ger-img-handle{display:none;position:absolute;right:-6px;bottom:-6px;width:14px;height:14px;
+  background:var(--blue);border:2px solid var(--page);border-radius:50%;cursor:nwse-resize;z-index:2}
+.ger-img-wrap.selected .ger-img-handle{display:block}
 
-/* Notas globales — vista agregada */
+/* Notas globales — vista agregada: solo lectura, sin handle de resize */
 .gnotas-global{max-width:840px;margin:0 auto}
 .gng-bloque{border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;cursor:pointer;background:var(--canvas);transition:.12s}
 .gng-bloque:hover{border-color:var(--blue);background:var(--blue-tint)}
 .gng-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;margin-bottom:8px}
 .gng-h .gng-f{margin-left:auto;font-weight:500;font-size:11.5px;color:var(--muted-2)}
 .gng-txt{white-space:pre-wrap;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px;color:var(--text);line-height:1.55}
-.gng-txt .ger-img-wrap{resize:none}
+.gng-txt .ger-img-handle{display:none!important}
+.gng-txt .ger-img-wrap{cursor:default}
 
 /* Recursos Gráficos */
 .folder-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
@@ -852,7 +857,8 @@ function gerDownscaleImage(file){
 
 function gerImgWrapHtml(dataUrl,w,h){
   const dispW=Math.min(w,GER_IMG_INIT_W), dispH=Math.round(dispW*h/Math.max(w,1));
-  return `<span class="ger-img-wrap" contenteditable="false" style="width:${dispW}px;height:${dispH}px"><img src="${dataUrl}" alt=""></span>`;
+  return `<span class="ger-img-wrap" contenteditable="false" style="width:${dispW}px;height:${dispH}px">`
+       + `<img src="${dataUrl}" alt=""><span class="ger-img-handle" title="Arrastrar para cambiar el tamaño"></span></span>`;
 }
 
 function gerInsertHtmlAtCursor(el, html){
@@ -877,18 +883,52 @@ function gerInsertHtmlAtCursor(el, html){
   }
 }
 
-function gerWatchImages(el, onDirty){
-  if(!window.ResizeObserver) return;
-  el.querySelectorAll(".ger-img-wrap").forEach(wrap=>{
-    if(wrap._gerObserved) return;
-    wrap._gerObserved=true;
-    let first=true;
-    const ro=new ResizeObserver(()=>{ if(first){first=false;return;} onDirty(); }); // el primer disparo es el tamaño inicial, no un resize real
-    ro.observe(wrap);
+// Click en una imagen pegada = seleccionarla (aparece el handle celeste). Click afuera = deseleccionar.
+// Arrastrar el handle cambia el tamaño (mantiene proporción).
+let __gerDeselectWired=false;
+function gerWireDeselect(){
+  if(__gerDeselectWired) return;
+  __gerDeselectWired=true;
+  document.addEventListener("click", ()=>{
+    document.querySelectorAll(".ger-img-wrap.selected").forEach(w=>w.classList.remove("selected"));
   });
 }
 
-// Engancha paste-de-imagen + resize + tipeo normal en un <div contenteditable>.
+function gerWatchImages(el, onDirty){
+  gerWireDeselect();
+  el.querySelectorAll(".ger-img-wrap").forEach(wrap=>{
+    if(wrap._gerObserved) return;
+    wrap._gerObserved=true;
+    wrap.addEventListener("click", e=>{
+      e.stopPropagation();
+      el.querySelectorAll(".ger-img-wrap.selected").forEach(w=>{ if(w!==wrap) w.classList.remove("selected"); });
+      wrap.classList.toggle("selected");
+    });
+    const handle=wrap.querySelector(".ger-img-handle");
+    if(!handle) return;
+    handle.addEventListener("mousedown", e=>{
+      e.preventDefault(); e.stopPropagation();
+      const startX=e.clientX, rect=wrap.getBoundingClientRect();
+      const startW=rect.width, aspect=rect.width/Math.max(rect.height,1);
+      const maxW=Math.max(el.getBoundingClientRect().width-20, 120);
+      function onMove(ev){
+        let w=startW+(ev.clientX-startX);
+        w=Math.max(60, Math.min(w, maxW));
+        wrap.style.width=w+"px";
+        wrap.style.height=Math.round(w/aspect)+"px";
+      }
+      function onUp(){
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        onDirty();
+      }
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  });
+}
+
+// Engancha paste-de-imagen + selección/resize + tipeo normal en un <div contenteditable>.
 // onDirty() se llama cada vez que cambia algo (texto, imagen pegada, o imagen resizeada).
 function gerInitRichEditor(el, onDirty){
   el.addEventListener("paste", async e=>{
