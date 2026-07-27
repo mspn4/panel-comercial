@@ -6,31 +6,50 @@
 <title>Informe Estadístico General — Red de Sucursales · M&amp;A</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
+  /* Paleta: design-system/panel-comercial/MASTER.md (Notion). El PNG exportado (composeSlide, canvas
+     nativo) dibuja sus propios colores fijos — siempre sale en claro, no depende del tema en pantalla. */
   :root{
-    --navy:#0b2545;
-    --navy-2:#13315c;
-    --navy-3:#1d3f73;
-    --blue:#2a6fb0;
-    --blue-light:#8ec5e6;
-    --orange:#f3722c;
-    --orange-2:#ff8c42;
-    --red:#e63946;
-    --ink:#0e1b2e;
-    --muted:#5c6b80;
-    --line:#e6ebf2;
-    --bg:#eef1f6;
-    --panel:#ffffff;
-    --panel-2:#f5f8fc;
+    --navy:#213183;
+    --navy-2:#182666;
+    --navy-3:#2C42A8;
+    --blue:#0075DE;
+    --blue-light:#9CCBF5;
+    --orange:#DD5B00;
+    --orange-2:#FF9A52;
+    --red:#D7484B;
+    --ink:#000000;
+    --muted:#615D59;
+    --line:#E6E6E6;
+    --bg:#F6F5F4;
+    --panel:#FFFFFF;
+    --panel-2:#F2F1EF;
     --radius:18px;
-    --shadow:0 1px 3px rgba(11,37,69,.06), 0 8px 24px rgba(11,37,69,.06);
+    --shadow:0 1px 3px rgba(33,49,131,.06), 0 8px 24px rgba(33,49,131,.06);
+  }
+  html[data-theme="dark"]{
+    --navy:#3396F0;
+    --navy-2:#213183;
+    --navy-3:#62AEF0;
+    --blue:#3396F0;
+    --blue-light:#62AEF0;
+    --orange:#FF7A26;
+    --orange-2:#FFA766;
+    --red:#FF6B6E;
+    --ink:#EDECE9;
+    --muted:#9B968F;
+    --line:#3A3A3A;
+    --bg:#191919;
+    --panel:#242424;
+    --panel-2:#2A2A2A;
+    --shadow:0 1px 3px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.4);
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
-    font-family:'DM Sans',system-ui,sans-serif;
+    font-family:'Inter',system-ui,sans-serif;
     background:var(--bg);
     color:var(--ink);
     -webkit-font-smoothing:antialiased;
@@ -59,7 +78,7 @@
     background:var(--panel-2);color:var(--ink);resize:vertical;line-height:1.6;
     transition:border-color .15s, box-shadow .15s;
   }
-  textarea:focus, input[type=text]:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(42,111,176,.12);background:#fff}
+  textarea:focus, input[type=text]:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,117,222,.12);background:var(--panel)}
   textarea.mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11.5px;white-space:pre;overflow-x:auto}
   .btn{
     display:inline-flex;align-items:center;gap:8px;justify-content:center;
@@ -72,9 +91,9 @@
   .btn-orange{background:var(--orange);color:#fff}
   .btn-orange:hover{filter:brightness(1.05)}
   .btn-ghost{background:var(--panel-2);color:var(--navy);border:1px solid var(--line)}
-  .btn-ghost:hover{background:#eaeff6}
+  .btn-ghost:hover{background:var(--line)}
   .btn-sm{padding:8px 13px;font-size:12px;border-radius:10px}
-  .ed-actions{position:sticky;bottom:0;background:linear-gradient(to top,#fff 70%,rgba(255,255,255,0));padding-top:14px;margin-top:6px}
+  .ed-actions{position:sticky;bottom:0;background:linear-gradient(to top,var(--panel) 70%,transparent);padding-top:14px;margin-top:6px}
   details.group{border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden;background:var(--panel-2)}
   details.group > summary{cursor:pointer;list-style:none;padding:11px 14px;font-size:12.5px;font-weight:700;color:var(--navy);display:flex;justify-content:space-between;align-items:center}
   details.group > summary::-webkit-details-marker{display:none}
@@ -85,7 +104,7 @@
   /* ---------- REPORT ---------- */
   .report-wrap{flex:1;min-width:0;padding:34px clamp(16px,4vw,56px);max-width:980px;margin:0 auto}
   .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px}
-  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--orange);text-transform:uppercase;background:rgba(243,114,44,.1);padding:4px 10px;border-radius:999px}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--orange);text-transform:uppercase;background:rgba(221,91,0,.1);padding:4px 10px;border-radius:999px}
   .report{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:clamp(22px,3.4vw,44px);overflow:hidden}
   .r-title{font-size:clamp(24px,3.6vw,34px);font-weight:800;color:var(--navy);letter-spacing:-.02em;line-height:1.1;margin:14px 0 8px}
   .r-sub{font-size:14px;color:var(--muted);line-height:1.5;max-width:62ch;margin-bottom:8px}
@@ -102,7 +121,8 @@
   }
   .slide-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
   .slide-title{font-size:clamp(15px,1.9vw,20px);font-weight:800;color:var(--navy);letter-spacing:-.01em}
-  .slide-brand{font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--orange);text-transform:uppercase}
+  .slide-brand{height:15px}
+  .slide-brand img{height:100%;width:auto;display:block}
   .slide-canvas{flex:1;position:relative;min-height:0}
 
   /* KPI */
@@ -110,7 +130,7 @@
   .kpi{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
   .kpi .v{font-size:clamp(22px,3vw,30px);font-weight:800;color:var(--navy);letter-spacing:-.02em;line-height:1}
   .kpi .l{font-size:12px;color:var(--muted);margin-top:6px;font-weight:500}
-  .callout{display:flex;gap:12px;align-items:flex-start;background:rgba(42,111,176,.07);border:1px solid rgba(42,111,176,.18);border-radius:14px;padding:14px 16px;margin-top:14px;font-size:13.5px;color:var(--navy);line-height:1.5}
+  .callout{display:flex;gap:12px;align-items:flex-start;background:rgba(0,117,222,.07);border:1px solid rgba(0,117,222,.18);border-radius:14px;padding:14px 16px;margin-top:14px;font-size:13.5px;color:var(--navy);line-height:1.5}
   .callout .ic{font-size:18px;line-height:1}
   .callout b{font-weight:700}
 
@@ -146,9 +166,9 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 
   /* export modal */
-  .exp-modal{position:fixed;inset:0;background:rgba(11,37,69,.55);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;z-index:200;padding:30px 16px;overflow:auto}
+  .exp-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;z-index:200;padding:30px 16px;overflow:auto}
   .exp-modal.show{display:flex}
-  .exp-card{background:#fff;border-radius:18px;max-width:760px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .exp-card{background:var(--panel);border-radius:18px;max-width:760px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
   .exp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
   .exp-head b{font-size:16px;color:var(--navy)}
   .exp-tip{font-size:12.5px;color:var(--muted);margin-top:5px;max-width:50ch;line-height:1.45}
@@ -164,8 +184,82 @@
     .diag-grid,.concl-grid{grid-template-columns:1fr}
   }
 </style>
+<style>
+#panelAuthOverlay{display:none;visibility:visible;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#F6F5F4;font-family:'Inter',system-ui,-apple-system,sans-serif;padding:20px;box-sizing:border-box}
+html[data-theme="dark"] #panelAuthOverlay{background:#191919}
+html.panel-locked body{visibility:hidden}
+html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
+#panelAuthOverlay .pa-card{width:100%;max-width:360px;background:#fff;border:1px solid #E6E6E6;border-radius:12px;padding:36px 32px;box-shadow:0 20px 50px rgba(0,0,0,.12);box-sizing:border-box}
+html[data-theme="dark"] #panelAuthOverlay .pa-card{background:#242424;border-color:#3A3A3A;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+#panelAuthOverlay .pa-brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+#panelAuthOverlay .pa-ma{font-weight:600;font-size:13px;letter-spacing:.5px;background:#DD5B00;color:#fff;padding:4px 8px;border-radius:5px;flex:none}
+html[data-theme="dark"] #panelAuthOverlay .pa-ma{background:#FF7A26}
+#panelAuthOverlay .pa-ttl b{display:block;font-weight:700;font-size:15px;color:#000;letter-spacing:-.2px}
+html[data-theme="dark"] #panelAuthOverlay .pa-ttl b{color:#EDECE9}
+#panelAuthOverlay .pa-ttl span{display:block;font-size:10px;color:#615D59;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+html[data-theme="dark"] #panelAuthOverlay .pa-ttl span{color:#9B968F}
+#panelAuthOverlay h2{font-size:16px;font-weight:700;color:#000;margin:0 0 5px}
+html[data-theme="dark"] #panelAuthOverlay h2{color:#EDECE9}
+#panelAuthOverlay p.pa-sub{font-size:12.5px;color:#615D59;margin:0 0 22px;line-height:1.4}
+html[data-theme="dark"] #panelAuthOverlay p.pa-sub{color:#9B968F}
+#panelAuthOverlay label{display:block;font-size:11px;font-weight:600;color:#615D59;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px}
+html[data-theme="dark"] #panelAuthOverlay label{color:#9B968F}
+#panelAuthOverlay input{width:100%;box-sizing:border-box;padding:9px 11px;font-size:14px;font-family:inherit;border:1px solid #E6E6E6;border-radius:6px;background:#fff;color:#000;margin-bottom:16px;outline:none}
+html[data-theme="dark"] #panelAuthOverlay input{background:#191919;border-color:#3A3A3A;color:#EDECE9}
+#panelAuthOverlay input:focus{border-color:#0075DE}
+html[data-theme="dark"] #panelAuthOverlay input:focus{border-color:#3396F0}
+#panelAuthOverlay button{width:100%;padding:10px;font-size:14px;font-weight:600;font-family:inherit;color:#fff;background:#0075DE;border:none;border-radius:6px;cursor:pointer;margin-top:2px}
+html[data-theme="dark"] #panelAuthOverlay button{background:#3396F0}
+#panelAuthOverlay button:hover{background:#005BAB}
+html[data-theme="dark"] #panelAuthOverlay button:hover{background:#62AEF0}
+#panelAuthOverlay .pa-error{font-size:12.5px;color:#D7484B;margin:-8px 0 14px;min-height:16px}
+html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
+#panelAuthOverlay .pa-card.pa-shake{animation:pa-shake .4s}
+@keyframes pa-shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
+</style>
 </head>
 <body>
+<div id="panelAuthOverlay">
+  <div class="pa-card">
+    <div class="pa-brand">
+      <span class="pa-ma">M&amp;A</span>
+      <div class="pa-ttl"><b>Acceso</b><span>Departamento Comercial</span></div>
+    </div>
+    <h2>Ingresá tus credenciales</h2>
+    <p class="pa-sub">Panel interno de uso exclusivo del equipo.</p>
+    <form id="panelAuthForm" autocomplete="off">
+      <label for="paUser">Usuario</label>
+      <input type="text" id="paUser" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+      <label for="paPass">Contraseña</label>
+      <input type="password" id="paPass" autocomplete="current-password" required>
+      <div class="pa-error" id="paError"></div>
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  if (localStorage.getItem('panelAuthOK') === '1') return;
+  document.documentElement.classList.add('panel-locked');
+  document.getElementById('panelAuthForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var u = document.getElementById('paUser').value.trim();
+    var p = document.getElementById('paPass').value;
+    if (u === 'wsenieva' && p === '379604191919abcde!') {
+      localStorage.setItem('panelAuthOK', '1');
+      document.documentElement.classList.remove('panel-locked');
+    } else {
+      document.getElementById('paError').textContent = 'Usuario o contraseña incorrectos.';
+      var card = document.querySelector('#panelAuthOverlay .pa-card');
+      card.classList.remove('pa-shake');
+      void card.offsetWidth;
+      card.classList.add('pa-shake');
+      document.getElementById('paPass').value = '';
+      document.getElementById('paPass').focus();
+    }
+  });
+})();
+</script>
 <div class="app">
 
   <!-- ================= EDITOR ================= -->
@@ -245,7 +339,7 @@
       <div class="slide-block">
         <div class="slide-tools"><button class="btn btn-ghost btn-sm" data-chart="fact">⬇ PNG 16:9</button></div>
         <div class="slide" id="slide-fact">
-          <div class="slide-head"><div class="slide-title">Facturación por Sucursal (ARS)</div><div class="slide-brand">M&amp;A</div></div>
+          <div class="slide-head"><div class="slide-title">Facturación por Sucursal (ARS)</div><div class="slide-brand"><img src="assets/logo.png" alt="M&amp;A"></div></div>
           <div class="slide-canvas"><canvas id="ch-fact"></canvas></div>
         </div>
       </div>
@@ -254,7 +348,7 @@
       <div class="slide-block">
         <div class="slide-tools"><button class="btn btn-ghost btn-sm" data-chart="conv">⬇ PNG 16:9</button></div>
         <div class="slide" id="slide-conv">
-          <div class="slide-head"><div class="slide-title">Conversión por Sucursal (%)</div><div class="slide-brand">M&amp;A</div></div>
+          <div class="slide-head"><div class="slide-title">Conversión por Sucursal (%)</div><div class="slide-brand"><img src="assets/logo.png" alt="M&amp;A"></div></div>
           <div class="slide-canvas"><canvas id="ch-conv"></canvas></div>
         </div>
       </div>
@@ -263,7 +357,7 @@
       <div class="slide-block">
         <div class="slide-tools"><button class="btn btn-ghost btn-sm" data-chart="scatter">⬇ PNG 16:9</button></div>
         <div class="slide" id="slide-scatter">
-          <div class="slide-head"><div class="slide-title">Clientes Atendidos vs. Conversión</div><div class="slide-brand">M&amp;A</div></div>
+          <div class="slide-head"><div class="slide-title">Clientes Atendidos vs. Conversión</div><div class="slide-brand"><img src="assets/logo.png" alt="M&amp;A"></div></div>
           <div class="slide-canvas"><canvas id="ch-scatter"></canvas></div>
         </div>
       </div>
@@ -358,9 +452,11 @@ function fmtMillones(n){
   const m=n/1e6;
   return '$'+m.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+'M';
 }
-// escala de azules: t=0 oscuro (rank alto) -> t=1 claro
+function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+// Los charts viven dentro de .slide, que queda SIEMPRE en claro (previsualiza el PNG exportado,
+// que también es siempre claro) — sus colores no seguen el tema de la página, quedan fijos.
 function blueScale(t){
-  const a=[11,37,69], b=[142,197,230];
+  const a=[33,49,131], b=[142,197,230];
   const r=Math.round(a[0]+(b[0]-a[0])*t),
         g=Math.round(a[1]+(b[1]-a[1])*t),
         bl=Math.round(a[2]+(b[2]-a[2])*t);
@@ -388,9 +484,8 @@ function parseDiag(txt){
 
 /* ===================== CHART STATE ===================== */
 let chFact,chConv,chScatter;
-const baseFont={family:"'DM Sans',sans-serif"};
-Chart.defaults.font.family="'DM Sans',sans-serif";
-Chart.defaults.color="#5c6b80";
+Chart.defaults.font.family="'Inter',sans-serif";
+Chart.defaults.color="#615D59"; // fijo: el chart vive en .slide, siempre claro
 
 // plugin línea promedio
 const avgLine={
@@ -401,13 +496,13 @@ const avgLine={
     const yp=y.getPixelForValue(opts.value);
     ctx.save();
     ctx.beginPath();ctx.setLineDash([6,5]);ctx.moveTo(left,yp);ctx.lineTo(right,yp);
-    ctx.lineWidth=1.6;ctx.strokeStyle='#e63946';ctx.stroke();
+    ctx.lineWidth=1.6;ctx.strokeStyle='#D7484B';ctx.stroke();
     ctx.setLineDash([]);
     const label='Promedio Red: '+Math.round(opts.value);
-    ctx.font="700 12px 'DM Sans'";
+    ctx.font="700 12px 'Inter'";
     const tw=ctx.measureText(label).width;
     const bx=left+8, by=yp-11, bw=tw+18, bh=22;
-    ctx.fillStyle='#0b2545';
+    ctx.fillStyle='#213183';
     ctx.beginPath();ctx.roundRect(bx,by,bw,bh,6);ctx.fill();
     ctx.fillStyle='#fff';ctx.textBaseline='middle';
     ctx.fillText(label,bx+9,yp+1);
@@ -496,8 +591,8 @@ function drawFact(labels,values,colors){
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:2,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtMillones(c.raw)}}},
       scales:{
-        x:{ticks:{callback:v=>fmtMillones(v).replace('$','$').replace(',0','')},grid:{color:'#eef2f7'},border:{display:false}},
-        y:{ticks:{font:{weight:'600',size:12},color:'#0e1b2e'},grid:{display:false},border:{display:false}}
+        x:{ticks:{callback:v=>fmtMillones(v).replace('$','$').replace(',0',''),color:'#000'},grid:{color:'#E6E6E6'},border:{display:false}},
+        y:{ticks:{font:{weight:'600',size:12},color:'#000'},grid:{display:false},border:{display:false}}
       }}
   });
 }
@@ -510,8 +605,8 @@ function drawConv(labels,values,colors,avg){
     options:{responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:2,
       plugins:{legend:{display:false},avgLine:{value:avg},tooltip:{callbacks:{label:c=>c.raw.toLocaleString('es-AR')+'%'}}},
       scales:{
-        x:{ticks:{font:{weight:'600',size:11},color:'#0e1b2e',autoSkip:false,maxRotation:0,minRotation:0},grid:{display:false},border:{display:false}},
-        y:{beginAtZero:true,suggestedMax:maxV,ticks:{callback:v=>v+'%'},grid:{color:'#eef2f7'},border:{display:false}}
+        x:{ticks:{font:{weight:'600',size:11},color:'#000',autoSkip:false,maxRotation:0,minRotation:0},grid:{display:false},border:{display:false}},
+        y:{beginAtZero:true,suggestedMax:maxV,ticks:{callback:v=>v+'%',color:'#000'},grid:{color:'#E6E6E6'},border:{display:false}}
       }}
   });
 }
@@ -521,13 +616,13 @@ function drawScatter(data){
     type:'scatter',
     data:{datasets:[{
       data:data.map(s=>({x:s.cli,y:s.conv,n:s.nombre})),
-      backgroundColor:'#13315c',borderColor:'#fff',borderWidth:1.5,pointRadius:7,pointHoverRadius:9
+      backgroundColor:'#182666',borderColor:'#fff',borderWidth:1.5,pointRadius:7,pointHoverRadius:9
     }]},
     options:{responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:2,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.n}: ${c.raw.x} clientes · ${c.raw.y}%`}}},
       scales:{
-        x:{title:{display:true,text:'Clientes Atendidos',font:{weight:'600'}},beginAtZero:true,grid:{color:'#eef2f7'},border:{display:false}},
-        y:{title:{display:true,text:'Conversión (%)',font:{weight:'600'}},ticks:{callback:v=>v+'%'},grid:{color:'#eef2f7'},border:{display:false}}
+        x:{title:{display:true,text:'Clientes Atendidos',font:{weight:'600'}},beginAtZero:true,grid:{color:'#E6E6E6'},border:{display:false}},
+        y:{title:{display:true,text:'Conversión (%)',font:{weight:'600'}},ticks:{callback:v=>v+'%'},grid:{color:'#E6E6E6'},border:{display:false}}
       }}
   });
 }
@@ -655,6 +750,11 @@ document.getElementById('btn-show').addEventListener('click',()=>{
 });
 document.getElementById('exp-close').addEventListener('click',()=>document.getElementById('exp-modal').classList.remove('show'));
 document.getElementById('exp-modal').addEventListener('click',e=>{ if(e.target.id==='exp-modal') e.target.classList.remove('show'); });
+
+/* ===================== Tema claro/oscuro, sincronizado con el panel (localStorage compartido) ===================== */
+function aplicarTema(t){ document.documentElement.setAttribute('data-theme', t); }
+aplicarTema(localStorage.getItem('panelTheme')==='dark' ? 'dark' : 'light');
+window.addEventListener('storage', e=>{ if(e.key==='panelTheme'){ aplicarTema(e.newValue==='dark' ? 'dark' : 'light'); render(); } });
 
 /* first paint */
 if(document.fonts && document.fonts.ready){ document.fonts.ready.then(render); }

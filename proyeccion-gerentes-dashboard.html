@@ -6,50 +6,67 @@
 <title>Proyección de Facturación · Gerentes · Junio 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
+  /* Paleta: design-system/panel-comercial/MASTER.md (Notion). Mismos nombres de variable que ya usaba
+     este archivo (--navy, --line, --bg, --card, etc.) para no tocar cada regla — solo se redefinen los valores. */
   :root{
-    --navy:#0B2545;--navy-2:#163A66;--blue:#2E6FB7;--orange:#F5821F;--orange-soft:#FFB36B;
-    --ink:#1D1D1F;--ink-2:#6E6E73;--line:#E6E6EB;--bg:#E8E8ED;--card:#FFFFFF;
-    --green:#1E9E5A;--red:#D93A3A;
+    --navy:#213183;--navy-2:#2C42A8;--blue:#0075DE;--orange:#DD5B00;--orange-soft:#FF9A52;
+    --ink:#000000;--ink-2:#615D59;--line:#E6E6E6;--bg:#F6F5F4;--card:#FFFFFF;
+    --green:#1AAE39;--red:#D7484B;
+    --green-tint:rgba(26,174,57,.12);--red-tint:rgba(215,72,75,.10);--orange-tint-strong:rgba(221,91,0,.16);
+    --pill-bg:#FBE7D9;--pill-border:#F0CBA8;--pill-neutral-bg:#F2F1EF;
+    --lead-grad-1:#EAF2FC;--lead-grad-2:#D6E9FA;--lead-border:#BFD9F5;
+    --shadow-card:0 1px 1px rgba(0,0,0,.03),0 8px 20px rgba(0,0,0,.06);
+    --shadow-hero:0 10px 24px rgba(33,49,131,.28);--shadow-btn:0 8px 20px rgba(33,49,131,.35);
+  }
+  html[data-theme="dark"]{
+    --navy:#2C42A8;--navy-2:#213183;--blue:#3396F0;--orange:#FF7A26;--orange-soft:#FFA766;
+    --ink:#EDECE9;--ink-2:#9B968F;--line:#3A3A3A;--bg:#191919;--card:#242424;
+    --green:#2ECC58;--red:#FF6B6E;
+    --green-tint:rgba(46,204,88,.16);--red-tint:rgba(255,107,110,.14);--orange-tint-strong:rgba(255,122,38,.20);
+    --pill-bg:rgba(255,122,38,.16);--pill-border:rgba(255,122,38,.35);--pill-neutral-bg:#2A2A2A;
+    --lead-grad-1:rgba(51,150,240,.10);--lead-grad-2:rgba(51,150,240,.16);--lead-border:rgba(51,150,240,.30);
+    --shadow-card:0 1px 1px rgba(0,0,0,.3),0 8px 20px rgba(0,0,0,.4);
+    --shadow-hero:0 10px 24px rgba(0,0,0,.5);--shadow-btn:0 8px 24px rgba(0,0,0,.55);
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
-  html,body{background:var(--bg);font-family:'DM Sans',-apple-system,sans-serif;color:var(--ink);}
+  html,body{background:var(--bg);font-family:'Inter',-apple-system,sans-serif;color:var(--ink);}
   #viewport{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;}
   #scaler{transform-origin:center center;}
   #stage{
     width:1280px;height:720px;background:var(--card);border-radius:26px;overflow:hidden;position:relative;
-    box-shadow:0 30px 80px rgba(11,37,69,.22);display:flex;flex-direction:column;padding:28px 36px 24px;
+    box-shadow:var(--shadow-hero);display:flex;flex-direction:column;padding:28px 36px 24px;
   }
   /* HEADER */
   .head{display:flex;justify-content:space-between;align-items:flex-start;}
   .brand{display:flex;align-items:center;gap:14px;}
-  .logo{width:50px;height:50px;border-radius:14px;background:linear-gradient(135deg,var(--navy),var(--navy-2));
-    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:19px;letter-spacing:.5px;
-    box-shadow:0 6px 16px rgba(11,37,69,.28);}
-  .logo b{color:var(--orange);}
+  .brand-logo-img{height:50px;width:auto;flex:none;display:none}
+  .brand-logo-light{display:block}
+  html[data-theme="dark"] .brand-logo-light{display:none}
+  html[data-theme="dark"] .brand-logo-dark{display:block}
   .h-txt h1{font-size:22px;font-weight:700;letter-spacing:-.4px;line-height:1.1;}
   .h-txt p{font-size:13px;color:var(--ink-2);margin-top:3px;font-weight:500;}
   .head-right{display:flex;align-items:center;gap:10px;}
-  .pill{background:#FFF3E8;color:var(--orange);border:1px solid #FFD9B8;padding:7px 14px;border-radius:999px;
+  .pill{background:var(--pill-bg);color:var(--orange);border:1px solid var(--pill-border);padding:7px 14px;border-radius:999px;
     font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:7px;}
   .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--orange);}
-  .pill-date{background:#F2F3F6;color:var(--ink-2);border-color:var(--line);}
+  .pill-date{background:var(--pill-neutral-bg);color:var(--ink-2);border-color:var(--line);}
   /* KPI */
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-top:18px;}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;box-shadow:0 1px 0 rgba(0,0,0,.02);}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;box-shadow:var(--shadow-card);}
   .kpi .lab{font-size:11.5px;color:var(--ink-2);font-weight:600;display:flex;align-items:center;gap:7px;}
   .kpi .lab .sw{width:9px;height:9px;border-radius:3px;}
   .kpi .val{font-size:29px;font-weight:700;letter-spacing:-1px;margin-top:6px;line-height:1;}
-  .chip-up{display:inline-flex;align-items:center;gap:4px;background:rgba(30,158,90,.12);color:var(--green);
+  .chip-up{display:inline-flex;align-items:center;gap:4px;background:var(--green-tint);color:var(--green);
     font-weight:700;font-size:11px;padding:3px 8px;border-radius:7px;margin-top:7px;}
   .chip-up span{font-weight:500;color:var(--ink-2);}
-  .kpi.hero{background:linear-gradient(135deg,var(--navy),var(--navy-2));border:none;box-shadow:0 14px 30px rgba(11,37,69,.30);}
+  .kpi.hero{background:linear-gradient(135deg,var(--navy),var(--navy-2));border:none;box-shadow:var(--shadow-hero);}
   .kpi.hero .lab{color:rgba(255,255,255,.72);}
   .kpi.hero .val{color:#fff;}
-  .kpi.hero .chip-up{background:rgba(245,130,31,.22);color:var(--orange-soft);}
+  .kpi.hero .chip-up{background:var(--orange-tint-strong);color:var(--orange-soft);}
   .kpi.hero .chip-up span{color:rgba(255,255,255,.72);}
   /* MAIN */
   .main{flex:1;display:flex;gap:18px;margin-top:15px;min-height:0;}
@@ -68,7 +85,7 @@
   .side-title .bar{width:4px;height:14px;border-radius:2px;background:var(--orange);}
   .cmp{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:10px 13px;
     display:flex;justify-content:space-between;align-items:center;}
-  .cmp.lead{background:linear-gradient(135deg,#F4F8FF,#EAF1FB);border-color:#D8E5F7;}
+  .cmp.lead{background:linear-gradient(135deg,var(--lead-grad-1),var(--lead-grad-2));border-color:var(--lead-border);}
   .cmp .l .t{font-size:12.5px;font-weight:600;}
   .cmp .l .d{font-size:10.5px;color:var(--ink-2);margin-top:2px;}
   .cmp .delta{font-size:17px;font-weight:700;color:var(--green);letter-spacing:-.5px;}
@@ -76,25 +93,100 @@
   .hl{border-radius:12px;padding:9px 12px;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;}
   .hl b{font-weight:700;}
   .hl span{font-weight:700;font-size:13px;}
-  .hl.up{background:rgba(30,158,90,.10);color:var(--green);}
-  .hl.down{background:rgba(217,58,58,.09);color:var(--red);}
+  .hl.up{background:var(--green-tint);color:var(--green);}
+  .hl.down{background:var(--red-tint);color:var(--red);}
   /* FOOTER */
   .foot{display:flex;justify-content:space-between;align-items:center;margin-top:11px;font-size:10.5px;color:var(--ink-2);font-weight:500;}
   .foot .acc{color:var(--orange);font-weight:700;}
   /* EXPORT */
   #exportBtn{position:fixed;bottom:22px;right:22px;z-index:50;background:var(--navy);color:#fff;border:none;cursor:pointer;
     padding:13px 20px;border-radius:14px;font-family:inherit;font-size:14px;font-weight:600;
-    box-shadow:0 10px 28px rgba(11,37,69,.4);display:flex;align-items:center;gap:9px;transition:transform .15s;}
+    box-shadow:var(--shadow-btn);display:flex;align-items:center;gap:9px;transition:transform .15s;}
   #exportBtn:hover{transform:translateY(-2px);}
+</style>
+<style>
+#panelAuthOverlay{display:none;visibility:visible;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#F6F5F4;font-family:'Inter',system-ui,-apple-system,sans-serif;padding:20px;box-sizing:border-box}
+html[data-theme="dark"] #panelAuthOverlay{background:#191919}
+html.panel-locked body{visibility:hidden}
+html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
+#panelAuthOverlay .pa-card{width:100%;max-width:360px;background:#fff;border:1px solid #E6E6E6;border-radius:12px;padding:36px 32px;box-shadow:0 20px 50px rgba(0,0,0,.12);box-sizing:border-box}
+html[data-theme="dark"] #panelAuthOverlay .pa-card{background:#242424;border-color:#3A3A3A;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+#panelAuthOverlay .pa-brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+#panelAuthOverlay .pa-ma{font-weight:600;font-size:13px;letter-spacing:.5px;background:#DD5B00;color:#fff;padding:4px 8px;border-radius:5px;flex:none}
+html[data-theme="dark"] #panelAuthOverlay .pa-ma{background:#FF7A26}
+#panelAuthOverlay .pa-ttl b{display:block;font-weight:700;font-size:15px;color:#000;letter-spacing:-.2px}
+html[data-theme="dark"] #panelAuthOverlay .pa-ttl b{color:#EDECE9}
+#panelAuthOverlay .pa-ttl span{display:block;font-size:10px;color:#615D59;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+html[data-theme="dark"] #panelAuthOverlay .pa-ttl span{color:#9B968F}
+#panelAuthOverlay h2{font-size:16px;font-weight:700;color:#000;margin:0 0 5px}
+html[data-theme="dark"] #panelAuthOverlay h2{color:#EDECE9}
+#panelAuthOverlay p.pa-sub{font-size:12.5px;color:#615D59;margin:0 0 22px;line-height:1.4}
+html[data-theme="dark"] #panelAuthOverlay p.pa-sub{color:#9B968F}
+#panelAuthOverlay label{display:block;font-size:11px;font-weight:600;color:#615D59;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px}
+html[data-theme="dark"] #panelAuthOverlay label{color:#9B968F}
+#panelAuthOverlay input{width:100%;box-sizing:border-box;padding:9px 11px;font-size:14px;font-family:inherit;border:1px solid #E6E6E6;border-radius:6px;background:#fff;color:#000;margin-bottom:16px;outline:none}
+html[data-theme="dark"] #panelAuthOverlay input{background:#191919;border-color:#3A3A3A;color:#EDECE9}
+#panelAuthOverlay input:focus{border-color:#0075DE}
+html[data-theme="dark"] #panelAuthOverlay input:focus{border-color:#3396F0}
+#panelAuthOverlay button{width:100%;padding:10px;font-size:14px;font-weight:600;font-family:inherit;color:#fff;background:#0075DE;border:none;border-radius:6px;cursor:pointer;margin-top:2px}
+html[data-theme="dark"] #panelAuthOverlay button{background:#3396F0}
+#panelAuthOverlay button:hover{background:#005BAB}
+html[data-theme="dark"] #panelAuthOverlay button:hover{background:#62AEF0}
+#panelAuthOverlay .pa-error{font-size:12.5px;color:#D7484B;margin:-8px 0 14px;min-height:16px}
+html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
+#panelAuthOverlay .pa-card.pa-shake{animation:pa-shake .4s}
+@keyframes pa-shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
 </style>
 </head>
 <body>
+<div id="panelAuthOverlay">
+  <div class="pa-card">
+    <div class="pa-brand">
+      <span class="pa-ma">M&amp;A</span>
+      <div class="pa-ttl"><b>Acceso</b><span>Departamento Comercial</span></div>
+    </div>
+    <h2>Ingresá tus credenciales</h2>
+    <p class="pa-sub">Panel interno de uso exclusivo del equipo.</p>
+    <form id="panelAuthForm" autocomplete="off">
+      <label for="paUser">Usuario</label>
+      <input type="text" id="paUser" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+      <label for="paPass">Contraseña</label>
+      <input type="password" id="paPass" autocomplete="current-password" required>
+      <div class="pa-error" id="paError"></div>
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  if (localStorage.getItem('panelAuthOK') === '1') return;
+  document.documentElement.classList.add('panel-locked');
+  document.getElementById('panelAuthForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var u = document.getElementById('paUser').value.trim();
+    var p = document.getElementById('paPass').value;
+    if (u === 'wsenieva' && p === '379604191919abcde!') {
+      localStorage.setItem('panelAuthOK', '1');
+      document.documentElement.classList.remove('panel-locked');
+    } else {
+      document.getElementById('paError').textContent = 'Usuario o contraseña incorrectos.';
+      var card = document.querySelector('#panelAuthOverlay .pa-card');
+      card.classList.remove('pa-shake');
+      void card.offsetWidth;
+      card.classList.add('pa-shake');
+      document.getElementById('paPass').value = '';
+      document.getElementById('paPass').focus();
+    }
+  });
+})();
+</script>
 <div id="viewport">
   <div id="scaler">
     <div id="stage">
       <div class="head">
         <a href="index.html" class="brand" style="text-decoration:none;color:inherit" title="Volver al Centro de Control">
-          <div class="logo">M<b>&</b>A</div>
+          <img src="assets/logo.png" alt="M&amp;A" class="brand-logo-img brand-logo-light">
+          <img src="assets/logo-blanco.png" alt="M&amp;A" class="brand-logo-img brand-logo-dark">
           <div class="h-txt">
             <h1>Proyección de Facturación · Gerentes</h1>
             <p>Departamento Comercial · Cierre de mes Junio 2026</p>
@@ -213,7 +305,8 @@ document.getElementById('s-up').innerHTML='▲ Mayor suba · <b>'+short(up.n)+'<
 document.getElementById('s-down').innerHTML='▼ Mayor baja · <b>'+short(down.n)+'</b> <span>'+Math.round(down.pct)+'%</span>';
 
 // ---------- CHART ----------
-const C={neto:'#0B2545',res:'#2E6FB7',proy:'#F5821F'};
+// Colores leídos en vivo de las variables CSS (cambian con el tema claro/oscuro)
+function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 const labels=raw.map(d=>short(d.n));
 const totals=raw.map(d=>d.total);
 const pcts=raw.map(d=>d.pct);
@@ -222,22 +315,27 @@ const endLabel={
   id:'endLabel',
   afterDatasetsDraw(chart){
     const {ctx}=chart;
+    const inkColor=cssVar('--ink'), greenColor=cssVar('--green'), redColor=cssVar('--red');
     const meta=chart.getDatasetMeta(chart.data.datasets.length-1);
     meta.data.forEach((bar,i)=>{
       ctx.save(); ctx.textBaseline='middle'; ctx.textAlign='left';
-      ctx.font='700 12.5px "DM Sans"'; ctx.fillStyle='#1D1D1F';
+      ctx.font='700 12.5px "Inter"'; ctx.fillStyle=inkColor;
       const tTxt=fmtM(totals[i]); ctx.fillText(tTxt,bar.x+9,bar.y);
       const tW=ctx.measureText(tTxt).width;
       const u=pcts[i]>=0;
-      ctx.font='700 11.5px "DM Sans"'; ctx.fillStyle=u?'#1E9E5A':'#D93A3A';
+      ctx.font='700 11.5px "Inter"'; ctx.fillStyle=u?greenColor:redColor;
       ctx.fillText((u?'▲ +':'▼ ')+Math.round(pcts[i])+'%', bar.x+9+tW+11, bar.y);
       ctx.restore();
     });
   }
 };
 
+let chartInstance=null;
 function buildChart(){
-  new Chart(document.getElementById('chart'),{
+  if(chartInstance){ chartInstance.destroy(); chartInstance=null; }
+  const C={neto:cssVar('--navy'),res:cssVar('--blue'),proy:cssVar('--orange')};
+  const gridColor=cssVar('--line'), tickMuted=cssVar('--ink-2'), tickStrong=cssVar('--ink'), tooltipBg=cssVar('--navy');
+  chartInstance=new Chart(document.getElementById('chart'),{
     type:'bar',
     data:{labels,datasets:[
       {label:'Facturado',data:raw.map(d=>d.neto),backgroundColor:C.neto,borderRadius:{topLeft:5,bottomLeft:5},borderSkipped:false,barThickness:22},
@@ -248,15 +346,15 @@ function buildChart(){
       indexAxis:'y',responsive:true,maintainAspectRatio:false,
       layout:{padding:{right:156,top:2,bottom:0}},
       scales:{
-        x:{stacked:true,grid:{color:'#F0F0F4',drawBorder:false},border:{display:false},
-           ticks:{color:'#9A9AA0',font:{family:'DM Sans',size:11,weight:'500'},callback:v=>'$'+(v/1e6)+'M'}},
+        x:{stacked:true,grid:{color:gridColor,drawBorder:false},border:{display:false},
+           ticks:{color:tickMuted,font:{family:'Inter',size:11,weight:'500'},callback:v=>'$'+(v/1e6)+'M'}},
         y:{stacked:true,reverse:true,grid:{display:false},border:{display:false},
-           ticks:{color:'#1D1D1F',font:{family:'DM Sans',size:12.5,weight:'600'}}}
+           ticks:{color:tickStrong,font:{family:'Inter',size:12.5,weight:'600'}}}
       },
       plugins:{
         legend:{display:false},
-        tooltip:{backgroundColor:'#0B2545',padding:12,cornerRadius:10,
-          titleFont:{family:'DM Sans',size:13,weight:'700'},bodyFont:{family:'DM Sans',size:12.5},
+        tooltip:{backgroundColor:tooltipBg,padding:12,cornerRadius:10,
+          titleFont:{family:'Inter',size:13,weight:'700'},bodyFont:{family:'Inter',size:12.5},
           callbacks:{
             label:c=>'  '+c.dataset.label+': '+fmtFull(c.raw),
             afterBody:items=>{
@@ -279,11 +377,28 @@ function fitStage(){
 }
 window.addEventListener('resize',fitStage);
 
+/* ---------- Tema claro/oscuro, sincronizado con el panel (localStorage compartido) ---------- */
+function aplicarTema(t){
+  document.documentElement.setAttribute('data-theme', t);
+}
+aplicarTema(localStorage.getItem('panelTheme')==='dark' ? 'dark' : 'light');
+window.addEventListener('storage', e=>{
+  if(e.key==='panelTheme'){
+    aplicarTema(e.newValue==='dark' ? 'dark' : 'light');
+    if(document.fonts.status==='loaded') buildChart();
+  }
+});
+
 async function exportPNG(){
   const btn=document.getElementById('exportBtn');btn.style.display='none';
   const sc=document.getElementById('scaler');const prev=sc.style.transform;sc.style.transform='scale(1)';
+  // El PNG exportado siempre sale en claro, sin importar el tema con que se lo mira en pantalla (es un reporte para compartir)
+  const temaPrevio=document.documentElement.getAttribute('data-theme');
+  const eraOscuro=temaPrevio==='dark';
+  if(eraOscuro){ aplicarTema('light'); buildChart(); }
   await new Promise(r=>setTimeout(r,80));
   const canvas=await html2canvas(document.getElementById('stage'),{scale:2,backgroundColor:'#ffffff',useCORS:true});
+  if(eraOscuro){ aplicarTema('dark'); buildChart(); }
   sc.style.transform=prev;btn.style.display='flex';
   const a=document.createElement('a');a.download='Proyeccion_Gerentes_Junio2026.png';a.href=canvas.toDataURL('image/png');a.click();
 }
