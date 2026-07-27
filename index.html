@@ -262,10 +262,8 @@ html[data-theme="dark"] .sidebar-brand .brand-logo-dark{display:block}
   font-size:22px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:6px}
 .gtabbar .gx-close:hover{color:#fff;background:rgba(255,255,255,.13)}
 .gsplit{display:flex;flex:1;width:100%;height:100%;min-width:0}
-.gsplit iframe{flex:1;border:none;min-width:0}
-.gsplit-handle{flex:none;width:7px;cursor:col-resize;background:var(--border);position:relative;transition:background .12s}
-.gsplit-handle:hover,.gsplit-handle.dragging{background:var(--blue)}
-.gnotes{flex:none;width:420px;min-width:280px;max-width:70vw;display:flex;flex-direction:column;background:var(--page)}
+.gsplit iframe{flex:1;border:none;border-right:1px solid var(--border);min-width:0}
+.gnotes{flex:1;display:flex;flex-direction:column;background:var(--page);min-width:0}
 .gnotes .gnbar{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;flex:none}
 .gnotes textarea,.gnotes [contenteditable]{flex:1;border:none;background:transparent;resize:none;padding:14px;
   font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;outline:none;color:var(--text);
@@ -1119,13 +1117,11 @@ async function renderGerDoc(t){
   body.style.cssText="padding:0;overflow:hidden;display:flex";
   body.innerHTML=`<div class="gsplit">
     <iframe src="https://drive.google.com/file/d/${esc(t.docId)}/preview"></iframe>
-    <div class="gsplit-handle" id="gsplitHandle" title="Arrastrar para cambiar el ancho"></div>
-    <div class="gnotes" id="gnotesPane">
+    <div class="gnotes">
       <div class="gnbar"><span>📝 Notas — ${esc(t.title)}</span><span id="gnStatus" style="margin-left:auto;color:var(--muted-2)"></span></div>
       <div id="gnText" contenteditable="true" data-placeholder="Escribí tus notas sobre este manual a medida que lo leés… (podés pegar imágenes)">${gerContentToHtml(t.noteContent||"")}</div>
     </div>
   </div>`;
-  gerInitSplitter();
   const ta=$("#gnText");
   if(!t.noteLoaded){
     ta.contentEditable="false"; $("#gnStatus").textContent="Cargando notas…";
@@ -1138,34 +1134,6 @@ async function renderGerDoc(t){
     $("#gnStatus").textContent="Sin guardar";
     clearTimeout(debounce);
     debounce=setTimeout(()=>gerGuardarNotaGenerica(t, gerNombreNota(t), t.noteContent, "#gnStatus"), 1200);
-  });
-}
-
-// Divisor arrastrable entre el visor del documento y el panel de notas.
-// Guarda el ancho elegido en localStorage para la próxima vez.
-const GER_SPLIT_KEY="gerSplitWidth";
-function gerInitSplitter(){
-  const handle=$("#gsplitHandle"), notes=$("#gnotesPane");
-  if(!handle||!notes) return;
-  const saved=parseInt(localStorage.getItem(GER_SPLIT_KEY)||"",10);
-  if(saved) notes.style.width=Math.max(280,Math.min(saved, window.innerWidth*0.7))+"px";
-  handle.addEventListener("mousedown", e=>{
-    e.preventDefault();
-    const startX=e.clientX, startW=notes.getBoundingClientRect().width;
-    handle.classList.add("dragging"); document.body.style.userSelect="none";
-    function onMove(ev){
-      let w=startW+(startX-ev.clientX); // arrastrar hacia la izquierda agranda el panel de notas
-      w=Math.max(280, Math.min(w, window.innerWidth*0.7));
-      notes.style.width=w+"px";
-    }
-    function onUp(){
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      handle.classList.remove("dragging"); document.body.style.userSelect="";
-      localStorage.setItem(GER_SPLIT_KEY, String(Math.round(notes.getBoundingClientRect().width)));
-    }
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
   });
 }
 
