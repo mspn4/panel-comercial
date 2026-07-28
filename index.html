@@ -207,7 +207,7 @@ html[data-theme="dark"] .sidebar-brand .brand-logo-dark{display:block}
 .crumb{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);flex-wrap:wrap}
 .crumb a{color:var(--blue);cursor:pointer;text-decoration:none}
 .crumb a:hover{text-decoration:underline}
-.modal-body{flex:1;overflow:auto;padding:16px 20px}
+.modal-body{flex:1;min-height:0;overflow:auto;padding:16px 20px}
 .btn-sm{font-size:12.5px;font-weight:500;border:1px solid var(--border-strong);background:var(--canvas);
   border-radius:var(--radius-md);padding:7px 12px;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;gap:6px}
 .btn-sm:hover{background:var(--blue-tint)}
@@ -700,6 +700,8 @@ async function buscarEnSubcontenido(q){
 /* ═══════════════════════════ Modal: Base de Conocimiento ═══════════════════════════ */
 let kbView="grid";
 async function abrirKB(){
+  $("#modal").className="modal modal-wide";
+  $("#modalBg").classList.add("full");
   $("#modal").innerHTML=`
     <div class="modal-head"><div class="mico">📚</div><h2>Base de Conocimiento</h2>
       ${state.editMode?`<button class="btn-sm" id="kbNewCat">+ Categoría</button>`:""}
@@ -710,7 +712,7 @@ async function abrirKB(){
     </div>
     <div class="modal-body" id="kbBody"><div class="empty">Cargando…</div></div>`;
   $("#modalBg").classList.add("open");
-  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  $("#modalClose").onclick=cerrarModalGerencial;
   $("#kbVGrid").onclick=()=>{kbView="grid";$("#kbVGrid").classList.add("active");$("#kbVList").classList.remove("active");renderKB();};
   $("#kbVList").onclick=()=>{kbView="list";$("#kbVList").classList.add("active");$("#kbVGrid").classList.remove("active");renderKB();};
   $("#kbSearch").addEventListener("input", renderKB);
@@ -728,7 +730,7 @@ function docIcon(mime){
 function renderKB(){
   const body=$("#kbBody"); const q=norm(($("#kbSearch")?.value||"").trim());
   const data=state.kbCache; if(!data){ body.innerHTML=`<div class="empty">Sin datos.</div>`; return; }
-  body.className = kbView==="list" ? "kb-list" : "";
+  body.className = "modal-body" + (kbView==="list" ? " kb-list" : "");
   const dropHtml=`<div class="dropzone" id="kbDrop">Arrastrá un documento aquí, o <label style="color:var(--blue);cursor:pointer;text-decoration:underline">elegí un archivo<input type="file" id="kbFileInput" style="display:none"></label></div>`;
   const filtrar=arr=>arr.filter(d=>!q||norm(d.nombre).includes(q));
   const renderDocs=arr=>`<div class="kb-grid">${arr.map(d=>`
@@ -1251,12 +1253,14 @@ async function gerGuardarNotaGenerica(t, nombreArchivo, content, statusSel){
 /* ═══════════════════════════ Modal: Recursos Gráficos ═══════════════════════════ */
 async function abrirGraphics(){
   state.gxFolderStack=[];
+  $("#modal").className="modal";
+  $("#modalBg").classList.remove("full");
   $("#modal").innerHTML=`
     <div class="modal-head"><div class="mico">🖼️</div><h2>Recursos Gráficos</h2><button class="x" id="modalClose">&times;</button></div>
     <div class="modal-toolbar"><div class="crumb" id="gxCrumb"></div></div>
     <div class="modal-body" id="gxBody"><div class="empty">Cargando…</div></div>`;
   $("#modalBg").classList.add("open");
-  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  $("#modalClose").onclick=cerrarModalGerencial;
   try{ const tree=await api("gx_tree"); renderGxFolders(tree.folders, tree.nombre); }
   catch(e){ $("#gxBody").innerHTML=`<div class="empty">No se pudo leer Recursos Gráficos.<br>${esc(e.message)}</div>`; }
 }
