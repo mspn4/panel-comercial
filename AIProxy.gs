@@ -130,6 +130,24 @@ function callOpenAI(props, systemPrompt, messages) {
   return (data.choices && data.choices[0] && data.choices[0].message.content) || "(respuesta vacía)";
 }
 
+/**
+ * Las notas de "Gerente Regional" (index.html) se guardan como .txt pero pueden
+ * traer HTML con imágenes pegadas en base64 (editor rico con <div data-ger-rich="1">).
+ * Antes de mandarlas como contexto a la IA, saca las imágenes (pesan mucho en tokens
+ * y no aportan nada a un LLM de texto) y el resto de las etiquetas HTML, dejando
+ * texto plano legible. Las notas viejas (texto plano de verdad, sin ese wrapper)
+ * pasan sin tocar.
+ */
+function limpiarNotaRica_(raw) {
+  if (!raw || raw.indexOf("data-ger-rich") === -1) return raw;
+  var s = raw.replace(/<img[^>]*>/gi, "[imagen adjunta]");
+  s = s.replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div)>/gi, "\n");
+  s = s.replace(/<[^>]+>/g, "");
+  s = s.replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<")
+       .replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
+  return s.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 /* ═══════════════════════════ Base de Conocimiento (Drive) ═══════════════════════════ */
 /**
  * Lee los documentos de la carpeta de Base de Conocimiento y concatena su texto.
@@ -152,7 +170,7 @@ function readKnowledgeBase() {
         if (mime === MimeType.GOOGLE_DOCS) {
           text = DocumentApp.openById(f.getId()).getBody().getText();
         } else if (mime === MimeType.PLAIN_TEXT) {
-          text = f.getBlob().getDataAsString();
+          text = limpiarNotaRica_(f.getBlob().getDataAsString());
         }
       } catch (inner) {
         text = null;

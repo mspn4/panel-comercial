@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Centro de Control · M&A Comercial</title>
+<link rel="icon" type="image/png" href="assets/logo.png">
 
 <!-- ════════════════════════════════════════════════════════════════════
      CONFIGURACIÓN
@@ -206,7 +207,7 @@ html[data-theme="dark"] .sidebar-brand .brand-logo-dark{display:block}
 .crumb{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);flex-wrap:wrap}
 .crumb a{color:var(--blue);cursor:pointer;text-decoration:none}
 .crumb a:hover{text-decoration:underline}
-.modal-body{flex:1;overflow:auto;padding:16px 20px}
+.modal-body{flex:1;min-height:0;overflow:auto;padding:16px 20px}
 .btn-sm{font-size:12.5px;font-weight:500;border:1px solid var(--border-strong);background:var(--canvas);
   border-radius:var(--radius-md);padding:7px 12px;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;gap:6px}
 .btn-sm:hover{background:var(--blue-tint)}
@@ -233,15 +234,17 @@ html[data-theme="dark"] .sidebar-brand .brand-logo-dark{display:block}
 
 /* Visor de documento */
 .docview{display:flex;flex-direction:column;height:100%;gap:10px}
-.docview textarea{flex:1;width:100%;border:1px solid var(--border-strong);border-radius:10px;padding:12px;
-  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;resize:none}
+.docview textarea,.docview [contenteditable]{flex:1;width:100%;border:1px solid var(--border-strong);border-radius:10px;padding:12px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;resize:none;white-space:pre-wrap;word-wrap:break-word;overflow:auto;outline:none;color:var(--text)}
+.docview [contenteditable]:empty:before,.gnotes [contenteditable]:empty:before{content:attr(data-placeholder);color:var(--muted-2)}
 .docview iframe{flex:1;width:100%;border:1px solid var(--border-strong);border-radius:10px}
 .docview .dvbar{display:flex;gap:8px;flex:none}
 
 /* Gerente Regional — pestañas tipo navegador */
 .modal-bg.full{padding:0}
 .modal.modal-wide{width:100vw;height:100vh;max-width:none;border-radius:0}
-.gtabbar{display:flex;align-items:flex-end;gap:3px;background:var(--navy);padding:8px 10px 0;overflow-x:auto;flex:none}
+.gtabbar{display:flex;align-items:flex-end;background:var(--navy);padding:8px 10px 0;flex:none}
+.gtabbar-scroll{display:flex;align-items:flex-end;gap:3px;overflow-x:auto;flex:1;min-width:0}
 .gtab{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.07);color:#C7D3E3;
   border-radius:9px 9px 0 0;padding:8px 8px 8px 12px;font-size:12.5px;font-weight:600;cursor:pointer;
   max-width:190px;min-width:110px;white-space:nowrap;flex:none;transition:.12s}
@@ -254,21 +257,38 @@ html[data-theme="dark"] .sidebar-brand .brand-logo-dark{display:block}
 .gtab.active .gtx:hover{background:var(--page)}
 .gtab.plus{min-width:0;max-width:none;padding:8px 13px;color:#8DA0B8;font-weight:700;font-size:16px;background:transparent}
 .gtab.plus:hover{color:#fff;background:rgba(255,255,255,.1)}
-.gtab.pin{border-right:1px solid rgba(255,255,255,.14);margin-right:5px;padding-right:15px}
+.gtab.pin{min-width:0;max-width:none}
+.gtab.pin-end{border-right:1px solid rgba(255,255,255,.14);margin-right:5px;padding-right:15px}
+.gtabbar .gx-close{flex:none;align-self:center;margin:0 4px 8px 8px;color:#C7D3E3;background:transparent;border:none;
+  font-size:22px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:6px}
+.gtabbar .gx-close:hover{color:#fff;background:rgba(255,255,255,.13)}
 .gsplit{display:flex;flex:1;width:100%;height:100%;min-width:0}
-.gsplit iframe{flex:1.4;border:none;border-right:1px solid var(--border);min-width:0}
+.gsplit iframe{flex:1;border:none;border-right:1px solid var(--border);min-width:0}
 .gnotes{flex:1;display:flex;flex-direction:column;background:var(--page);min-width:0}
 .gnotes .gnbar{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;flex:none}
-.gnotes textarea{flex:1;border:none;background:transparent;resize:none;padding:14px;
-  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;outline:none;color:var(--text)}
+.gnotes textarea,.gnotes [contenteditable]{flex:1;border:none;background:transparent;resize:none;padding:14px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;outline:none;color:var(--text);
+  white-space:pre-wrap;word-wrap:break-word;overflow:auto}
 
-/* Notas globales — vista agregada */
+/* Notas ricas — imagen pegada, clickeable para seleccionar + handle visible para resizear */
+.ger-img-wrap{display:inline-block;position:relative;vertical-align:top;max-width:100%;min-width:60px;min-height:40px;
+  overflow:hidden;margin:4px 6px 4px 0;border:1px solid var(--border-strong);border-radius:6px;line-height:0;cursor:pointer}
+.ger-img-wrap img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;user-select:none}
+.ger-img-wrap.selected{outline:2px solid var(--blue);outline-offset:1px}
+.ger-img-handle{display:none;position:absolute;right:3px;bottom:3px;width:14px;height:14px;
+  background:var(--blue);border:2px solid var(--page);border-radius:50%;cursor:nwse-resize;z-index:2;
+  box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.ger-img-wrap.selected .ger-img-handle{display:block}
+
+/* Notas globales — vista agregada: solo lectura, sin handle de resize */
 .gnotas-global{max-width:840px;margin:0 auto}
 .gng-bloque{border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;cursor:pointer;background:var(--canvas);transition:.12s}
 .gng-bloque:hover{border-color:var(--blue);background:var(--blue-tint)}
 .gng-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;margin-bottom:8px}
 .gng-h .gng-f{margin-left:auto;font-weight:500;font-size:11.5px;color:var(--muted-2)}
 .gng-txt{white-space:pre-wrap;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px;color:var(--text);line-height:1.55}
+.gng-txt .ger-img-handle{display:none!important}
+.gng-txt .ger-img-wrap{cursor:default}
 
 /* Recursos Gráficos */
 .folder-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
@@ -554,7 +574,12 @@ function tarjeta(c, idx){
     </div>`;
   const cls=`tool ${state.editMode?"editing":""} ${oculta?"hidden-card":""} ${activa?"active":""}`;
   const style=`style="--accent:${color}"`;
-  return `<div class="${cls}" ${style} draggable="${state.editMode}" data-key="${esc(c.key)}" data-tipo="${c.tipo}" data-archivo="${esc(c.archivo||"")}" title="${esc(c.desc||"")}">${inner}</div>`;
+  const attrs=`class="${cls}" ${style} draggable="${state.editMode}" data-key="${esc(c.key)}" data-tipo="${c.tipo}" data-archivo="${esc(c.archivo||"")}" data-nombre="${esc(c.nombre||"")}" title="${esc(c.desc||"")}"`;
+  // Tarjetas tipo "link" son <a href> de verdad: click normal abre en el iframe (SPA),
+  // pero click con Ctrl/Cmd/Shift, click de rueda o click derecho los maneja el navegador solo
+  // (pestaña nueva / ventana nueva / menú contextual), como cualquier link.
+  if(c.tipo==="link" && c.archivo) return `<a href="${esc(c.archivo)}" ${attrs}>${inner}</a>`;
+  return `<div ${attrs}>${inner}</div>`;
 }
 
 /* Marca la fila activa en la sidebar y (si es tipo link) carga el archivo en el iframe central */
@@ -564,9 +589,11 @@ function marcarActivo(key){
   const el=document.querySelector(`.tool[data-key="${CSS.escape(key)}"]`);
   if(el) el.classList.add("active");
 }
-function abrirArchivo(key, archivo){
+const APP_TITLE_DEFAULT=document.title;
+function abrirArchivo(key, archivo, nombre){
   marcarActivo(key);
   $("#contentFrame").src=archivo;
+  document.title=nombre?`${nombre} · M&A`:APP_TITLE_DEFAULT;
 }
 
 function render(){
@@ -590,12 +617,21 @@ function render(){
 function wireCardEvents(){
   $$(".tool[data-tipo]").forEach(el=>{
     el.addEventListener("click", e=>{
-      if(state.editMode){ if(e.target.closest(".edit-controls")) return; return; }
-      const tipo=el.dataset.tipo, archivo=el.dataset.archivo, key=el.dataset.key;
+      const tipo=el.dataset.tipo, archivo=el.dataset.archivo, key=el.dataset.key, nombre=el.dataset.nombre;
+      if(state.editMode){
+        if(e.target.closest(".edit-controls")) return;
+        if(tipo==="link") e.preventDefault(); // no navegar mientras se edita, es <a href> de verdad
+        return;
+      }
+      if(tipo==="link"){
+        if(e.ctrlKey||e.metaKey||e.shiftKey) return; // dejar que el navegador abra pestaña/ventana nueva
+        e.preventDefault();
+        if(archivo) abrirArchivo(key, archivo, nombre);
+        return;
+      }
       if(tipo==="kb"){ marcarActivo(key); abrirKB(); }
       else if(tipo==="graphics"){ marcarActivo(key); abrirGraphics(); }
       else if(tipo==="gerencial"){ marcarActivo(key); abrirGerencial(); }
-      else if(tipo==="link" && archivo) abrirArchivo(key, archivo);
     });
     // drag & drop de archivos directo sobre la card de Base de Conocimiento
     if(el.dataset.tipo==="kb"){
@@ -664,6 +700,8 @@ async function buscarEnSubcontenido(q){
 /* ═══════════════════════════ Modal: Base de Conocimiento ═══════════════════════════ */
 let kbView="grid";
 async function abrirKB(){
+  $("#modal").className="modal modal-wide";
+  $("#modalBg").classList.add("full");
   $("#modal").innerHTML=`
     <div class="modal-head"><div class="mico">📚</div><h2>Base de Conocimiento</h2>
       ${state.editMode?`<button class="btn-sm" id="kbNewCat">+ Categoría</button>`:""}
@@ -674,7 +712,7 @@ async function abrirKB(){
     </div>
     <div class="modal-body" id="kbBody"><div class="empty">Cargando…</div></div>`;
   $("#modalBg").classList.add("open");
-  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  $("#modalClose").onclick=cerrarModalGerencial;
   $("#kbVGrid").onclick=()=>{kbView="grid";$("#kbVGrid").classList.add("active");$("#kbVList").classList.remove("active");renderKB();};
   $("#kbVList").onclick=()=>{kbView="list";$("#kbVList").classList.add("active");$("#kbVGrid").classList.remove("active");renderKB();};
   $("#kbSearch").addEventListener("input", renderKB);
@@ -692,7 +730,7 @@ function docIcon(mime){
 function renderKB(){
   const body=$("#kbBody"); const q=norm(($("#kbSearch")?.value||"").trim());
   const data=state.kbCache; if(!data){ body.innerHTML=`<div class="empty">Sin datos.</div>`; return; }
-  body.className = kbView==="list" ? "kb-list" : "";
+  body.className = "modal-body" + (kbView==="list" ? " kb-list" : "");
   const dropHtml=`<div class="dropzone" id="kbDrop">Arrastrá un documento aquí, o <label style="color:var(--blue);cursor:pointer;text-decoration:underline">elegí un archivo<input type="file" id="kbFileInput" style="display:none"></label></div>`;
   const filtrar=arr=>arr.filter(d=>!q||norm(d.nombre).includes(q));
   const renderDocs=arr=>`<div class="kb-grid">${arr.map(d=>`
@@ -794,6 +832,143 @@ function gerTabIcon(t){
 }
 function gerNombreNota(t){ return `${t.title} — notas.txt`; }
 
+/* ── Notas ricas: contenteditable + pegado de imágenes con resize ──
+   El contenido se sigue guardando como string plano (kb_save no sabe de HTML),
+   pero ahora ese string puede ser HTML envuelto en <div data-ger-rich="1">…</div>.
+   Notas viejas (texto plano, sin ese wrapper) se siguen mostrando bien: se
+   escapan y los saltos de línea se convierten a <br> al cargarlas. */
+const GER_RICH_ATTR='data-ger-rich';
+const GER_IMG_MAX_DIM=1100;   // px, tope al que se achica una imagen pegada antes de guardarla
+const GER_IMG_INIT_W=420;     // px, ancho inicial visible (el usuario después la resizea a mano)
+
+function gerIsRich(raw){ return /^\s*<div\s+data-ger-rich="1">/.test(raw||""); }
+
+function gerContentToHtml(raw){
+  if(!gerIsRich(raw)) return esc(raw||"").replace(/\n/g,"<br>");
+  const tmp=document.createElement("div"); tmp.innerHTML=raw;
+  const wrap=tmp.querySelector(`[${GER_RICH_ATTR}]`);
+  return wrap?wrap.innerHTML:esc(raw).replace(/\n/g,"<br>");
+}
+function gerHtmlToContent(innerHtml){ return `<div ${GER_RICH_ATTR}="1">${innerHtml}</div>`; }
+
+function gerDownscaleImage(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(reader.error);
+    reader.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error("No se pudo leer la imagen"));
+      img.onload=()=>{
+        let w=img.naturalWidth, h=img.naturalHeight;
+        if(w>GER_IMG_MAX_DIM||h>GER_IMG_MAX_DIM){
+          const r=Math.min(GER_IMG_MAX_DIM/w, GER_IMG_MAX_DIM/h);
+          w=Math.round(w*r); h=Math.round(h*r);
+        }
+        const canvas=document.createElement("canvas");
+        canvas.width=w; canvas.height=h;
+        canvas.getContext("2d").drawImage(img,0,0,w,h);
+        resolve({dataUrl:canvas.toDataURL("image/jpeg",0.85), w, h});
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function gerImgWrapHtml(dataUrl,w,h){
+  const dispW=Math.min(w,GER_IMG_INIT_W), dispH=Math.round(dispW*h/Math.max(w,1));
+  return `<span class="ger-img-wrap" contenteditable="false" style="width:${dispW}px;height:${dispH}px">`
+       + `<img src="${dataUrl}" alt=""><span class="ger-img-handle" title="Arrastrar para cambiar el tamaño"></span></span>`;
+}
+
+function gerInsertHtmlAtCursor(el, html){
+  el.focus();
+  const sel=window.getSelection();
+  let range;
+  if(sel && sel.rangeCount && el.contains(sel.anchorNode)){
+    range=sel.getRangeAt(0);
+  } else {
+    range=document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+  }
+  range.deleteContents();
+  const frag=range.createContextualFragment(html+"​"); // espacio de ancho cero, para poder seguir tipeando después de la imagen
+  const lastNode=frag.lastChild;
+  range.insertNode(frag);
+  if(lastNode){
+    const r2=document.createRange();
+    r2.setStartAfter(lastNode); r2.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r2);
+  }
+}
+
+// Click en una imagen pegada = seleccionarla (aparece el handle celeste). Click afuera = deseleccionar.
+// Arrastrar el handle cambia el tamaño (mantiene proporción).
+let __gerDeselectWired=false;
+function gerWireDeselect(){
+  if(__gerDeselectWired) return;
+  __gerDeselectWired=true;
+  document.addEventListener("click", ()=>{
+    document.querySelectorAll(".ger-img-wrap.selected").forEach(w=>w.classList.remove("selected"));
+  });
+}
+
+function gerWatchImages(el, onDirty){
+  gerWireDeselect();
+  el.querySelectorAll(".ger-img-wrap").forEach(wrap=>{
+    if(wrap._gerObserved) return;
+    wrap._gerObserved=true;
+    wrap.addEventListener("click", e=>{
+      e.stopPropagation();
+      el.querySelectorAll(".ger-img-wrap.selected").forEach(w=>{ if(w!==wrap) w.classList.remove("selected"); });
+      wrap.classList.toggle("selected");
+    });
+    const handle=wrap.querySelector(".ger-img-handle");
+    if(!handle) return;
+    handle.addEventListener("mousedown", e=>{
+      e.preventDefault(); e.stopPropagation();
+      const startX=e.clientX, rect=wrap.getBoundingClientRect();
+      const startW=rect.width, aspect=rect.width/Math.max(rect.height,1);
+      const maxW=Math.max(el.getBoundingClientRect().width-20, 120);
+      function onMove(ev){
+        let w=startW+(ev.clientX-startX);
+        w=Math.max(60, Math.min(w, maxW));
+        wrap.style.width=w+"px";
+        wrap.style.height=Math.round(w/aspect)+"px";
+      }
+      function onUp(){
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        onDirty();
+      }
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  });
+}
+
+// Engancha paste-de-imagen + selección/resize + tipeo normal en un <div contenteditable>.
+// onDirty() se llama cada vez que cambia algo (texto, imagen pegada, o imagen resizeada).
+function gerInitRichEditor(el, onDirty){
+  el.addEventListener("paste", async e=>{
+    const items=Array.from((e.clipboardData&&e.clipboardData.items)||[]);
+    const imgItem=items.find(it=>it.type&&it.type.indexOf("image/")===0);
+    if(!imgItem) return; // texto normal: dejar que el navegador lo pegue solo
+    e.preventDefault();
+    const file=imgItem.getAsFile();
+    if(!file) return;
+    try{
+      const {dataUrl,w,h}=await gerDownscaleImage(file);
+      gerInsertHtmlAtCursor(el, gerImgWrapHtml(dataUrl,w,h));
+      gerWatchImages(el, onDirty);
+      onDirty();
+    }catch(err){ toast("No se pudo pegar la imagen."); }
+  });
+  el.addEventListener("input", onDirty);
+  gerWatchImages(el, onDirty);
+}
+
 function cerrarModalGerencial(){
   $("#modalBg").classList.remove("open");
   $("#modal").classList.remove("modal-wide");
@@ -825,6 +1000,23 @@ function nuevaPestanaGer(){
   state.gerTabs.push(t); state.gerActive=t.id; renderGerencial();
 }
 
+function abrirGerNotaSuelta(id, nombre){
+  const existente=state.gerTabs.find(x=>x.kind==="note"&&x.noteId===id);
+  if(existente){ state.gerActive=existente.id; renderGerencial(); return; }
+  const t={id:"tab-"+(++gerTabSeq), kind:"note", noteId:id, title:nombre, content:"", loading:true};
+  state.gerTabs.push(t); state.gerActive=t.id; renderGerencial();
+  (async()=>{
+    try{ const doc=await api("kb_get",{id}); t.content=doc.texto||""; }catch(e){}
+    t.loading=false;
+    if(state.gerActive===t.id) renderGerencial();
+  })();
+}
+
+function nuevaNotaEnBlanco(){
+  const t={id:"tab-"+(++gerTabSeq),kind:"note",title:"Nueva pestaña",content:"",noteId:null};
+  state.gerTabs.push(t); state.gerActive=t.id; renderGerencial();
+}
+
 function cerrarGerTab(id){
   const idx=state.gerTabs.findIndex(t=>t.id===id);
   if(idx<0) return;
@@ -838,7 +1030,9 @@ function cerrarGerTab(id){
 }
 
 function renderGerencial(){
-  const pinHtml=`<div class="gtab pin ${state.gerActive==="global"?"active":""}" id="gtabGlobal" title="Todas las notas en un solo lugar">
+  const homeHtml=`<div class="gtab pin" id="gtabHome" title="Volver al inicio de Gerente Regional">
+    <span class="gtico">🏠</span><span class="gttxt">Inicio</span></div>`;
+  const pinHtml=`<div class="gtab pin pin-end ${state.gerActive==="global"?"active":""}" id="gtabGlobal" title="Todas las notas en un solo lugar">
     <span class="gtico">📚</span><span class="gttxt">Notas globales</span></div>`;
   const tabsHtml=state.gerTabs.map(t=>`
     <div class="gtab ${t.id===state.gerActive?"active":""}" data-id="${esc(t.id)}">
@@ -847,11 +1041,13 @@ function renderGerencial(){
       <span class="gtx" data-close="${esc(t.id)}">&times;</span>
     </div>`).join("");
   $("#modal").innerHTML=`
-    <div class="modal-head"><div class="mico">🧭</div><h2>Gerente Regional</h2>
-      <button class="x" id="modalClose">&times;</button></div>
-    <div class="gtabbar" id="gtabbar">${pinHtml}${tabsHtml}<div class="gtab plus" id="gtabNew" title="Nueva pestaña">+</div></div>
+    <div class="gtabbar" id="gtabbar">
+      <div class="gtabbar-scroll">${homeHtml}${pinHtml}${tabsHtml}<div class="gtab plus" id="gtabNew" title="Nueva pestaña">+</div></div>
+      <button class="x gx-close" id="modalClose" title="Cerrar">&times;</button>
+    </div>
     <div class="modal-body" id="gerBody" style="padding:0;overflow:hidden;display:flex;flex-direction:column"></div>`;
   $("#modalClose").onclick=cerrarModalGerencial;
+  $("#gtabHome").onclick=()=>{ state.gerActive="home"; renderGerencial(); };
   $("#gtabGlobal").onclick=()=>{ state.gerActive="global"; renderGerencial(); };
   $$("#gtabbar .gtab[data-id]").forEach(el=>{
     el.addEventListener("click", e=>{
@@ -864,6 +1060,7 @@ function renderGerencial(){
 }
 
 function renderGerBody(){
+  if(state.gerActive==="home"){ renderGerHome(); return; }
   if(state.gerActive==="global"){ renderGerNotasGlobales(); return; }
   const t=gerTab(state.gerActive);
   if(!t) return;
@@ -890,7 +1087,7 @@ async function renderGerNotasGlobales(){
   body.innerHTML=`<div class="gnotas-global">${bloques.map((b,i)=>`
     <div class="gng-bloque" id="gngb-${i}">
       <div class="gng-h"><span class="gng-ico">${b.tipo==="doc"?"📘":"📝"}</span><span class="gng-t">${esc(b.titulo)}</span><span class="gng-f">${fmtFecha(b.fecha)}</span></div>
-      <div class="gng-txt">${b.texto?esc(b.texto):'<span style="opacity:.5">(sin contenido)</span>'}</div>
+      <div class="gng-txt">${b.texto?gerContentToHtml(b.texto):'<span style="opacity:.5">(sin contenido)</span>'}</div>
     </div>`).join("")}</div>`;
   bloques.forEach((b,i)=>{
     $("#gngb-"+i).addEventListener("click", ()=>{
@@ -908,13 +1105,11 @@ async function renderGerNotasGlobales(){
   });
 }
 
-function renderGerNuevaPestana(t){
-  const body=$("#gerBody");
-  body.style.cssText="padding:22px 20px;overflow:auto;display:block";
-  const cat=gerFindCategoria();
+// Grilla de manuales + notas sueltas, compartida entre la pestaña "Nueva pestaña" y "Inicio".
+function gerManualesGridHtml(cat){
   const manuales=(cat&&cat.docs||[]).filter(d=>d.mimeType!=="text/plain");
   const notas=(cat&&cat.docs||[]).filter(d=>d.mimeType==="text/plain");
-  body.innerHTML=`
+  return `
     <div style="max-width:760px;margin:0 auto">
       <div style="text-align:center;margin-bottom:20px">
         <div style="font-size:32px">🧭</div>
@@ -935,6 +1130,27 @@ function renderGerNuevaPestana(t){
             <div><div class="dnm">${esc(d.nombre)}</div><div class="dmeta">${fmtFecha(d.modificado)}</div></div>
           </div>`).join("")}</div>`:""}
     </div>`;
+}
+
+// Pestaña fija "Inicio": misma vista que "Nueva pestaña", pero nunca se transforma
+// en un documento — cada click abre/activa una pestaña real aparte.
+function renderGerHome(){
+  const body=$("#gerBody");
+  body.style.cssText="padding:22px 20px;overflow:auto;display:block";
+  body.innerHTML=gerManualesGridHtml(gerFindCategoria());
+  $("#gerBtnNota").onclick=nuevaNotaEnBlanco;
+  $$("#gerBody .doc[data-id]").forEach(el=>el.addEventListener("click",()=>{
+    abrirGerDoc(el.dataset.id, el.dataset.nombre, el.dataset.mime);
+  }));
+  $$("#gerBody .doc[data-note]").forEach(el=>el.addEventListener("click",()=>{
+    abrirGerNotaSuelta(el.dataset.note, el.dataset.nombre.replace(/\.txt$/i,""));
+  }));
+}
+
+function renderGerNuevaPestana(t){
+  const body=$("#gerBody");
+  body.style.cssText="padding:22px 20px;overflow:auto;display:block";
+  body.innerHTML=gerManualesGridHtml(gerFindCategoria());
   $("#gerBtnNota").onclick=()=>{ t.kind="note"; t.content=""; t.noteId=null; t.title="Nueva pestaña"; renderGerencial(); };
   $$("#gerBody .doc[data-id]").forEach(el=>el.addEventListener("click",()=>{
     const id=el.dataset.id;
@@ -963,18 +1179,18 @@ async function renderGerDoc(t){
     <iframe src="https://drive.google.com/file/d/${esc(t.docId)}/preview"></iframe>
     <div class="gnotes">
       <div class="gnbar"><span>📝 Notas — ${esc(t.title)}</span><span id="gnStatus" style="margin-left:auto;color:var(--muted-2)"></span></div>
-      <textarea id="gnText" placeholder="Escribí tus notas sobre este manual a medida que lo leés…">${esc(t.noteContent||"")}</textarea>
+      <div id="gnText" contenteditable="true" data-placeholder="Escribí tus notas sobre este manual a medida que lo leés… (podés pegar imágenes)">${gerContentToHtml(t.noteContent||"")}</div>
     </div>
   </div>`;
   const ta=$("#gnText");
   if(!t.noteLoaded){
-    ta.disabled=true; $("#gnStatus").textContent="Cargando notas…";
+    ta.contentEditable="false"; $("#gnStatus").textContent="Cargando notas…";
     await gerCargarNotaDoc(t);
-    if(gerTab(t.id)===t && state.gerActive===t.id){ ta.value=t.noteContent||""; ta.disabled=false; $("#gnStatus").textContent=""; }
+    if(gerTab(t.id)===t && state.gerActive===t.id){ ta.innerHTML=gerContentToHtml(t.noteContent||""); ta.contentEditable="true"; $("#gnStatus").textContent=""; }
   }
   let debounce;
-  ta.addEventListener("input", ()=>{
-    t.noteContent=ta.value;
+  gerInitRichEditor(ta, ()=>{
+    t.noteContent=gerHtmlToContent(ta.innerHTML);
     $("#gnStatus").textContent="Sin guardar";
     clearTimeout(debounce);
     debounce=setTimeout(()=>gerGuardarNotaGenerica(t, gerNombreNota(t), t.noteContent, "#gnStatus"), 1200);
@@ -1000,15 +1216,17 @@ function renderGerNote(t){
       <span id="gnnStatus" style="margin-left:auto;color:var(--muted-2);font-size:12px;align-self:center"></span>
       <button class="btn-sm primary" id="gnnSave">Guardar</button>
     </div>
-    <textarea id="gnnText">${esc(t.content||"")}</textarea>
+    <div id="gnnText" contenteditable="true" data-placeholder="Escribí tu nota… (podés pegar imágenes)">${gerContentToHtml(t.content||"")}</div>
   </div>`;
   $("#gnTitle").addEventListener("input", e=>{
     t.title=e.target.value||"Nueva pestaña";
     const lbl=document.querySelector(`.gtab[data-id="${t.id}"] .gttxt`);
     if(lbl) lbl.textContent=t.title;
   });
-  $("#gnnText").addEventListener("input", e=>{ t.content=e.target.value; $("#gnnStatus").textContent="Sin guardar"; });
+  const gnnEl=$("#gnnText");
+  gerInitRichEditor(gnnEl, ()=>{ t.content=gerHtmlToContent(gnnEl.innerHTML); $("#gnnStatus").textContent="Sin guardar"; });
   $("#gnnSave").onclick=async ()=>{
+    t.content=gerHtmlToContent(gnnEl.innerHTML);
     await gerGuardarNotaGenerica(t, t.noteId?null:(t.title||"Nueva pestaña").trim()+((t.title||"").toLowerCase().endsWith(".txt")?"":".txt"), t.content, "#gnnStatus");
     toast("Nota guardada.");
   };
@@ -1035,12 +1253,14 @@ async function gerGuardarNotaGenerica(t, nombreArchivo, content, statusSel){
 /* ═══════════════════════════ Modal: Recursos Gráficos ═══════════════════════════ */
 async function abrirGraphics(){
   state.gxFolderStack=[];
+  $("#modal").className="modal";
+  $("#modalBg").classList.remove("full");
   $("#modal").innerHTML=`
     <div class="modal-head"><div class="mico">🖼️</div><h2>Recursos Gráficos</h2><button class="x" id="modalClose">&times;</button></div>
     <div class="modal-toolbar"><div class="crumb" id="gxCrumb"></div></div>
     <div class="modal-body" id="gxBody"><div class="empty">Cargando…</div></div>`;
   $("#modalBg").classList.add("open");
-  $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
+  $("#modalClose").onclick=cerrarModalGerencial;
   try{ const tree=await api("gx_tree"); renderGxFolders(tree.folders, tree.nombre); }
   catch(e){ $("#gxBody").innerHTML=`<div class="empty">No se pudo leer Recursos Gráficos.<br>${esc(e.message)}</div>`; }
 }
@@ -1176,7 +1396,7 @@ $("#btnTheme").addEventListener("click", ()=>{
   await cargarLayout();
   render();
   const agendas=TOOLS.find(t=>t.key==="agendas.html");
-  if(agendas) abrirArchivo(agendas.key, agendas.archivo);
+  if(agendas) abrirArchivo(agendas.key, agendas.archivo, agendas.nombre);
 })();
 </script>
 </body>
