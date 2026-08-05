@@ -799,8 +799,14 @@ const CV_LABELS=[
   // mismo texto — a cuál campo van depende de la "sección" activa al momento.
   {campo:"detalleProductos",   re:/^detalle\s+de\s+productos?\s*:?\s*(.*)$/i},
   {campo:"condicionVenta",     re:/^condici[oó]n\s+de\s+venta\s*:?\s*(.*)$/i},
-  {campo:"observaciones",      re:/^observaciones\s*:?\s*(.*)$/i},
+  {campo:"observaciones",      re:/^(?:detalles?\s*(?:y|e)?\s*)?observaciones\s*:?\s*(.*)$/i},
 ];
+/* Campos que se SUMAN si la etiqueta aparece más de una vez en el mismo informe
+   (ej. dos bloques de "Cantidad de Datos recopilados" en la misma salida). El
+   resto de los campos (detalle/condición/observaciones) se CONCATENAN en vez de
+   sumarse. Antes cualquier repetición pisaba el valor anterior sin avisar. */
+const CV_CAMPOS_NUM=new Set(["visitas","nuevosNegocios","personalesCantidad","personalesValor",
+  "ventasCantidad","ventasValor","datosCantidad","datosValor"]);
 /* A qué campo del registro van "Detalle de productos" / "Condición de venta"
    según la sección en la que aparecen (null = esa sección no tiene ese dato). */
 const CV_SECCION_DESTINO={
@@ -837,7 +843,22 @@ function parseCovente(texto){
       if(match.campo==="detalleProductos"||match.campo==="condicionVenta"){
         destino=(CV_SECCION_DESTINO[seccion]||{})[match.campo];
       }
-      if(destino){ c[destino]=match.valor; activo=destino; } else activo=null;
+      if(destino){
+        // Etiqueta repetida en el mismo informe (ej. dos bloques de "Datos
+        // recopilados"): suma cantidades/valores, concatena el resto en vez
+        // de pisar el dato anterior.
+        if(CV_CAMPOS_NUM.has(destino) && c[destino] && match.valor){
+          const na=parseInt(String(c[destino]).replace(/[^\d]/g,""),10)||0;
+          const nb=parseInt(String(match.valor).replace(/[^\d]/g,""),10)||0;
+          const conSigno=/\$/.test(c[destino])||/\$/.test(match.valor);
+          c[destino]=(conSigno?"$ ":"")+(na+nb).toLocaleString("es-AR");
+        } else if(c[destino]){
+          c[destino]=c[destino]+(match.valor?"\n"+match.valor:"");
+        } else {
+          c[destino]=match.valor;
+        }
+        activo=destino;
+      } else activo=null;
     } else if(activo){
       c[activo]=(c[activo]?c[activo]+"\n":"")+linea;
     }
