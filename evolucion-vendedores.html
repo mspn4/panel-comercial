@@ -428,8 +428,16 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
 
 <div class="panel">
 
-  <!-- Row 0: Estilo + Modo + Resumen -->
+  <!-- Row 0: Datos + Estilo + Modo + Resumen -->
   <div class="panel-row">
+    <div class="panel-group">
+      <div class="panel-label">Datos cargados</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="btn btn-ghost" onclick="document.getElementById('jsonFileInput').click()">📥 Cargar JSON del Reporte Comercial</button>
+        <input type="file" id="jsonFileInput" accept="application/json,.json" style="display:none" onchange="onJSONFileSelected(event)">
+      </div>
+      <div id="dataInfo" style="font-size:11px;color:var(--muted-ink);"></div>
+    </div>
     <div class="panel-group">
       <div class="panel-label">Estilo del gráfico</div>
       <div class="style-toggle">
@@ -695,6 +703,123 @@ const D = {"vendors":[{"n":"MARINI BRAIAN NICOLAS","s":"CORDOBA","f":"VENDEDOR J
 
 const MONTH_NAMES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
+// ─── CARGA DE JSON (backup del Reporte Comercial) ──────────────
+// Reconstruye D {vendors,fuerzas,sucursales,daily,daily_suc,dateRange,months}
+// a partir del array "ventas" del backup (mismo formato que exporta
+// reporte-comercial.html). Reemplaza los datos embebidos al cargar la página.
+function onJSONFileSelected(ev){
+  const file=ev.target.files && ev.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const raw=JSON.parse(reader.result);
+      if(!Array.isArray(raw.ventas)) throw new Error('El archivo no tiene un array "ventas" — no parece un backup del Reporte Comercial.');
+      const nuevo=rebuildD(raw.ventas);
+      if(!nuevo.vendors.length) throw new Error('No se encontró ninguna venta con vendedor y fecha válidos.');
+      aplicarNuevaData(nuevo);
+    }catch(e){
+      alert('No se pudo cargar el archivo: '+e.message);
+    }finally{
+      ev.target.value=''; // permite volver a elegir el mismo archivo
+    }
+  };
+  reader.onerror=()=>alert('No se pudo leer el archivo.');
+  reader.readAsText(file);
+}
+
+function rebuildD(ventas){
+  const daily={}, daily_suc={};
+  const vendorMeta={}; // nombre -> {lastFecha,s,f}
+  const fuerzasSet=new Set(), sucursalesSet=new Set(), monthsSet=new Set();
+  let minF=null, maxF=null;
+  for(const r of ventas){
+    const name=(r.vendedor||'').trim();
+    const fecha=r.fecha;
+    if(!name || !fecha) continue;
+    const suc=(r.sucursal_venta||'').trim();
+    const fuerza=(r.fuerza_venta||'').trim();
+    const neto=Number(r.neto)||0;
+    // idx: 1=contado, 2=financiado (neto ya viene con signo, las NC restan solas)
+    const idx = r.tipo_venta==='Contado' ? 1 : (r.tipo_venta==='Financiado' ? 2 : 0);
+
+    const dv=(daily[name] ||= {});
+    const slotV=(dv[fecha] ||= [0,0,0]);
+    slotV[0]+=neto; if(idx) slotV[idx]+=neto;
+
+    if(suc){
+      const ds=(daily_suc[suc] ||= {});
+      const slotS=(ds[fecha] ||= [0,0,0]);
+      slotS[0]+=neto; if(idx) slotS[idx]+=neto;
+      sucursalesSet.add(suc);
+    }
+    if(fuerza) fuerzasSet.add(fuerza);
+    monthsSet.add(fecha.slice(0,7));
+    if(!minF||fecha<minF) minF=fecha;
+    if(!maxF||fecha>maxF) maxF=fecha;
+
+    // Sucursal/fuerza "actual" del vendedor = la de su venta más reciente
+    // (un vendedor puede haber cambiado de sucursal/fuerza durante el período).
+    const vm=(vendorMeta[name] ||= {lastFecha:'',s:suc,f:fuerza});
+    if(fecha>=vm.lastFecha){ vm.lastFecha=fecha; if(suc) vm.s=suc; if(fuerza) vm.f=fuerza; }
+  }
+  const vendors=Object.keys(vendorMeta).sort().map(n=>({n, s:vendorMeta[n].s, f:vendorMeta[n].f}));
+  return {
+    vendors,
+    fuerzas:[...fuerzasSet].sort(),
+    sucursales:[...sucursalesSet].sort(),
+    daily, daily_suc,
+    dateRange:{min:minF, max:maxF},
+    months:[...monthsSet].sort(),
+  };
+}
+
+function updateDataInfo(){
+  const el=document.getElementById('dataInfo');
+  if(!el) return;
+  const r=D.dateRange||{};
+  el.textContent = D.vendors.length
+    ? `${D.vendors.length} colaboradores · ${D.months.length} meses · ${r.min||'?'} a ${r.max||'?'}`
+    : 'Sin datos cargados.';
+}
+
+function aplicarNuevaData(nuevo){
+  Object.keys(D).forEach(k=>delete D[k]);
+  Object.assign(D, nuevo);
+
+  // Reset de selección/estado dependiente de los datos anteriores
+  selFuerzas.clear(); selSucursales.clear(); selSucOnly.clear(); selIndividuals.clear();
+  periods.length=0;
+  manualVendors.length=0;
+  slides=[]; cur=0;
+  if(chart){ chart.destroy(); chart=null; }
+  hideSlides();
+
+  // Año/mes/día
+  years.length=0;
+  [...new Set(D.months.map(m=>m.split('-')[0]))].sort().forEach(y=>years.push(y));
+  pYear.innerHTML='';
+  years.forEach(y=>{ const o=document.createElement('option');o.value=y;o.textContent=y;pYear.appendChild(o); });
+  updateMonthOptions();
+  renderPeriodTags();
+
+  // Chips (fuerza / sucursal / sucursal-solo)
+  document.getElementById('fuerzaChips').innerHTML='';
+  document.getElementById('sucursalChips').innerHTML='';
+  document.getElementById('sucursalOnlyChips').innerHTML='';
+  buildChips('fuerzaChips',D.fuerzas,'f',selFuerzas);
+  buildChips('sucursalChips',D.sucursales,'s',selSucursales);
+  D.sucursales.forEach(v=>{
+    const c=document.createElement('div');c.className='chip';c.dataset.val=v;c.textContent=v;
+    c.addEventListener('click',()=>{ selSucOnly.has(v)?(selSucOnly.delete(v),c.classList.remove('on')):(selSucOnly.add(v),c.classList.add('on')); refreshPills(); });
+    document.getElementById('sucursalOnlyChips').appendChild(c);
+  });
+
+  refreshPills();
+  updateDataInfo();
+  alert(`Datos cargados: ${D.vendors.length} colaboradores, ${D.months.length} meses (${D.dateRange.min} a ${D.dateRange.max}).`);
+}
+
 // STATE
 let mode='vendedor', estilo=1, showSummary=true;
 let selFuerzas=new Set(), selSucursales=new Set(), selSucOnly=new Set(), selIndividuals=new Set();
@@ -896,6 +1021,7 @@ D.sucursales.forEach(v=>{
   c.addEventListener('click',()=>{ selSucOnly.has(v)?(selSucOnly.delete(v),c.classList.remove('on')):(selSucOnly.add(v),c.classList.add('on')); refreshPills(); });
   sucOnlyEl.appendChild(c);
 });
+updateDataInfo();
 
 // ─── SEARCH ───────────────────────────────────────────────────
 const sinput=document.getElementById('searchInput'),ddlist=document.getElementById('ddList');
