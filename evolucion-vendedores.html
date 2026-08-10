@@ -501,6 +501,15 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
         <button class="sum-btn lw-btn" data-w="900" onclick="setLabelWeight(900)">Extra bold</button>
       </div>
     </div>
+    <div class="panel-group">
+      <div class="panel-label">Tamaño de las etiquetas ($) del gráfico</div>
+      <div class="sum-toggle">
+        <button class="sum-btn ls-btn" data-s="9" onclick="setLabelSize(9)">Chica</button>
+        <button class="sum-btn ls-btn on" data-s="11" onclick="setLabelSize(11)">Normal</button>
+        <button class="sum-btn ls-btn" data-s="13" onclick="setLabelSize(13)">Grande</button>
+        <button class="sum-btn ls-btn" data-s="15" onclick="setLabelSize(15)">Extra grande</button>
+      </div>
+    </div>
   </div>
   <!-- Row 0b: Team mode -->
   <div class="panel-row vendor-only">
@@ -868,6 +877,7 @@ let sumStyle='card'; // 'card' | 'minimal' | 'minimal2' | 'textfree'
 let sumPos='tr';     // 'tr' | 'tl' | 'tc' | 'br' | 'bl'
 let teamMode=false;
 let labelWeight=800;
+let labelSize=11;
 let tfPos='tl';      // posición independiente del texto libre
 let tfSize='m';      // 's' | 'm' | 'l'
 let tfData={};       // { slideKey: {fact:'', res:''} }
@@ -928,6 +938,12 @@ function setTeamMode(on){
 function setLabelWeight(w){
   labelWeight=w;
   document.querySelectorAll('.lw-btn').forEach(b=>b.classList.toggle('on',+b.dataset.w===w));
+  if(slides.length) render(cur);
+}
+
+function setLabelSize(s){
+  labelSize=s;
+  document.querySelectorAll('.ls-btn').forEach(b=>b.classList.toggle('on',+b.dataset.s===s));
   if(slides.length) render(cur);
 }
 
@@ -1363,20 +1379,39 @@ function render(idx){
   const gB=ctx.createLinearGradient(0,0,0,400);gB.addColorStop(0,'rgba(12,68,124,.18)');gB.addColorStop(1,'rgba(12,68,124,.01)');
   const gC=ctx.createLinearGradient(0,0,0,400);gC.addColorStop(0,'rgba(11,127,194,.13)');gC.addColorStop(1,'rgba(11,127,194,.01)');
   const gF=ctx.createLinearGradient(0,0,0,400);gF.addColorStop(0,'rgba(249,115,22,.14)');gF.addColorStop(1,'rgba(249,115,22,.01)');
-  // Neto va arriba de su punto; Contado y Financiado van abajo del suyo, con distinto
-  // offset entre sí. Así los 3 rótulos nunca caen en la misma franja aunque los puntos
-  // coincidan en pixel (ej. financiado=0 → Neto y Contado quedan en el mismo punto).
-  const dl=(color,align,offset)=>({display:true,align,anchor:'end',offset,clip:false,color,font:{weight:labelWeight,size:11,family:"'Segoe UI',Calibri,Arial"},formatter:fmtLabel});
+  // Neto va siempre arriba de su punto. Contado y Financiado se reparten abajo: el que
+  // tenga mayor valor absoluto en ese punto queda pegado a su punto (offset chico); el
+  // menor va más lejos — salvo que su punto esté tan cerca del eje X que la etiqueta
+  // choque con las fechas (ej. "$882 k" tapando "Mar 2026"): ahí se manda arriba en vez
+  // de abajo. La cercanía al eje se mide en pixels reales (context.chart.scales.y), no
+  // en valor, para que funcione sea cual sea la escala del gráfico.
+  const fontCfg={weight:labelWeight,size:labelSize,family:"'Segoe UI',Calibri,Arial"};
+  const dlNeto=(color)=>({display:true,align:'top',anchor:'end',offset:10,clip:false,color,font:fontCfg,formatter:fmtLabel});
+  // Offset de una serie "secundaria" (Contado o Financiado) en un punto dado: la de mayor
+  // valor absoluto de las dos queda pegada abajo de su punto (offset chico fijo); la menor
+  // va más lejos, pero el offset se recorta al espacio real hasta el eje X (medido en
+  // pixels, vía context.chart.scales.y) para que nunca tape las fechas de abajo — en vez
+  // de "saltar" al otro lado, que terminaba chocando con la etiqueta de Neto.
+  function secOffset(mineArr,otherArr,ctx){
+    const i=ctx.dataIndex, mine=mineArr[i]||0, other=otherArr[i]||0;
+    if(Math.abs(mine)>Math.abs(other)) return 4;
+    const yScale=ctx.chart.scales.y, area=ctx.chart.chartArea;
+    const room=Math.max(0,area.bottom-yScale.getPixelForValue(mine));
+    return Math.min(labelSize+5,Math.max(2,room-6));
+  }
+  const dlSec=(color,mineArr,otherArr)=>({display:true,align:'bottom',anchor:'end',
+    offset:(ctx)=>secOffset(mineArr,otherArr,ctx),
+    clip:false,color,font:fontCfg,formatter:fmtLabel});
   chart=new Chart(ctx,{
     type:'line',plugins:[ChartDataLabels],
     data:{labels,datasets:[
-      {label:'Neto Total',data:netoData,borderColor:'#0C447C',backgroundColor:gB,borderWidth:3,tension:.35,fill:true,pointRadius:7,pointHoverRadius:9,pointBackgroundColor:'#0C447C',pointBorderColor:'#fff',pointBorderWidth:2.5,datalabels:dl('#0C447C','top',10)},
-      {label:'Contado',data:contData,borderColor:'#0b7fc2',backgroundColor:gC,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#0b7fc2',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dl('#0b7fc2','bottom',4)},
-      {label:'Financiado',data:finData,borderColor:'#F97316',backgroundColor:gF,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#F97316',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dl('#F97316','bottom',16)},
+      {label:'Neto Total',data:netoData,borderColor:'#0C447C',backgroundColor:gB,borderWidth:3,tension:.35,fill:true,pointRadius:7,pointHoverRadius:9,pointBackgroundColor:'#0C447C',pointBorderColor:'#fff',pointBorderWidth:2.5,datalabels:dlNeto('#0C447C')},
+      {label:'Contado',data:contData,borderColor:'#0b7fc2',backgroundColor:gC,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#0b7fc2',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#0b7fc2',contData,finData)},
+      {label:'Financiado',data:finData,borderColor:'#F97316',backgroundColor:gF,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#F97316',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#F97316',finData,contData)},
     ]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:36,right:14,left:8,bottom:34}},animation:{duration:0},interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{enabled:false},datalabels:{display:false}},
-      scales:{x:{grid:{color:'rgba(0,0,0,.04)',drawBorder:false},border:{display:false},ticks:{font:{size:12,weight:'600'},color:'#566579'}},y:{display:false,beginAtZero:true}}}
+      scales:{x:{grid:{color:'rgba(0,0,0,.04)',drawBorder:false},border:{display:false},ticks:{font:{size:12,weight:'600'},color:'#566579',padding:8}},y:{display:false,beginAtZero:true}}}
   });
 }
 
