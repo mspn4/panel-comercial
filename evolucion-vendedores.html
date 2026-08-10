@@ -1183,8 +1183,7 @@ function updateZipSelCount(){
 function fmtLabel(val){
   if(!val||val===0) return '';
   const n=val;
-  if(n>=1e9) return '$ '+(n/1e9).toFixed(1).replace('.0','')+' bill.';
-  if(n>=1e6) return '$ '+Math.round(n/1e6)+' mill.';
+  if(n>=1e6) return '$ '+Math.round(n/1e6).toLocaleString('es-AR')+' mill.';
   if(n>=1e3) return '$ '+Math.round(n/1e3)+' k';
   return '$ '+Math.round(n);
 }
