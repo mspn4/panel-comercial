@@ -286,6 +286,12 @@ body.mode-suc .vendor-only{opacity:.35;pointer-events:none;}
 .edit-btn:active{transform:scale(.97);}
 .edit-btn svg{width:13px;height:13px;flex-shrink:0;}
 
+/* EDIT TEXT BTN */
+.edit-text-btn{position:absolute;top:8px;right:378px;z-index:50;background:rgba(13,110,90,.85);color:#fff;border:none;cursor:pointer;padding:7px 14px;font-size:12px;font-weight:700;font-family:'Segoe UI',Calibri,Arial,sans-serif;display:flex;align-items:center;gap:6px;transition:background .15s,transform .1s;letter-spacing:.03em;border-radius:4px;}
+.edit-text-btn:hover{background:rgba(13,110,90,1);}
+.edit-text-btn:active{transform:scale(.97);}
+.edit-text-btn svg{width:13px;height:13px;flex-shrink:0;}
+
 /* MODAL */
 .modal-bg{position:fixed;inset:0;background:rgba(11,18,32,.55);z-index:500;display:flex;align-items:center;justify-content:center;}
 .modal-bg.hidden{display:none;}
@@ -655,6 +661,34 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   </div>
 </div>
 
+<!-- Editar texto (nombre/sucursal/etiqueta) de un slide ya generado -->
+<div class="modal-bg2 hidden" id="editTextModal">
+  <div class="manual-modal" style="width:min(480px,97vw);">
+    <div class="manual-modal-hd">
+      <div class="manual-modal-hd-title">✎ Editar texto</div>
+      <button class="manual-modal-hd-x" onclick="closeEditText()">&#215;</button>
+    </div>
+    <div class="manual-modal-body">
+      <div class="manual-field" style="margin-bottom:12px;">
+        <label>Nombre</label>
+        <input id="etName" type="text" placeholder="Nombre del colaborador">
+      </div>
+      <div class="manual-field" style="margin-bottom:12px;">
+        <label>Subtítulo</label>
+        <input id="etSub" type="text" placeholder="Ej: Sucursal: CATAMARCA">
+      </div>
+      <div class="manual-field">
+        <label>Etiqueta</label>
+        <input id="etBadge" type="text" placeholder="Ej: VENDEDOR SENIOR">
+      </div>
+    </div>
+    <div class="manual-modal-ft">
+      <button class="btn-manual-open" onclick="etReset()">Restablecer</button>
+      <button class="btn-manual-add" onclick="applyEditText()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- ZIP progress bar -->
 <div class="zip-bar" id="zipBar">
   <div class="zip-bar-track"><div class="zip-bar-fill" id="zipFill" style="width:0%"></div></div>
@@ -683,6 +717,10 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   <button class="edit-btn" id="editAmtBtn" onclick="openEditAmounts()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
     Editar montos
+  </button>
+  <button class="edit-text-btn" id="editTextBtn" onclick="openEditText()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+    Editar texto
   </button>
   <div class="slide-16-9 estilo1" id="theSlide">
     <div class="s-head">
@@ -838,6 +876,7 @@ function aplicarNuevaData(nuevo){
   periods.length=0;
   manualVendors.length=0;
   overrides={};
+  textOverrides={};
   slides=[]; cur=0;
   if(chart){ chart.destroy(); chart=null; }
   hideSlides();
@@ -872,6 +911,7 @@ let mode='vendedor', estilo=1, showSummary=true;
 let selFuerzas=new Set(), selSucursales=new Set(), selSucOnly=new Set(), selIndividuals=new Set();
 let periods=[];
 let overrides={}; // key: slideKey|dateFrom|dateTo -> {total,contado,fin} — ajuste manual sobre un valor calculado
+let textOverrides={}; // key: slideKey -> {label,sub,badge} — ajuste manual del texto del encabezado del slide
 let slides=[], cur=0, chart=null;
 let sumStyle='card'; // 'card' | 'minimal' | 'minimal2' | 'textfree'
 let sumPos='tr';     // 'tr' | 'tl' | 'tc' | 'br' | 'bl'
@@ -1310,9 +1350,10 @@ function render(idx){
   const isTeam=v.type==='team';
   const dataSource=v.type==='suc'?D.daily_suc:D.daily;
 
-  document.getElementById('sName').textContent=v.label;
-  document.getElementById('sMeta').textContent=v.sub;
-  document.getElementById('sBadge').textContent=v.badge;
+  const tOv=textOverrides[v.key]||{};
+  document.getElementById('sName').textContent=tOv.label!=null?tOv.label:v.label;
+  document.getElementById('sMeta').textContent=tOv.sub!=null?tOv.sub:v.sub;
+  document.getElementById('sBadge').textContent=tOv.badge!=null?tOv.badge:v.badge;
   document.getElementById('slideCtr').textContent=(idx+1)+' / '+slides.length;
   const pct=slides.length>1?(idx/(slides.length-1))*100:100;
   document.getElementById('progressFill').style.width=pct+'%';
@@ -1707,6 +1748,41 @@ function eaResetAll(){
 }
 
 document.getElementById('editAmountsModal').addEventListener('click',function(e){if(e.target===this)closeEditAmounts();});
+
+// ─── EDITAR TEXTO (nombre/sucursal/etiqueta) DE UN SLIDE YA GENERADO ───
+function openEditText(){
+  if(!slides.length) return;
+  const v=slides[cur];
+  const tOv=textOverrides[v.key]||{};
+  document.getElementById('etName').value=tOv.label!=null?tOv.label:v.label;
+  document.getElementById('etSub').value=tOv.sub!=null?tOv.sub:v.sub;
+  document.getElementById('etBadge').value=tOv.badge!=null?tOv.badge:v.badge;
+  document.getElementById('editTextModal').classList.remove('hidden');
+}
+
+function closeEditText(){
+  document.getElementById('editTextModal').classList.add('hidden');
+}
+
+function applyEditText(){
+  const v=slides[cur];
+  const label=document.getElementById('etName').value.trim();
+  const sub=document.getElementById('etSub').value.trim();
+  const badge=document.getElementById('etBadge').value.trim();
+  if(label===v.label && sub===v.sub && badge===v.badge) delete textOverrides[v.key];
+  else textOverrides[v.key]={label,sub,badge};
+  closeEditText();
+  render(cur);
+}
+
+function etReset(){
+  const v=slides[cur];
+  delete textOverrides[v.key];
+  openEditText();
+  render(cur);
+}
+
+document.getElementById('editTextModal').addEventListener('click',function(e){if(e.target===this)closeEditText();});
 
 /* ─── Tema claro/oscuro, sincronizado con el panel (localStorage compartido) ─── */
 /* Solo afecta el chrome del editor: el slide #theSlide y su canvas usan colores fijos, no cambian. */
