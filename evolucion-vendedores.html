@@ -280,6 +280,12 @@ body.mode-suc .vendor-only{opacity:.35;pointer-events:none;}
 .dl-btn.done{background:rgba(16,161,114,.95);}
 .dl-btn svg{width:13px;height:13px;flex-shrink:0;}
 
+/* EDIT AMOUNTS BTN */
+.edit-btn{position:absolute;top:8px;right:244px;z-index:50;background:rgba(124,58,180,.85);color:#fff;border:none;cursor:pointer;padding:7px 14px;font-size:12px;font-weight:700;font-family:'Segoe UI',Calibri,Arial,sans-serif;display:flex;align-items:center;gap:6px;transition:background .15s,transform .1s;letter-spacing:.03em;border-radius:4px;}
+.edit-btn:hover{background:rgba(124,58,180,1);}
+.edit-btn:active{transform:scale(.97);}
+.edit-btn svg{width:13px;height:13px;flex-shrink:0;}
+
 /* MODAL */
 .modal-bg{position:fixed;inset:0;background:rgba(11,18,32,.55);z-index:500;display:flex;align-items:center;justify-content:center;}
 .modal-bg.hidden{display:none;}
@@ -613,6 +619,24 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   </div>
 </div>
 
+<!-- Editar montos de un slide ya generado -->
+<div class="modal-bg2 hidden" id="editAmountsModal">
+  <div class="manual-modal">
+    <div class="manual-modal-hd">
+      <div class="manual-modal-hd-title" id="eaTitle">✎ Editar montos</div>
+      <button class="manual-modal-hd-x" onclick="closeEditAmounts()">&#215;</button>
+    </div>
+    <div class="manual-modal-body">
+      <div style="font-size:11px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Ajustá Neto Total, Contado y Financiado de cada período — queda fijo para este slide aunque vuelvas a generar</div>
+      <div class="manual-months-grid" id="eaGrid"></div>
+    </div>
+    <div class="manual-modal-ft">
+      <button class="btn-manual-open" onclick="eaResetAll()">Restablecer todos</button>
+      <button class="btn-manual-add" onclick="applyEditAmounts()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- ZIP progress bar -->
 <div class="zip-bar" id="zipBar">
   <div class="zip-bar-track"><div class="zip-bar-fill" id="zipFill" style="width:0%"></div></div>
@@ -637,6 +661,10 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   <button class="copy-btn" id="copyBtn" onclick="copySlide()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
     Copiar JPG
+  </button>
+  <button class="edit-btn" id="editAmtBtn" onclick="openEditAmounts()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+    Editar montos
   </button>
   <div class="slide-16-9 estilo1" id="theSlide">
     <div class="s-head">
@@ -791,6 +819,7 @@ function aplicarNuevaData(nuevo){
   selFuerzas.clear(); selSucursales.clear(); selSucOnly.clear(); selIndividuals.clear();
   periods.length=0;
   manualVendors.length=0;
+  overrides={};
   slides=[]; cur=0;
   if(chart){ chart.destroy(); chart=null; }
   hideSlides();
@@ -824,6 +853,7 @@ function aplicarNuevaData(nuevo){
 let mode='vendedor', estilo=1, showSummary=true;
 let selFuerzas=new Set(), selSucursales=new Set(), selSucOnly=new Set(), selIndividuals=new Set();
 let periods=[];
+let overrides={}; // key: slideKey|dateFrom|dateTo -> {total,contado,fin} — ajuste manual sobre un valor calculado
 let slides=[], cur=0, chart=null;
 let sumStyle='card'; // 'card' | 'minimal' | 'minimal2' | 'textfree'
 let sumPos='tr';     // 'tr' | 'tl' | 'tc' | 'br' | 'bl'
@@ -1188,6 +1218,18 @@ function fmtLabel(val){
   return '$ '+Math.round(n);
 }
 
+// ─── AJUSTE MANUAL DE MONTOS (overrides) ───────────────────────
+// Permite corregir a mano el Neto/Contado/Financiado de un período ya
+// calculado para un slide (colaborador, sucursal o equipo), sin tener que
+// pasar por el flujo de "colaborador manual". El ajuste queda guardado por
+// (slideKey + rango de fechas del período) y se sigue aplicando aunque el
+// usuario vuelva a tocar "Generar" con la misma selección.
+function ovKey(key,p){ return key+'|'+p.dateFrom+'|'+p.dateTo; }
+function getPeriodVals(key,p,raw){
+  const ov=overrides[ovKey(key,p)];
+  return ov?{total:ov.total,contado:ov.contado,fin:ov.fin}:raw;
+}
+
 // ─── RENDER SUMMARY CARDS ─────────────────────────────────────
 function renderSummary(dataSource, key){
   if(sumStyle==='textfree'){ renderTFOverlay(); return; }
@@ -1197,7 +1239,7 @@ function renderSummary(dataSource, key){
   if(!showSummary||periods.length===0){ overlay.innerHTML=''; return; }
   if(sumStyle==='minimal2'){
     overlay.innerHTML=periods.map((p,i)=>{
-      const s=sumPeriod(dataSource,key,p.dateFrom,p.dateTo);
+      const s=getPeriodVals(key,p,sumPeriod(dataSource,key,p.dateFrom,p.dateTo));
       return `<div class="sum-card">
         <div class="sum-card-period">P${i+1} ${p.label}</div>
         <div class="sum-card-vals">
@@ -1208,7 +1250,7 @@ function renderSummary(dataSource, key){
     }).join('');
   } else {
     overlay.innerHTML=periods.map((p,i)=>{
-      const s=sumPeriod(dataSource,key,p.dateFrom,p.dateTo);
+      const s=getPeriodVals(key,p,sumPeriod(dataSource,key,p.dateFrom,p.dateTo));
       return `<div class="sum-card">
         <div class="sum-card-period">P${i+1} · ${p.label}</div>
         <div class="sum-card-neto">${fmtLabel(s.total)||'—'}</div>
@@ -1261,7 +1303,7 @@ function render(idx){
     if(!showSummary||periods.length===0){ overlay.innerHTML=''; }
     else if(sumStyle==='minimal2'){
       overlay.innerHTML=periods.map((p,i)=>{
-        const s=sumPeriodTeam(v.members,p.dateFrom,p.dateTo);
+        const s=getPeriodVals(v.key,p,sumPeriodTeam(v.members,p.dateFrom,p.dateTo));
         return `<div class="sum-card">
           <div class="sum-card-period">P${i+1} ${p.label}</div>
           <div class="sum-card-vals">
@@ -1272,7 +1314,7 @@ function render(idx){
       }).join('');
     } else {
       overlay.innerHTML=periods.map((p,i)=>{
-        const s=sumPeriodTeam(v.members,p.dateFrom,p.dateTo);
+        const s=getPeriodVals(v.key,p,sumPeriodTeam(v.members,p.dateFrom,p.dateTo));
         return `<div class="sum-card">
           <div class="sum-card-period">P${i+1} · ${p.label}</div>
           <div class="sum-card-neto">${fmtLabel(s.total)||'—'}</div>
@@ -1285,16 +1327,13 @@ function render(idx){
     renderSummary(dataSource, v.key);
   }
 
-  let netoData, contData, finData;
-  if(isTeam){
-    netoData=periods.map(p=>sumPeriodTeam(v.members,p.dateFrom,p.dateTo).total);
-    contData=periods.map(p=>sumPeriodTeam(v.members,p.dateFrom,p.dateTo).contado);
-    finData=periods.map(p=>sumPeriodTeam(v.members,p.dateFrom,p.dateTo).fin);
-  } else {
-    netoData=periods.map(p=>sumPeriod(dataSource,v.key,p.dateFrom,p.dateTo).total);
-    contData=periods.map(p=>sumPeriod(dataSource,v.key,p.dateFrom,p.dateTo).contado);
-    finData=periods.map(p=>sumPeriod(dataSource,v.key,p.dateFrom,p.dateTo).fin);
-  }
+  const periodVals=periods.map(p=>{
+    const raw=isTeam?sumPeriodTeam(v.members,p.dateFrom,p.dateTo):sumPeriod(dataSource,v.key,p.dateFrom,p.dateTo);
+    return getPeriodVals(v.key,p,raw);
+  });
+  const netoData=periodVals.map(s=>s.total);
+  const contData=periodVals.map(s=>s.contado);
+  const finData=periodVals.map(s=>s.fin);
   const labels=periods.map(p=>p.label);
 
   document.getElementById('sLegend').innerHTML=[
@@ -1553,6 +1592,67 @@ function applyManual(){
 }
 
 document.getElementById('manualModal').addEventListener('click',function(e){if(e.target===this)closeManual();});
+
+// ─── EDITAR MONTOS DE UN SLIDE YA GENERADO ─────────────────────
+function openEditAmounts(){
+  if(!slides.length) return;
+  const v=slides[cur];
+  const isTeam=v.type==='team';
+  const dataSource=v.type==='suc'?D.daily_suc:D.daily;
+  document.getElementById('eaTitle').textContent='✎ Editar montos — '+v.label;
+  document.getElementById('eaGrid').innerHTML=periods.map((p,i)=>{
+    const raw=isTeam?sumPeriodTeam(v.members,p.dateFrom,p.dateTo):sumPeriod(dataSource,v.key,p.dateFrom,p.dateTo);
+    const s=getPeriodVals(v.key,p,raw);
+    const isOv=!!overrides[ovKey(v.key,p)];
+    return `<div class="manual-month-card">
+      <div class="month-label">P${i+1} · ${p.label}</div>
+      <input id="ea_${i}_total" type="text" placeholder="Neto total" value="${fmtManualAmt(s.total)}" oninput="eaAutoCalc(${i})">
+      <input id="ea_${i}_cont"  type="text" placeholder="Contado"    value="${fmtManualAmt(s.contado)}" style="margin-top:4px;" oninput="eaAutoCalc(${i})">
+      <input id="ea_${i}_fin"   type="text" placeholder="Financiado" value="${fmtManualAmt(s.fin)}" style="margin-top:4px;">
+      <div class="month-sub">Neto = Contado + Financiado${isOv?' · <a href="#" onclick="eaReset('+i+');return false;">restablecer calculado</a>':''}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('editAmountsModal').classList.remove('hidden');
+}
+
+function eaAutoCalc(i){
+  const t=parseAmt(document.getElementById('ea_'+i+'_total')?.value||'');
+  const c=parseAmt(document.getElementById('ea_'+i+'_cont')?.value||'');
+  const finEl=document.getElementById('ea_'+i+'_fin');
+  if(finEl&&t>0&&c>=0&&c<=t) finEl.value=fmtManualAmt(t-c);
+}
+
+function closeEditAmounts(){
+  document.getElementById('editAmountsModal').classList.add('hidden');
+}
+
+function applyEditAmounts(){
+  const v=slides[cur];
+  periods.forEach((p,i)=>{
+    const t=parseAmt(document.getElementById('ea_'+i+'_total')?.value||'');
+    const c=parseAmt(document.getElementById('ea_'+i+'_cont')?.value||'');
+    const f=parseAmt(document.getElementById('ea_'+i+'_fin')?.value||'');
+    const k=ovKey(v.key,p);
+    if(t||c||f) overrides[k]={total:t,contado:c,fin:f};
+    else delete overrides[k];
+  });
+  closeEditAmounts();
+  render(cur);
+}
+
+function eaReset(i){
+  const v=slides[cur], p=periods[i];
+  delete overrides[ovKey(v.key,p)];
+  openEditAmounts();
+}
+
+function eaResetAll(){
+  const v=slides[cur];
+  periods.forEach(p=>delete overrides[ovKey(v.key,p)]);
+  openEditAmounts();
+}
+
+document.getElementById('editAmountsModal').addEventListener('click',function(e){if(e.target===this)closeEditAmounts();});
 
 /* ─── Tema claro/oscuro, sincronizado con el panel (localStorage compartido) ─── */
 /* Solo afecta el chrome del editor: el slide #theSlide y su canvas usan colores fijos, no cambian. */
