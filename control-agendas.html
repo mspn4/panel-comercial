@@ -287,6 +287,15 @@ table.week tr:hover td.task{background:var(--blue-tint)}
 .cv-field .val{font-size:14px;color:var(--text);white-space:pre-wrap}
 .cv-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px}
 .cv-sep{height:1px;background:var(--border);margin:16px 0}
+.cv-raw{border:1px solid var(--border);border-radius:10px;background:var(--page)}
+.cv-raw summary{cursor:pointer;padding:10px 14px;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--muted);list-style:none;display:flex;align-items:center;gap:7px;user-select:none}
+.cv-raw summary::-webkit-details-marker{display:none}
+.cv-raw summary::before{content:"▸";font-size:10px;color:var(--muted-2);transition:transform .15s}
+.cv-raw[open] summary::before{transform:rotate(90deg)}
+.cv-raw summary:hover{color:var(--blue)}
+.cv-raw-body{padding:2px 14px 14px;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;
+  color:var(--text);white-space:pre-wrap;border-top:1px solid var(--border);margin-top:2px;padding-top:12px}
 .cv-form{padding:18px 20px;overflow:auto;display:flex;flex-direction:column;gap:14px}
 .cv-form textarea{width:100%;min-height:220px;border:1px solid var(--border-strong);border-radius:10px;
   padding:12px;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px;resize:vertical}
@@ -723,6 +732,7 @@ function abrirModal(key){
     const body=p.slots.map(s=>`<tr><td class="hcell">${esc(s.hora||"·")}</td>${s.tareas.map((t,i)=>`<td class="task ${p.dates[i]&&p.dates[i].ddmm===hoy?"today":""}">${highlight(t)}</td>`).join("")}</tr>`).join("");
     grid=`<div class="grid-wrap"><table class="week"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
   }
+  $("#modal").style.width="";
   $("#modal").innerHTML=`
     <div class="modal-head">
       <div class="avatar ${ROL_INFO[p.rol].clase}">${esc(iniciales(p.nombre))}</div>
@@ -967,6 +977,7 @@ async function abrirCoventeDetalle(id){
   {
     const c=r.campos||{};
     const F=(lbl,val)=>val?`<div class="cv-field"><div class="lbl">${esc(lbl)}</div><div class="val">${esc(val)}</div></div>`:"";
+    $("#modal").style.width="";
     $("#modal").innerHTML=`
       <div class="modal-head">
         <div class="mt"><div class="nm">Salida · ${esc(c.sucursal||"")}</div>
@@ -999,6 +1010,11 @@ async function abrirCoventeDetalle(id){
         ${F("Detalle de productos (datos)",c.datosDetalle)}
         <div class="cv-sep"></div>
         ${F("Observaciones",c.observaciones)}
+        ${r.textoOriginal?`<div class="cv-sep"></div>
+        <details class="cv-raw">
+          <summary>Mensaje original</summary>
+          <div class="cv-raw-body">${esc(r.textoOriginal)}</div>
+        </details>`:""}
       </div>`;
     $("#modalBg").classList.add("open");
     $("#modalClose").onclick=()=>$("#modalBg").classList.remove("open");
@@ -1030,6 +1046,7 @@ function splitCoventeBloques(texto){
 }
 
 function abrirCoventeForm(){
+  $("#modal").style.width="";
   $("#modal").innerHTML=`
     <div class="modal-head"><div class="mt"><div class="nm">Nueva salida — Covente</div>
       <div class="zn">Pegá uno o varios informes tal cual te los mandan por WhatsApp</div></div>
@@ -1062,6 +1079,7 @@ function abrirCoventeForm(){
 
 /* Reabre el mismo informe ya guardado en el formulario de campos, para corregirlo a mano. */
 function editarCovente(id,registro){
+  $("#modal").style.width="";
   $("#modal").innerHTML=`
     <div class="modal-head"><div class="mt"><div class="nm">Editar salida — Covente</div>
       <div class="zn">Corregí lo que haga falta y guardá</div></div>
@@ -1185,6 +1203,7 @@ function cvRangoMes(){
 function abrirCoventeResumen(){
   const semana=cvRangoSemana();
   $("#modal").className="modal"; $("#modal").style.maxWidth="";
+  $("#modal").style.width="min(1400px,97vw)";
   $("#modal").innerHTML=`
     <div class="modal-head"><div class="mt"><div class="nm">Resumen de salidas</div>
       <div class="zn">Por gerente/sucursal, en el rango que elijas</div></div>
