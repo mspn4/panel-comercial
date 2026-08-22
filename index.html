@@ -38,6 +38,8 @@ const TOOLS = [
     desc:"Estado de showroom por sucursal.", icono:"🏬" },
   { key:"evolucion-vendedores.html", nombre:"Evolución Vendedores", archivo:"evolucion-vendedores.html",
     desc:"Slides de tendencia por vendedor y por fuerza de venta.", icono:"📉" },
+  { key:"stock-sucursales.html", nombre:"Stock Sucursales", archivo:"stock-sucursales.html",
+    desc:"Stock por sucursal.", icono:"📦" },
 ];
 
 // Paleta de colores de acento disponible en modo edición
@@ -48,6 +50,10 @@ const PALETA = ["#0075DE","#DD5B00","#1AAE39","#391C57","#FF64C8","#2A9D99","#61
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Exportar notas de Gerente Regional a PDF / Word -->
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
 
 <style>
 /* Paleta y tipografía: design-system/panel-comercial/MASTER.md (lectura de diseño Notion) */
@@ -1181,7 +1187,10 @@ async function renderGerDoc(t){
   body.innerHTML=`<div class="gsplit">
     <iframe src="https://drive.google.com/file/d/${esc(t.docId)}/preview"></iframe>
     <div class="gnotes">
-      <div class="gnbar"><span>📝 Notas — ${esc(t.title)}</span><span id="gnStatus" style="margin-left:auto;color:var(--muted-2)"></span></div>
+      <div class="gnbar"><span>📝 Notas — ${esc(t.title)}</span><span id="gnStatus" style="margin-left:auto;color:var(--muted-2)"></span>
+        <button class="btn-sm" id="gnShare" title="Guardar y copiar link público de solo lectura">🔗</button>
+        <button class="btn-sm" id="gnPdf" title="Exportar a PDF">📄 PDF</button>
+        <button class="btn-sm" id="gnWord" title="Exportar a Word">📝 Word</button></div>
       <div id="gnText" contenteditable="true" data-placeholder="Escribí tus notas sobre este manual a medida que lo leés… (podés pegar imágenes)">${gerContentToHtml(t.noteContent||"")}</div>
     </div>
   </div>`;
@@ -1198,6 +1207,9 @@ async function renderGerDoc(t){
     clearTimeout(debounce);
     debounce=setTimeout(()=>gerGuardarNotaGenerica(t, gerNombreNota(t), t.noteContent, "#gnStatus"), 1200);
   });
+  $("#gnShare").onclick=()=>gerCompartirNota(t, gerNombreNota(t), t.noteContent, "#gnStatus");
+  $("#gnPdf").onclick=()=>gerExportPDF(t.title, ta.innerHTML);
+  $("#gnWord").onclick=()=>gerExportWord(t.title, ta.innerHTML);
 }
 
 async function gerCargarNotaDoc(t){
@@ -1217,6 +1229,9 @@ function renderGerNote(t){
     <div class="dvbar">
       <input type="text" id="gnTitle" value="${esc(t.title)}" style="font-weight:600;border:1px solid var(--border-strong);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:13.5px">
       <span id="gnnStatus" style="margin-left:auto;color:var(--muted-2);font-size:12px;align-self:center"></span>
+      <button class="btn-sm" id="gnnShare" title="Guardar y copiar link público de solo lectura">🔗</button>
+      <button class="btn-sm" id="gnnPdf" title="Exportar a PDF">📄 PDF</button>
+      <button class="btn-sm" id="gnnWord" title="Exportar a Word">📝 Word</button>
       <button class="btn-sm primary" id="gnnSave">Guardar</button>
     </div>
     <div id="gnnText" contenteditable="true" data-placeholder="Escribí tu nota… (podés pegar imágenes)">${gerContentToHtml(t.content||"")}</div>
@@ -1230,9 +1245,18 @@ function renderGerNote(t){
   gerInitRichEditor(gnnEl, ()=>{ t.content=gerHtmlToContent(gnnEl.innerHTML); $("#gnnStatus").textContent="Sin guardar"; });
   $("#gnnSave").onclick=async ()=>{
     t.content=gerHtmlToContent(gnnEl.innerHTML);
-    await gerGuardarNotaGenerica(t, t.noteId?null:(t.title||"Nueva pestaña").trim()+((t.title||"").toLowerCase().endsWith(".txt")?"":".txt"), t.content, "#gnnStatus");
+    await gerGuardarNotaGenerica(t, gerNombreNotaSuelta(t), t.content, "#gnnStatus");
     toast("Nota guardada.");
   };
+  $("#gnnShare").onclick=()=>{
+    t.content=gerHtmlToContent(gnnEl.innerHTML);
+    gerCompartirNota(t, gerNombreNotaSuelta(t), t.content, "#gnnStatus");
+  };
+  $("#gnnPdf").onclick=()=>gerExportPDF(t.title, gnnEl.innerHTML);
+  $("#gnnWord").onclick=()=>gerExportWord(t.title, gnnEl.innerHTML);
+}
+function gerNombreNotaSuelta(t){
+  return t.noteId?null:(t.title||"Nueva pestaña").trim()+((t.title||"").toLowerCase().endsWith(".txt")?"":".txt");
 }
 
 async function gerGuardarNotaGenerica(t, nombreArchivo, content, statusSel){
@@ -1251,6 +1275,65 @@ async function gerGuardarNotaGenerica(t, nombreArchivo, content, statusSel){
     }
     const el=$(statusSel); if(el) el.textContent="Guardado ✓";
   }catch(e){ const el=$(statusSel); if(el) el.textContent="Error al guardar"; }
+}
+
+/* ── Compartir (link público de solo lectura) + exportar PDF/Word ──
+   El link apunta a nota-publica.html?id=<noteId>, un visor standalone
+   sin login que lee el mismo kb_get público (BackendPanel.gs, "Cualquiera"
+   con el enlace). Para poder compartir hace falta que la nota esté
+   guardada, así que "Compartir" guarda primero. */
+function gerBuildShareUrl(noteId){
+  return new URL("nota-publica.html?id="+encodeURIComponent(noteId), location.href).href;
+}
+
+async function gerCompartirNota(t, nombreArchivo, content, statusSel){
+  await gerGuardarNotaGenerica(t, nombreArchivo, content, statusSel);
+  if(!t.noteId){ toast("No se pudo guardar la nota para compartir."); return; }
+  const url=gerBuildShareUrl(t.noteId);
+  try{ await navigator.clipboard.writeText(url); toast("Link copiado — cualquiera con este link puede leer la nota, sin login."); }
+  catch(e){ window.prompt("Copiá este link para compartir la nota:", url); }
+}
+
+// Saca del HTML lo que es solo de la UI del editor (handle de resize, selección) antes de exportar.
+function gerCleanExportHtml(innerHtml){
+  const tmp=document.createElement("div");
+  tmp.innerHTML=innerHtml||"";
+  tmp.querySelectorAll(".ger-img-handle").forEach(h=>h.remove());
+  tmp.querySelectorAll(".ger-img-wrap").forEach(w=>w.classList.remove("selected"));
+  return tmp.innerHTML;
+}
+
+async function gerExportPDF(titulo, innerHtml){
+  if(typeof html2pdf==="undefined"){ toast("No se pudo cargar el exportador de PDF."); return; }
+  const clean=gerCleanExportHtml(innerHtml);
+  const wrap=document.createElement("div");
+  wrap.style.cssText="font-family:Georgia,serif;font-size:13px;line-height:1.6;padding:24px;max-width:720px;color:#111;background:#fff";
+  wrap.innerHTML=`<h2 style="margin:0 0 16px;font-family:Arial,sans-serif">${esc(titulo||"Nota")}</h2>${clean||'<p style="opacity:.5">(sin contenido)</p>'}`;
+  document.body.appendChild(wrap);
+  try{
+    await html2pdf().set({
+      margin:10,
+      filename:(titulo||"nota").replace(/[\\/:*?"<>|]/g,"_")+".pdf",
+      html2canvas:{scale:2,useCORS:true},
+      jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
+    }).from(wrap).save();
+  }catch(e){ toast("Error al exportar PDF: "+e.message); }
+  finally{ wrap.remove(); }
+}
+
+function gerExportWord(titulo, innerHtml){
+  if(typeof htmlDocx==="undefined"){ toast("No se pudo cargar el exportador de Word."); return; }
+  const clean=gerCleanExportHtml(innerHtml);
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(titulo||"Nota")}</title></head>
+    <body><h2>${esc(titulo||"Nota")}</h2>${clean||"<p>(sin contenido)</p>"}</body></html>`;
+  try{
+    const blob=htmlDocx.asBlob(html);
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=(titulo||"nota").replace(/[\\/:*?"<>|]/g,"_")+".docx";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  }catch(e){ toast("Error al exportar Word: "+e.message); }
 }
 
 /* ═══════════════════════════ Modal: Recursos Gráficos ═══════════════════════════ */

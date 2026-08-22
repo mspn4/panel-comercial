@@ -280,6 +280,18 @@ body.mode-suc .vendor-only{opacity:.35;pointer-events:none;}
 .dl-btn.done{background:rgba(16,161,114,.95);}
 .dl-btn svg{width:13px;height:13px;flex-shrink:0;}
 
+/* EDIT AMOUNTS BTN */
+.edit-btn{position:absolute;top:8px;right:244px;z-index:50;background:rgba(124,58,180,.85);color:#fff;border:none;cursor:pointer;padding:7px 14px;font-size:12px;font-weight:700;font-family:'Segoe UI',Calibri,Arial,sans-serif;display:flex;align-items:center;gap:6px;transition:background .15s,transform .1s;letter-spacing:.03em;border-radius:4px;}
+.edit-btn:hover{background:rgba(124,58,180,1);}
+.edit-btn:active{transform:scale(.97);}
+.edit-btn svg{width:13px;height:13px;flex-shrink:0;}
+
+/* EDIT TEXT BTN */
+.edit-text-btn{position:absolute;top:8px;right:378px;z-index:50;background:rgba(13,110,90,.85);color:#fff;border:none;cursor:pointer;padding:7px 14px;font-size:12px;font-weight:700;font-family:'Segoe UI',Calibri,Arial,sans-serif;display:flex;align-items:center;gap:6px;transition:background .15s,transform .1s;letter-spacing:.03em;border-radius:4px;}
+.edit-text-btn:hover{background:rgba(13,110,90,1);}
+.edit-text-btn:active{transform:scale(.97);}
+.edit-text-btn svg{width:13px;height:13px;flex-shrink:0;}
+
 /* MODAL */
 .modal-bg{position:fixed;inset:0;background:rgba(11,18,32,.55);z-index:500;display:flex;align-items:center;justify-content:center;}
 .modal-bg.hidden{display:none;}
@@ -428,8 +440,16 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
 
 <div class="panel">
 
-  <!-- Row 0: Estilo + Modo + Resumen -->
+  <!-- Row 0: Datos + Estilo + Modo + Resumen -->
   <div class="panel-row">
+    <div class="panel-group">
+      <div class="panel-label">Datos cargados</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="btn btn-ghost" onclick="document.getElementById('jsonFileInput').click()">📥 Cargar JSON del Reporte Comercial</button>
+        <input type="file" id="jsonFileInput" accept="application/json,.json" style="display:none" onchange="onJSONFileSelected(event)">
+      </div>
+      <div id="dataInfo" style="font-size:11px;color:var(--muted-ink);"></div>
+    </div>
     <div class="panel-group">
       <div class="panel-label">Estilo del gráfico</div>
       <div class="style-toggle">
@@ -476,6 +496,24 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
         <button class="sum-btn on" id="posTRBtn" onclick="setSumPos('tr')" title="Arriba derecha">↗ Arr.Der</button>
         <button class="sum-btn" id="posBLBtn" onclick="setSumPos('bl')" title="Abajo izquierda">↙ Abj.Izq</button>
         <button class="sum-btn" id="posBRBtn" onclick="setSumPos('br')" title="Abajo derecha">↘ Abj.Der</button>
+      </div>
+    </div>
+    <div class="panel-group">
+      <div class="panel-label">Peso de las etiquetas ($) del gráfico</div>
+      <div class="sum-toggle">
+        <button class="sum-btn lw-btn" data-w="600" onclick="setLabelWeight(600)">Normal</button>
+        <button class="sum-btn lw-btn" data-w="700" onclick="setLabelWeight(700)">Semibold</button>
+        <button class="sum-btn lw-btn on" data-w="800" onclick="setLabelWeight(800)">Bold</button>
+        <button class="sum-btn lw-btn" data-w="900" onclick="setLabelWeight(900)">Extra bold</button>
+      </div>
+    </div>
+    <div class="panel-group">
+      <div class="panel-label">Tamaño de las etiquetas ($) del gráfico</div>
+      <div class="sum-toggle">
+        <button class="sum-btn ls-btn" data-s="9" onclick="setLabelSize(9)">Chica</button>
+        <button class="sum-btn ls-btn on" data-s="11" onclick="setLabelSize(11)">Normal</button>
+        <button class="sum-btn ls-btn" data-s="13" onclick="setLabelSize(13)">Grande</button>
+        <button class="sum-btn ls-btn" data-s="15" onclick="setLabelSize(15)">Extra grande</button>
       </div>
     </div>
   </div>
@@ -605,6 +643,52 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   </div>
 </div>
 
+<!-- Editar montos de un slide ya generado -->
+<div class="modal-bg2 hidden" id="editAmountsModal">
+  <div class="manual-modal">
+    <div class="manual-modal-hd">
+      <div class="manual-modal-hd-title" id="eaTitle">✎ Editar montos</div>
+      <button class="manual-modal-hd-x" onclick="closeEditAmounts()">&#215;</button>
+    </div>
+    <div class="manual-modal-body">
+      <div style="font-size:11px;font-weight:800;color:var(--mu);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Ajustá Neto Total, Contado y Financiado de cada período — queda fijo para este slide aunque vuelvas a generar</div>
+      <div class="manual-months-grid" id="eaGrid"></div>
+    </div>
+    <div class="manual-modal-ft">
+      <button class="btn-manual-open" onclick="eaResetAll()">Restablecer todos</button>
+      <button class="btn-manual-add" onclick="applyEditAmounts()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Editar texto (nombre/sucursal/etiqueta) de un slide ya generado -->
+<div class="modal-bg2 hidden" id="editTextModal">
+  <div class="manual-modal" style="width:min(480px,97vw);">
+    <div class="manual-modal-hd">
+      <div class="manual-modal-hd-title">✎ Editar texto</div>
+      <button class="manual-modal-hd-x" onclick="closeEditText()">&#215;</button>
+    </div>
+    <div class="manual-modal-body">
+      <div class="manual-field" style="margin-bottom:12px;">
+        <label>Nombre</label>
+        <input id="etName" type="text" placeholder="Nombre del colaborador">
+      </div>
+      <div class="manual-field" style="margin-bottom:12px;">
+        <label>Subtítulo</label>
+        <input id="etSub" type="text" placeholder="Ej: Sucursal: CATAMARCA">
+      </div>
+      <div class="manual-field">
+        <label>Etiqueta</label>
+        <input id="etBadge" type="text" placeholder="Ej: VENDEDOR SENIOR">
+      </div>
+    </div>
+    <div class="manual-modal-ft">
+      <button class="btn-manual-open" onclick="etReset()">Restablecer</button>
+      <button class="btn-manual-add" onclick="applyEditText()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- ZIP progress bar -->
 <div class="zip-bar" id="zipBar">
   <div class="zip-bar-track"><div class="zip-bar-fill" id="zipFill" style="width:0%"></div></div>
@@ -629,6 +713,14 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   <button class="copy-btn" id="copyBtn" onclick="copySlide()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
     Copiar JPG
+  </button>
+  <button class="edit-btn" id="editAmtBtn" onclick="openEditAmounts()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+    Editar montos
+  </button>
+  <button class="edit-text-btn" id="editTextBtn" onclick="openEditText()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+    Editar texto
   </button>
   <div class="slide-16-9 estilo1" id="theSlide">
     <div class="s-head">
@@ -695,14 +787,137 @@ const D = {"vendors":[{"n":"MARINI BRAIAN NICOLAS","s":"CORDOBA","f":"VENDEDOR J
 
 const MONTH_NAMES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
+// ─── CARGA DE JSON (backup del Reporte Comercial) ──────────────
+// Reconstruye D {vendors,fuerzas,sucursales,daily,daily_suc,dateRange,months}
+// a partir del array "ventas" del backup (mismo formato que exporta
+// reporte-comercial.html). Reemplaza los datos embebidos al cargar la página.
+function onJSONFileSelected(ev){
+  const file=ev.target.files && ev.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const raw=JSON.parse(reader.result);
+      if(!Array.isArray(raw.ventas)) throw new Error('El archivo no tiene un array "ventas" — no parece un backup del Reporte Comercial.');
+      const nuevo=rebuildD(raw.ventas);
+      if(!nuevo.vendors.length) throw new Error('No se encontró ninguna venta con vendedor y fecha válidos.');
+      aplicarNuevaData(nuevo);
+    }catch(e){
+      alert('No se pudo cargar el archivo: '+e.message);
+    }finally{
+      ev.target.value=''; // permite volver a elegir el mismo archivo
+    }
+  };
+  reader.onerror=()=>alert('No se pudo leer el archivo.');
+  reader.readAsText(file);
+}
+
+function rebuildD(ventas){
+  const daily={}, daily_suc={};
+  const vendorMeta={}; // nombre -> {lastFecha,s,f}
+  const fuerzasSet=new Set(), sucursalesSet=new Set(), monthsSet=new Set();
+  let minF=null, maxF=null;
+  for(const r of ventas){
+    const name=(r.vendedor||'').trim();
+    const fecha=r.fecha;
+    if(!name || !fecha) continue;
+    const suc=(r.sucursal_venta||'').trim();
+    const fuerza=(r.fuerza_venta||'').trim();
+    const neto=Number(r.neto)||0;
+    // idx: 1=contado, 2=financiado (neto ya viene con signo, las NC restan solas)
+    const idx = r.tipo_venta==='Contado' ? 1 : (r.tipo_venta==='Financiado' ? 2 : 0);
+
+    const dv=(daily[name] ||= {});
+    const slotV=(dv[fecha] ||= [0,0,0]);
+    slotV[0]+=neto; if(idx) slotV[idx]+=neto;
+
+    if(suc){
+      const ds=(daily_suc[suc] ||= {});
+      const slotS=(ds[fecha] ||= [0,0,0]);
+      slotS[0]+=neto; if(idx) slotS[idx]+=neto;
+      sucursalesSet.add(suc);
+    }
+    if(fuerza) fuerzasSet.add(fuerza);
+    monthsSet.add(fecha.slice(0,7));
+    if(!minF||fecha<minF) minF=fecha;
+    if(!maxF||fecha>maxF) maxF=fecha;
+
+    // Sucursal/fuerza "actual" del vendedor = la de su venta más reciente
+    // (un vendedor puede haber cambiado de sucursal/fuerza durante el período).
+    const vm=(vendorMeta[name] ||= {lastFecha:'',s:suc,f:fuerza});
+    if(fecha>=vm.lastFecha){ vm.lastFecha=fecha; if(suc) vm.s=suc; if(fuerza) vm.f=fuerza; }
+  }
+  const vendors=Object.keys(vendorMeta).sort().map(n=>({n, s:vendorMeta[n].s, f:vendorMeta[n].f}));
+  return {
+    vendors,
+    fuerzas:[...fuerzasSet].sort(),
+    sucursales:[...sucursalesSet].sort(),
+    daily, daily_suc,
+    dateRange:{min:minF, max:maxF},
+    months:[...monthsSet].sort(),
+  };
+}
+
+function updateDataInfo(){
+  const el=document.getElementById('dataInfo');
+  if(!el) return;
+  const r=D.dateRange||{};
+  el.textContent = D.vendors.length
+    ? `${D.vendors.length} colaboradores · ${D.months.length} meses · ${r.min||'?'} a ${r.max||'?'}`
+    : 'Sin datos cargados.';
+}
+
+function aplicarNuevaData(nuevo){
+  Object.keys(D).forEach(k=>delete D[k]);
+  Object.assign(D, nuevo);
+
+  // Reset de selección/estado dependiente de los datos anteriores
+  selFuerzas.clear(); selSucursales.clear(); selSucOnly.clear(); selIndividuals.clear();
+  periods.length=0;
+  manualVendors.length=0;
+  overrides={};
+  textOverrides={};
+  slides=[]; cur=0;
+  if(chart){ chart.destroy(); chart=null; }
+  hideSlides();
+
+  // Año/mes/día
+  years.length=0;
+  [...new Set(D.months.map(m=>m.split('-')[0]))].sort().forEach(y=>years.push(y));
+  pYear.innerHTML='';
+  years.forEach(y=>{ const o=document.createElement('option');o.value=y;o.textContent=y;pYear.appendChild(o); });
+  updateMonthOptions();
+  renderPeriodTags();
+
+  // Chips (fuerza / sucursal / sucursal-solo)
+  document.getElementById('fuerzaChips').innerHTML='';
+  document.getElementById('sucursalChips').innerHTML='';
+  document.getElementById('sucursalOnlyChips').innerHTML='';
+  buildChips('fuerzaChips',D.fuerzas,'f',selFuerzas);
+  buildChips('sucursalChips',D.sucursales,'s',selSucursales);
+  D.sucursales.forEach(v=>{
+    const c=document.createElement('div');c.className='chip';c.dataset.val=v;c.textContent=v;
+    c.addEventListener('click',()=>{ selSucOnly.has(v)?(selSucOnly.delete(v),c.classList.remove('on')):(selSucOnly.add(v),c.classList.add('on')); refreshPills(); });
+    document.getElementById('sucursalOnlyChips').appendChild(c);
+  });
+
+  refreshPills();
+  updateDataInfo();
+  alert(`Datos cargados: ${D.vendors.length} colaboradores, ${D.months.length} meses (${D.dateRange.min} a ${D.dateRange.max}).`);
+}
+
 // STATE
 let mode='vendedor', estilo=1, showSummary=true;
 let selFuerzas=new Set(), selSucursales=new Set(), selSucOnly=new Set(), selIndividuals=new Set();
 let periods=[];
+let overrides={}; // key: slideKey|dateFrom|dateTo -> {total,contado,fin} — ajuste manual sobre un valor calculado
+let textOverrides={}; // key: slideKey -> {label,sub,badge} — ajuste manual del texto del encabezado del slide
 let slides=[], cur=0, chart=null;
 let sumStyle='card'; // 'card' | 'minimal' | 'minimal2' | 'textfree'
 let sumPos='tr';     // 'tr' | 'tl' | 'tc' | 'br' | 'bl'
 let teamMode=false;
+let labelWeight=800;
+let labelSize=11;
 let tfPos='tl';      // posición independiente del texto libre
 let tfSize='m';      // 's' | 'm' | 'l'
 let tfData={};       // { slideKey: {fact:'', res:''} }
@@ -758,6 +973,18 @@ function setTeamMode(on){
   teamMode=on;
   document.getElementById('teamOffBtn').classList.toggle('on',!on);
   document.getElementById('teamOnBtn').classList.toggle('on',on);
+}
+
+function setLabelWeight(w){
+  labelWeight=w;
+  document.querySelectorAll('.lw-btn').forEach(b=>b.classList.toggle('on',+b.dataset.w===w));
+  if(slides.length) render(cur);
+}
+
+function setLabelSize(s){
+  labelSize=s;
+  document.querySelectorAll('.ls-btn').forEach(b=>b.classList.toggle('on',+b.dataset.s===s));
+  if(slides.length) render(cur);
 }
 
 // ─── TEXTO LIBRE (Minimal v3) ────────────────────────────────
@@ -896,6 +1123,7 @@ D.sucursales.forEach(v=>{
   c.addEventListener('click',()=>{ selSucOnly.has(v)?(selSucOnly.delete(v),c.classList.remove('on')):(selSucOnly.add(v),c.classList.add('on')); refreshPills(); });
   sucOnlyEl.appendChild(c);
 });
+updateDataInfo();
 
 // ─── SEARCH ───────────────────────────────────────────────────
 const sinput=document.getElementById('searchInput'),ddlist=document.getElementById('ddList');
@@ -1018,7 +1246,7 @@ function buildThumbs(){
   document.getElementById('thumbs').innerHTML=slides.map((v,i)=>{
     const eb=v.type==='team'?`<span class="team-edit-btn" onclick="openModal(${i});event.stopPropagation()">&#9998;</span>`:'';
     const excl=zipExcluded.has(i);
-    const chk=`<div class="thumb-chk ${excl?'':'checked'}" id="thchk${i}"></div>`;
+    const chk=`<div class="thumb-chk ${excl?'':'checked'}" id="thchk${i}" onclick="toggleZipExclude(${i},event)" title="Incluir/excluir del ZIP"></div>`;
     return `<div class="thumb${i===0?' on':''}${excl?' excluded':''}" id="th${i}" onclick="render(${i})">${chk}${v.label}${eb}</div>`;
   }).join('');
   updateZipSelCount();
@@ -1057,10 +1285,21 @@ function updateZipSelCount(){
 function fmtLabel(val){
   if(!val||val===0) return '';
   const n=val;
-  if(n>=1e9) return '$ '+(n/1e9).toFixed(1).replace('.0','')+' bill.';
-  if(n>=1e6) return '$ '+Math.round(n/1e6)+' mill.';
+  if(n>=1e6) return '$ '+Math.round(n/1e6).toLocaleString('es-AR')+' mill.';
   if(n>=1e3) return '$ '+Math.round(n/1e3)+' k';
   return '$ '+Math.round(n);
+}
+
+// ─── AJUSTE MANUAL DE MONTOS (overrides) ───────────────────────
+// Permite corregir a mano el Neto/Contado/Financiado de un período ya
+// calculado para un slide (colaborador, sucursal o equipo), sin tener que
+// pasar por el flujo de "colaborador manual". El ajuste queda guardado por
+// (slideKey + rango de fechas del período) y se sigue aplicando aunque el
+// usuario vuelva a tocar "Generar" con la misma selección.
+function ovKey(key,p){ return key+'|'+p.dateFrom+'|'+p.dateTo; }
+function getPeriodVals(key,p,raw){
+  const ov=overrides[ovKey(key,p)];
+  return ov?{total:ov.total,contado:ov.contado,fin:ov.fin}:raw;
 }
 
 // ─── RENDER SUMMARY CARDS ─────────────────────────────────────
@@ -1072,7 +1311,7 @@ function renderSummary(dataSource, key){
   if(!showSummary||periods.length===0){ overlay.innerHTML=''; return; }
   if(sumStyle==='minimal2'){
     overlay.innerHTML=periods.map((p,i)=>{
-      const s=sumPeriod(dataSource,key,p.dateFrom,p.dateTo);
+      const s=getPeriodVals(key,p,sumPeriod(dataSource,key,p.dateFrom,p.dateTo));
       return `<div class="sum-card">
         <div class="sum-card-period">P${i+1} ${p.label}</div>
         <div class="sum-card-vals">
@@ -1083,7 +1322,7 @@ function renderSummary(dataSource, key){
     }).join('');
   } else {
     overlay.innerHTML=periods.map((p,i)=>{
-      const s=sumPeriod(dataSource,key,p.dateFrom,p.dateTo);
+      const s=getPeriodVals(key,p,sumPeriod(dataSource,key,p.dateFrom,p.dateTo));
       return `<div class="sum-card">
         <div class="sum-card-period">P${i+1} · ${p.label}</div>
         <div class="sum-card-neto">${fmtLabel(s.total)||'—'}</div>
@@ -1111,9 +1350,10 @@ function render(idx){
   const isTeam=v.type==='team';
   const dataSource=v.type==='suc'?D.daily_suc:D.daily;
 
-  document.getElementById('sName').textContent=v.label;
-  document.getElementById('sMeta').textContent=v.sub;
-  document.getElementById('sBadge').textContent=v.badge;
+  const tOv=textOverrides[v.key]||{};
+  document.getElementById('sName').textContent=tOv.label!=null?tOv.label:v.label;
+  document.getElementById('sMeta').textContent=tOv.sub!=null?tOv.sub:v.sub;
+  document.getElementById('sBadge').textContent=tOv.badge!=null?tOv.badge:v.badge;
   document.getElementById('slideCtr').textContent=(idx+1)+' / '+slides.length;
   const pct=slides.length>1?(idx/(slides.length-1))*100:100;
   document.getElementById('progressFill').style.width=pct+'%';
@@ -1136,7 +1376,7 @@ function render(idx){
     if(!showSummary||periods.length===0){ overlay.innerHTML=''; }
     else if(sumStyle==='minimal2'){
       overlay.innerHTML=periods.map((p,i)=>{
-        const s=sumPeriodTeam(v.members,p.dateFrom,p.dateTo);
+        const s=getPeriodVals(v.key,p,sumPeriodTeam(v.members,p.dateFrom,p.dateTo));
         return `<div class="sum-card">
           <div class="sum-card-period">P${i+1} ${p.label}</div>
           <div class="sum-card-vals">
@@ -1147,7 +1387,7 @@ function render(idx){
       }).join('');
     } else {
       overlay.innerHTML=periods.map((p,i)=>{
-        const s=sumPeriodTeam(v.members,p.dateFrom,p.dateTo);
+        const s=getPeriodVals(v.key,p,sumPeriodTeam(v.members,p.dateFrom,p.dateTo));
         return `<div class="sum-card">
           <div class="sum-card-period">P${i+1} · ${p.label}</div>
           <div class="sum-card-neto">${fmtLabel(s.total)||'—'}</div>
@@ -1160,40 +1400,59 @@ function render(idx){
     renderSummary(dataSource, v.key);
   }
 
-  let netoData, contData, finData;
-  if(isTeam){
-    netoData=periods.map(p=>sumPeriodTeam(v.members,p.dateFrom,p.dateTo).total);
-    contData=periods.map(p=>sumPeriodTeam(v.members,p.dateFrom,p.dateTo).contado);
-    finData=periods.map(p=>sumPeriodTeam(v.members,p.dateFrom,p.dateTo).fin);
-  } else {
-    netoData=periods.map(p=>sumPeriod(dataSource,v.key,p.dateFrom,p.dateTo).total);
-    contData=periods.map(p=>sumPeriod(dataSource,v.key,p.dateFrom,p.dateTo).contado);
-    finData=periods.map(p=>sumPeriod(dataSource,v.key,p.dateFrom,p.dateTo).fin);
-  }
+  const periodVals=periods.map(p=>{
+    const raw=isTeam?sumPeriodTeam(v.members,p.dateFrom,p.dateTo):sumPeriod(dataSource,v.key,p.dateFrom,p.dateTo);
+    return getPeriodVals(v.key,p,raw);
+  });
+  const netoData=periodVals.map(s=>s.total);
+  const contData=periodVals.map(s=>s.contado);
+  const finData=periodVals.map(s=>s.fin);
   const labels=periods.map(p=>p.label);
 
   document.getElementById('sLegend').innerHTML=[
-    '<div class="leg-item"><div class="leg-dot" style="background:#185FA5"></div>Neto Total</div>',
+    '<div class="leg-item"><div class="leg-dot" style="background:#0C447C"></div>Neto Total</div>',
     '<div class="leg-item"><div class="leg-dot" style="background:#0b7fc2"></div>Contado</div>',
     '<div class="leg-item"><div class="leg-dot" style="background:#F97316"></div>Financiado</div>',
   ].join('');
 
   if(chart){chart.destroy();chart=null;}
   const ctx=document.getElementById('theCanvas').getContext('2d');
-  const gB=ctx.createLinearGradient(0,0,0,400);gB.addColorStop(0,'rgba(24,95,165,.18)');gB.addColorStop(1,'rgba(24,95,165,.01)');
+  const gB=ctx.createLinearGradient(0,0,0,400);gB.addColorStop(0,'rgba(12,68,124,.18)');gB.addColorStop(1,'rgba(12,68,124,.01)');
   const gC=ctx.createLinearGradient(0,0,0,400);gC.addColorStop(0,'rgba(11,127,194,.13)');gC.addColorStop(1,'rgba(11,127,194,.01)');
   const gF=ctx.createLinearGradient(0,0,0,400);gF.addColorStop(0,'rgba(249,115,22,.14)');gF.addColorStop(1,'rgba(249,115,22,.01)');
-  const dl=(color)=>({display:true,align:'top',anchor:'end',offset:6,clip:false,color,font:{weight:700,size:11,family:"\'Segoe UI\',Calibri,Arial"},formatter:fmtLabel});
+  // Neto va siempre arriba de su punto. Contado y Financiado se reparten abajo: el que
+  // tenga mayor valor absoluto en ese punto queda pegado a su punto (offset chico); el
+  // menor va más lejos — salvo que su punto esté tan cerca del eje X que la etiqueta
+  // choque con las fechas (ej. "$882 k" tapando "Mar 2026"): ahí se manda arriba en vez
+  // de abajo. La cercanía al eje se mide en pixels reales (context.chart.scales.y), no
+  // en valor, para que funcione sea cual sea la escala del gráfico.
+  const fontCfg={weight:labelWeight,size:labelSize,family:"'Segoe UI',Calibri,Arial"};
+  const dlNeto=(color)=>({display:true,align:'top',anchor:'end',offset:10,clip:false,color,font:fontCfg,formatter:fmtLabel});
+  // Offset de una serie "secundaria" (Contado o Financiado) en un punto dado: la de mayor
+  // valor absoluto de las dos queda pegada abajo de su punto (offset chico fijo); la menor
+  // va más lejos, pero el offset se recorta al espacio real hasta el eje X (medido en
+  // pixels, vía context.chart.scales.y) para que nunca tape las fechas de abajo — en vez
+  // de "saltar" al otro lado, que terminaba chocando con la etiqueta de Neto.
+  function secOffset(mineArr,otherArr,ctx){
+    const i=ctx.dataIndex, mine=mineArr[i]||0, other=otherArr[i]||0;
+    if(Math.abs(mine)>Math.abs(other)) return 4;
+    const yScale=ctx.chart.scales.y, area=ctx.chart.chartArea;
+    const room=Math.max(0,area.bottom-yScale.getPixelForValue(mine));
+    return Math.min(labelSize+5,Math.max(2,room-6));
+  }
+  const dlSec=(color,mineArr,otherArr)=>({display:true,align:'bottom',anchor:'end',
+    offset:(ctx)=>secOffset(mineArr,otherArr,ctx),
+    clip:false,color,font:fontCfg,formatter:fmtLabel});
   chart=new Chart(ctx,{
     type:'line',plugins:[ChartDataLabels],
     data:{labels,datasets:[
-      {label:'Neto Total',data:netoData,borderColor:'#185FA5',backgroundColor:gB,borderWidth:3,tension:.35,fill:true,pointRadius:7,pointHoverRadius:9,pointBackgroundColor:'#185FA5',pointBorderColor:'#fff',pointBorderWidth:2.5,datalabels:dl('#185FA5')},
-      {label:'Contado',data:contData,borderColor:'#0b7fc2',backgroundColor:gC,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#0b7fc2',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dl('#0b7fc2')},
-      {label:'Financiado',data:finData,borderColor:'#F97316',backgroundColor:gF,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#F97316',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dl('#F97316')},
+      {label:'Neto Total',data:netoData,borderColor:'#0C447C',backgroundColor:gB,borderWidth:3,tension:.35,fill:true,pointRadius:7,pointHoverRadius:9,pointBackgroundColor:'#0C447C',pointBorderColor:'#fff',pointBorderWidth:2.5,datalabels:dlNeto('#0C447C')},
+      {label:'Contado',data:contData,borderColor:'#0b7fc2',backgroundColor:gC,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#0b7fc2',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#0b7fc2',contData,finData)},
+      {label:'Financiado',data:finData,borderColor:'#F97316',backgroundColor:gF,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#F97316',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#F97316',finData,contData)},
     ]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:36,right:14,left:8,bottom:4}},animation:{duration:0},interaction:{mode:'index',intersect:false},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:36,right:14,left:8,bottom:34}},animation:{duration:0},interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{enabled:false},datalabels:{display:false}},
-      scales:{x:{grid:{color:'rgba(0,0,0,.04)',drawBorder:false},border:{display:false},ticks:{font:{size:12,weight:'600'},color:'#566579'}},y:{display:false,beginAtZero:true}}}
+      scales:{x:{grid:{color:'rgba(0,0,0,.04)',drawBorder:false},border:{display:false},ticks:{font:{size:12,weight:'600'},color:'#566579',padding:8}},y:{display:false,beginAtZero:true}}}
   });
 }
 
@@ -1428,6 +1687,102 @@ function applyManual(){
 }
 
 document.getElementById('manualModal').addEventListener('click',function(e){if(e.target===this)closeManual();});
+
+// ─── EDITAR MONTOS DE UN SLIDE YA GENERADO ─────────────────────
+function openEditAmounts(){
+  if(!slides.length) return;
+  const v=slides[cur];
+  const isTeam=v.type==='team';
+  const dataSource=v.type==='suc'?D.daily_suc:D.daily;
+  document.getElementById('eaTitle').textContent='✎ Editar montos — '+v.label;
+  document.getElementById('eaGrid').innerHTML=periods.map((p,i)=>{
+    const raw=isTeam?sumPeriodTeam(v.members,p.dateFrom,p.dateTo):sumPeriod(dataSource,v.key,p.dateFrom,p.dateTo);
+    const s=getPeriodVals(v.key,p,raw);
+    const isOv=!!overrides[ovKey(v.key,p)];
+    return `<div class="manual-month-card">
+      <div class="month-label">P${i+1} · ${p.label}</div>
+      <input id="ea_${i}_total" type="text" placeholder="Neto total" value="${fmtManualAmt(s.total)}" oninput="eaAutoCalc(${i})">
+      <input id="ea_${i}_cont"  type="text" placeholder="Contado"    value="${fmtManualAmt(s.contado)}" style="margin-top:4px;" oninput="eaAutoCalc(${i})">
+      <input id="ea_${i}_fin"   type="text" placeholder="Financiado" value="${fmtManualAmt(s.fin)}" style="margin-top:4px;">
+      <div class="month-sub">Neto = Contado + Financiado${isOv?' · <a href="#" onclick="eaReset('+i+');return false;">restablecer calculado</a>':''}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('editAmountsModal').classList.remove('hidden');
+}
+
+function eaAutoCalc(i){
+  const t=parseAmt(document.getElementById('ea_'+i+'_total')?.value||'');
+  const c=parseAmt(document.getElementById('ea_'+i+'_cont')?.value||'');
+  const finEl=document.getElementById('ea_'+i+'_fin');
+  if(finEl&&t>0&&c>=0&&c<=t) finEl.value=fmtManualAmt(t-c);
+}
+
+function closeEditAmounts(){
+  document.getElementById('editAmountsModal').classList.add('hidden');
+}
+
+function applyEditAmounts(){
+  const v=slides[cur];
+  periods.forEach((p,i)=>{
+    const t=parseAmt(document.getElementById('ea_'+i+'_total')?.value||'');
+    const c=parseAmt(document.getElementById('ea_'+i+'_cont')?.value||'');
+    const f=parseAmt(document.getElementById('ea_'+i+'_fin')?.value||'');
+    const k=ovKey(v.key,p);
+    if(t||c||f) overrides[k]={total:t,contado:c,fin:f};
+    else delete overrides[k];
+  });
+  closeEditAmounts();
+  render(cur);
+}
+
+function eaReset(i){
+  const v=slides[cur], p=periods[i];
+  delete overrides[ovKey(v.key,p)];
+  openEditAmounts();
+}
+
+function eaResetAll(){
+  const v=slides[cur];
+  periods.forEach(p=>delete overrides[ovKey(v.key,p)]);
+  openEditAmounts();
+}
+
+document.getElementById('editAmountsModal').addEventListener('click',function(e){if(e.target===this)closeEditAmounts();});
+
+// ─── EDITAR TEXTO (nombre/sucursal/etiqueta) DE UN SLIDE YA GENERADO ───
+function openEditText(){
+  if(!slides.length) return;
+  const v=slides[cur];
+  const tOv=textOverrides[v.key]||{};
+  document.getElementById('etName').value=tOv.label!=null?tOv.label:v.label;
+  document.getElementById('etSub').value=tOv.sub!=null?tOv.sub:v.sub;
+  document.getElementById('etBadge').value=tOv.badge!=null?tOv.badge:v.badge;
+  document.getElementById('editTextModal').classList.remove('hidden');
+}
+
+function closeEditText(){
+  document.getElementById('editTextModal').classList.add('hidden');
+}
+
+function applyEditText(){
+  const v=slides[cur];
+  const label=document.getElementById('etName').value.trim();
+  const sub=document.getElementById('etSub').value.trim();
+  const badge=document.getElementById('etBadge').value.trim();
+  if(label===v.label && sub===v.sub && badge===v.badge) delete textOverrides[v.key];
+  else textOverrides[v.key]={label,sub,badge};
+  closeEditText();
+  render(cur);
+}
+
+function etReset(){
+  const v=slides[cur];
+  delete textOverrides[v.key];
+  openEditText();
+  render(cur);
+}
+
+document.getElementById('editTextModal').addEventListener('click',function(e){if(e.target===this)closeEditText();});
 
 /* ─── Tema claro/oscuro, sincronizado con el panel (localStorage compartido) ─── */
 /* Solo afecta el chrome del editor: el slide #theSlide y su canvas usan colores fijos, no cambian. */

@@ -19,7 +19,8 @@ GitHub Pages (repo público)
 ├── circuito-ventas-entes-publicos-caso2-mercaderia-remitida.html
 ├── proyeccion-gerentes-dashboard.html
 ├── informe-showroom-sucursales.html
-└── evolucion-vendedores.html
+├── evolucion-vendedores.html
+└── nota-publica.html            ← Visor público de una nota (sin login), ?id=<noteId>
 
 Google Apps Script (5 scripts separados)
 ├── LectorAgendas.gs             ← Lee Sheets de agendas (ya deployado)

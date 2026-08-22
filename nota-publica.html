@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nota · M&A Centro de Control</title>
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- ════════════════════════════════════════════════════════════════════
+     CONFIGURACIÓN — mismo Apps Script público (BackendPanel.gs) que usa
+     index.html para kb_get. No hace falta login ni clave: es de solo lectura.
+     ════════════════════════════════════════════════════════════════════ -->
+<script>
+const CONFIG = {
+  APPSSCRIPT_URL: "https://script.google.com/macros/s/AKfycby3TXMd0s-HJBjyi_i362KIQq_yD_89-f0brHau1K11kLuyzVC7YjbBnHQJS-JX0DmC/exec",
+};
+</script>
+
+<style>
+:root{
+  --ink:#000000; --muted:#615D59; --muted-2:#A39E98;
+  --canvas:#FFFFFF; --page:#F6F5F4; --border:#E6E6E6; --border-strong:#C9C4BE;
+  --blue:#0075DE; --radius-md:8px; --radius-lg:12px;
+  --shadow:0 1px 1px rgba(0,0,0,.02),0 3px 8px rgba(0,0,0,.04);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ink:#EDECE9; --muted:#B4AFA8; --muted-2:#716C66;
+    --canvas:#171614; --page:#0F0E0D; --border:#2B2926; --border-strong:#3A3733;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:"Inter",system-ui,sans-serif;line-height:1.6}
+header{display:flex;align-items:center;gap:12px;padding:16px 24px;background:var(--canvas);border-bottom:1px solid var(--border)}
+header img{height:26px;width:auto}
+header .tt{font-weight:600;font-size:13px;color:var(--muted)}
+main{max-width:760px;margin:0 auto;padding:32px 24px 64px}
+.card{background:var(--canvas);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px 32px;box-shadow:var(--shadow)}
+h1{font-size:22px;margin:0 0 4px;font-weight:700}
+.fecha{font-size:12.5px;color:var(--muted-2);margin-bottom:22px}
+.contenido{font-size:14.5px;white-space:pre-wrap;word-wrap:break-word}
+.contenido .ger-img-wrap{display:inline-block;max-width:100%;margin:6px 8px 6px 0;border:1px solid var(--border-strong);border-radius:6px;overflow:hidden;line-height:0}
+.contenido .ger-img-wrap img{width:100%;height:100%;object-fit:contain;display:block}
+.contenido .ger-img-handle{display:none!important}
+.empty{padding:60px 20px;text-align:center;color:var(--muted-2)}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:6px}
+footer{text-align:center;padding:20px;color:var(--muted-2);font-size:11.5px}
+footer a{color:var(--blue);text-decoration:none}
+footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="assets/logo.png" alt="M&amp;A">
+  <span class="tt">Centro de Control · Nota compartida</span>
+</header>
+
+<main>
+  <div class="card" id="cont"><div class="empty">Cargando…</div></div>
+</main>
+
+<footer>Compartido de solo lectura desde el Centro de Control de M&amp;A Equipamientos Comerciales</footer>
+
+<script>
+function esc(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function isRich(raw){ return /^\s*<div\s+data-ger-rich="1">/.test(raw||""); }
+function contentToHtml(raw){
+  if(!isRich(raw)) return esc(raw||"").replace(/\n/g,"<br>");
+  const tmp=document.createElement("div"); tmp.innerHTML=raw;
+  const wrap=tmp.querySelector('[data-ger-rich]');
+  return wrap?wrap.innerHTML:esc(raw).replace(/\n/g,"<br>");
+}
+function fmtFecha(iso){
+  if(!iso) return "";
+  const d=new Date(iso); if(isNaN(d)) return "";
+  return d.toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"})+" · "+d.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+}
+
+(async function(){
+  const id=new URLSearchParams(location.search).get("id");
+  const cont=document.getElementById("cont");
+  if(!id){
+    cont.innerHTML='<div class="empty"><b>Falta el link completo</b>Este link no tiene el identificador de la nota.</div>';
+    return;
+  }
+  try{
+    const r=await fetch(CONFIG.APPSSCRIPT_URL+"?action=kb_get&id="+encodeURIComponent(id), {cache:"no-store"});
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    const titulo=(d.nombre||"Nota").replace(/ — notas\.txt$/,"").replace(/\.txt$/i,"");
+    document.title=titulo+" · M&A";
+    cont.innerHTML=`<h1>${esc(titulo)}</h1>
+      <div class="fecha">${fmtFecha(d.modificado)}</div>
+      <div class="contenido">${d.texto?contentToHtml(d.texto):'<span style="opacity:.5">(sin contenido)</span>'}</div>`;
+  }catch(e){
+    cont.innerHTML=`<div class="empty"><b>No se pudo cargar la nota</b>${esc(e.message)}</div>`;
+  }
+})();
+</script>
+</body>
+</html>
