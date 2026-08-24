@@ -32,7 +32,7 @@ const TOOLS = [
     desc:"Agendas de gerentes y líderes por sucursal, en vivo desde Drive.", icono:"📅", vivo:true },
   { key:"nomina.html", nombre:"Nómina Producción", archivo:"nomina-produccion.html",
     desc:"Dotación de producción por sucursal y categoría, desde Excel.", icono:"👥" },
-  { key:"proyeccion-gerentes.html", nombre:"Proyección Gerentes", archivo:"proyeccion-gerentes-dashboard.html",
+  { key:"proyeccion-gerentes.html", nombre:"Facturación Gerentes", archivo:"proyeccion-gerentes-dashboard.html",
     desc:"Dashboard de proyección de ventas por gerente.", icono:"📈" },
   { key:"showroom-sucursales.html", nombre:"Informe Showroom Sucursales", archivo:"informe-showroom-sucursales.html",
     desc:"Estado de showroom por sucursal.", icono:"🏬" },
@@ -42,8 +42,13 @@ const TOOLS = [
     desc:"Stock por sucursal.", icono:"📦" },
 ];
 
-// Paleta de colores de acento disponible en modo edición
-const PALETA = ["#0075DE","#DD5B00","#1AAE39","#391C57","#FF64C8","#2A9D99","#615D59"];
+// Paleta de colores de acento disponible en modo edición — estados de desempeño
+const PALETA = [
+  {color:"#1E90C4", label:"Excelencia"},
+  {color:"#2F9E5E", label:"Bien"},
+  {color:"#D9A21B", label:"Regular"},
+  {color:"#CE4B44", label:"A mejorar"},
+];
 </script>
 <!-- ════════════════════════════════════════════════════════════════════ -->
 
@@ -562,10 +567,10 @@ function cardMatchesQuery(c, q){
 }
 
 function tarjeta(c, idx){
-  const color=state.layout.colors[c.key]||PALETA[0];
+  const color=state.layout.colors[c.key]||PALETA[0].color;
   const oculta=!!state.layout.hidden[c.key];
   if(oculta && !state.editMode) return "";
-  const swatches=PALETA.map(col=>`<span class="swatch ${col===color?"sel":""}" style="background:${col}" data-color="${col}" data-key="${esc(c.key)}"></span>`).join("");
+  const swatches=PALETA.map(p=>`<span class="swatch ${p.color===color?"sel":""}" style="background:${p.color}" data-color="${p.color}" data-key="${esc(c.key)}" title="${esc(p.label)}"></span>`).join("");
   const activa=c.key===state.activeKey;
   const inner=`
     <div class="tool-top">
