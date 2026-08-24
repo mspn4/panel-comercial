@@ -2683,6 +2683,43 @@ async function pushToCloud(nuevasVentas) {
   }
 }
 
+// Reservas: a diferencia de ventas, se reemplazan enteras (no hay merge por id).
+async function fetchReservasFromCloud() {
+  if (!CLOUD_CONFIG.APPSSCRIPT_URL) return;
+  try {
+    const r = await fetch(CLOUD_CONFIG.APPSSCRIPT_URL + '?action=reservas_get', { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    const remoteReservas = data.reservas || [];
+    if (!remoteReservas.length) return;
+    STATE.reservas = remoteReservas;
+    RESERVAS = remoteReservas;
+    try { enrichReservas(); } catch (e) {}
+    saveState();
+    if (typeof renderReservasStats === 'function') renderReservasStats();
+    if (typeof render === 'function') render();
+  } catch (e) {
+    console.warn('No se pudieron sincronizar las reservas desde la nube', e);
+  }
+}
+
+async function pushReservasToCloud(reservas) {
+  if (!CLOUD_CONFIG.APPSSCRIPT_URL) return;
+  try {
+    const r = await fetch(CLOUD_CONFIG.APPSSCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'reservas_set', reservas: reservas || [] }),
+    });
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    toast('ok', 'Reservas guardadas en la nube');
+  } catch (e) {
+    console.warn('No se pudieron guardar las reservas en la nube', e);
+    toast('warn', 'Reservas cargadas localmente, pero no se pudieron guardar en la nube. Reintentá más tarde.');
+  }
+}
+
 // ====================== STORAGE LAYER ======================
 function loadState() {
   if (typeof MODO_GERENTE !== 'undefined' && MODO_GERENTE) {
@@ -7261,6 +7298,7 @@ function handleReservasFile(file) {
         renderReservasStats();
         render();  // re-render dashboard incluyendo pestaña reservas
         toast('ok', `Reservas actualizadas: ${fmt.int(uniq)} reservas únicas`);
+        pushReservasToCloud(parsed);
       });
     } catch(err) {
       console.error(err);
@@ -9938,6 +9976,7 @@ try { updateFilterOptions(); } catch(e) { console.error('updateFilterOptions err
 
 try { render(); } catch(e) { console.error('Render init error', e); }
 try { fetchAndMergeCloud(); } catch(e) { console.error('Cloud sync init error', e); }
+try { fetchReservasFromCloud(); } catch(e) { console.error('Cloud sync reservas init error', e); }
 </script>
 </body>
 </html>

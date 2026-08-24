@@ -1,7 +1,8 @@
 /**
  * CloudSync.gs — Reporte Comercial M&A
- * Guarda las ventas cargadas en un archivo de Drive (fuente compartida, en vivo)
- * y, una vez al día, deja un respaldo versionado en GitHub.
+ * Guarda las ventas y las reservas cargadas en archivos de Drive (fuente
+ * compartida, en vivo) y, una vez al día, deja un respaldo versionado en
+ * GitHub con ambas cosas juntas (mismo archivo, ventas-backup.json).
  *
  * ───────────────────────────── SETUP (una sola vez) ─────────────────────────────
  * 1) Creá una carpeta en tu Drive para esto (o reusá una existente) y copiá su ID
@@ -39,12 +40,14 @@
 
 var DATA_FOLDER_ID = "1wBMtyS11uYC2ZcoeJrneCZcmUKOdkz-w";
 var LIVE_FILE_NAME = "ventas-live.json";
+var RESERVAS_LIVE_FILE_NAME = "reservas-live.json";
 
 /* ═══════════════════════════ Router ═══════════════════════════ */
 function doGet(e) {
   try {
     var action = e.parameter.action;
     if (action === "ventas_get") return json({ ventas: leerVentas() });
+    if (action === "reservas_get") return json({ reservas: leerReservas() });
     return json({ error: "Acción desconocida: " + action });
   } catch (err) {
     return json({ error: String(err) });
@@ -55,6 +58,7 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (body.action === "ventas_add") return json(agregarVentas(body.ventas || []));
+    if (body.action === "reservas_set") return json(reemplazarReservas(body.reservas || []));
     return json({ error: "Acción desconocida: " + body.action });
   } catch (err) {
     return json({ error: String(err) });
@@ -72,6 +76,11 @@ function getDataFolder() {
 
 function findLiveFile() {
   var it = getDataFolder().getFilesByName(LIVE_FILE_NAME);
+  return it.hasNext() ? it.next() : null;
+}
+
+function findReservasFile() {
+  var it = getDataFolder().getFilesByName(RESERVAS_LIVE_FILE_NAME);
   return it.hasNext() ? it.next() : null;
 }
 
@@ -121,6 +130,40 @@ function agregarVentas(nuevas) {
   }
 }
 
+/* ═══════════════════════════ Reservas ═══════════════════════════ */
+// A diferencia de ventas (histórico acumulativo), las reservas se reemplazan
+// enteras cada vez que alguien carga un excel nuevo en reporte-comercial.html
+// — no tiene sentido "agregar", la foto vieja queda obsoleta.
+function leerReservas() {
+  var f = findReservasFile();
+  if (!f) return [];
+  try {
+    var data = JSON.parse(f.getBlob().getDataAsString());
+    return data.reservas || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function guardarReservas(reservas) {
+  var folder = getDataFolder();
+  var content = JSON.stringify({ reservas: reservas, actualizado: new Date().toISOString() });
+  var f = findReservasFile();
+  if (f) f.setContent(content);
+  else folder.createFile(RESERVAS_LIVE_FILE_NAME, content, MimeType.PLAIN_TEXT);
+}
+
+function reemplazarReservas(reservas) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    guardarReservas(reservas);
+    return { ok: true, total: reservas.length };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /**
  * Carga inicial desde un backup ya exportado (seed.json en la misma carpeta).
  * Ejecutar UNA SOLA VEZ a mano desde el editor (no se llama desde el dashboard).
@@ -150,7 +193,8 @@ function dailyGithubBackup() {
   }
 
   var ventas = leerVentas();
-  var content = JSON.stringify({ ventas: ventas, exportado: new Date().toISOString() }, null, 0);
+  var reservas = leerReservas();
+  var content = JSON.stringify({ ventas: ventas, reservas: reservas, exportado: new Date().toISOString() }, null, 0);
   var contentB64 = Utilities.base64Encode(content, Utilities.Charset.UTF_8);
 
   var apiUrl = "https://api.github.com/repos/" + repo + "/contents/" + path;
@@ -185,7 +229,7 @@ function dailyGithubBackup() {
   });
 
   if (putResp.getResponseCode() >= 200 && putResp.getResponseCode() < 300) {
-    Logger.log("Backup a GitHub OK — " + ventas.length + " ventas.");
+    Logger.log("Backup a GitHub OK — " + ventas.length + " ventas, " + reservas.length + " líneas de reservas.");
   } else {
     Logger.log("Error en backup a GitHub: " + putResp.getResponseCode() + " " + putResp.getContentText());
   }
