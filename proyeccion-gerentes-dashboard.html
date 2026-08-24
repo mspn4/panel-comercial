@@ -141,7 +141,7 @@
   .foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:10.5px;color:var(--ink-2);font-weight:500;flex-wrap:wrap;gap:6px;}
   .foot .acc{color:var(--orange);font-weight:700;}
   /* EVOLUTIVO */
-  #evolWrap{width:1280px;max-width:100%;margin:18px auto 90px;}
+  #evolWrap{width:1280px;max-width:100%;margin:18px auto 18px;}
   .evol-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 22px 22px;box-shadow:var(--shadow-card);}
   .evol-head h2{font-size:15px;font-weight:700;letter-spacing:-.2px;}
   .evol-head p{font-size:12px;color:var(--ink-2);margin-top:3px;}
@@ -155,6 +155,13 @@
   .seg button.active{background:var(--navy);color:#fff;}
   .evol-chart-wrap{height:300px;position:relative;margin-top:10px;}
   .evol-empty{font-size:13px;color:var(--ink-2);text-align:center;padding:40px 0;}
+  /* META GLOBAL */
+  #metaGlobalWrap{width:1280px;max-width:100%;margin:0 auto 90px;}
+  .scenario-row{display:flex;align-items:center;gap:18px;padding:12px 0;border-bottom:1px solid var(--line);}
+  .scenario-row:last-child{border-bottom:none;}
+  .scenario-lab{width:210px;flex:none;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:9px;}
+  .scenario-row .obj-cell{flex:1;}
+  .scenario-val{width:190px;flex:none;text-align:right;font-size:12.5px;font-weight:600;color:var(--ink-2);}
   /* EXPORT */
   #exportBtn{position:fixed;bottom:22px;right:22px;z-index:50;background:var(--navy);color:#fff;border:none;cursor:pointer;
     padding:13px 20px;border-radius:14px;font-family:inherit;font-size:14px;font-weight:600;
@@ -296,7 +303,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
         <table id="mainTable">
           <colgroup id="mainColgroup"></colgroup>
           <thead><tr id="theadRow"></tr></thead>
-          <tbody id="tbody"><tr><td colspan="10" style="padding:24px;text-align:center;color:var(--ink-2)">Cargando datos de ventas-backup.json…</td></tr></tbody>
+          <tbody id="tbody"><tr><td colspan="11" style="padding:24px;text-align:center;color:var(--ink-2)">Cargando datos de ventas-backup.json…</td></tr></tbody>
           <tfoot><tr id="tfootRow"></tr></tfoot>
         </table>
       </div>
@@ -337,6 +344,31 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   </div>
 </div>
 
+<div id="metaGlobalWrap">
+  <div class="evol-card">
+    <div class="evol-head">
+      <h2>Meta global de facturación</h2>
+      <p>Equipo completo (10 gerentes), dos escenarios contra una meta fija de $300M.</p>
+    </div>
+    <div class="scenario-row">
+      <div class="scenario-lab"><span class="sw" style="background:var(--navy)"></span>Facturación Neta</div>
+      <div class="obj-cell">
+        <div class="obj-bar-track"><div class="obj-bar-fill" id="scenNetoFill" style="background:var(--navy)"></div></div>
+        <div class="obj-pct" id="scenNetoPct" style="color:var(--navy)">—</div>
+      </div>
+      <div class="scenario-val" id="scenNetoVal">—</div>
+    </div>
+    <div class="scenario-row">
+      <div class="scenario-lab"><span class="sw" style="background:var(--orange)"></span>Facturación + Reserva</div>
+      <div class="obj-cell">
+        <div class="obj-bar-track"><div class="obj-bar-fill" id="scenProyFill" style="background:var(--orange)"></div></div>
+        <div class="obj-pct" id="scenProyPct" style="color:var(--orange)">—</div>
+      </div>
+      <div class="scenario-val" id="scenProyVal">—</div>
+    </div>
+  </div>
+</div>
+
 <button id="exportBtn" onclick="exportPNG()">⤓ Exportar PNG</button>
 
 <script>
@@ -354,6 +386,7 @@ const GERENTES = [
   {key:"RIOS NIETO SEBASTIAN VIVIANO", nombre:"Ríos Nieto Sebastián Viviano"},
 ];
 const GERENTE_KEYS = new Set(GERENTES.map(g=>g.key));
+const META_GLOBAL = 300000000;
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 /* ---------- Estado persistido ---------- */
@@ -377,6 +410,7 @@ const COLS = [
   {key:'contado',    label:'Contado',    hideable:true,  sortable:true, type:'num',  width:125},
   {key:'financiado', label:'Financiado', hideable:true,  sortable:true, type:'num',  width:125},
   {key:'reservas',   label:'Reservas',   hideable:true,  sortable:true, type:'num',  width:105},
+  {key:'proyeccion', label:'Proyección', hideable:true,  sortable:true, type:'num',  width:130},
   {key:'ops',        label:'Ops',        hideable:true,  sortable:true, type:'num',  width:60},
   {key:'varPct',     label:'Var. mes ant.', hideable:true, sortable:true, type:'num', width:95},
   {key:'objetivo',   label:'% Objetivo Alcanzado', hideable:false, sortable:true, type:'num', width:230},
@@ -425,7 +459,7 @@ async function loadData(manual){
     exportadoAt = data.exportado || null;
   }catch(err){
     document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--red)">'+
+      '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--red)">'+
       'No se pudo cargar <b>ventas-backup.json</b>. Si abriste este archivo directo (file://), '+
       'serví la carpeta con un servidor local o abrilo desde GitHub Pages.</td></tr>';
     document.getElementById('evolWrap').innerHTML = '<div class="evol-card"><div class="evol-empty">Sin datos disponibles.</div></div>';
@@ -482,7 +516,8 @@ function buildGerentesData(month){
     const reservaRows = reservasAll.filter(v=>v.vendedor===g.key && v.fecha.slice(0,7)===month);
     const reservas = reservaRows.reduce((s,r)=>s+(r.subtot||0),0);
     const ops = new Set(reservaRows.map(reservaKey)).size;
-    return {key:g.key, nombre:g.nombre, sucursal, neto, contado, financiado, varPct, pctObjetivo, reservas, ops};
+    const proyeccion = neto + reservas;
+    return {key:g.key, nombre:g.nombre, sucursal, neto, contado, financiado, varPct, pctObjetivo, reservas, proyeccion, ops};
   });
 }
 
@@ -496,6 +531,21 @@ function renderAll(){
   renderKpis();
   renderTable();
   renderEvolChart();
+  renderMetaGlobal();
+}
+
+function renderMetaGlobal(){
+  const tNeto = currentRows.reduce((s,r)=>s+r.neto,0);
+  const tReservas = currentRows.reduce((s,r)=>s+r.reservas,0);
+  const tProy = tNeto + tReservas;
+  const pctNeto = META_GLOBAL>0 ? tNeto/META_GLOBAL*100 : 0;
+  const pctProy = META_GLOBAL>0 ? tProy/META_GLOBAL*100 : 0;
+  document.getElementById('scenNetoFill').style.width = Math.max(0,Math.min(100,pctNeto))+'%';
+  document.getElementById('scenNetoPct').textContent = pctNeto.toFixed(1)+'%';
+  document.getElementById('scenNetoVal').textContent = fmtM(tNeto)+' / '+fmtM(META_GLOBAL);
+  document.getElementById('scenProyFill').style.width = Math.max(0,Math.min(100,pctProy))+'%';
+  document.getElementById('scenProyPct').textContent = pctProy.toFixed(1)+'%';
+  document.getElementById('scenProyVal').textContent = fmtM(tProy)+' / '+fmtM(META_GLOBAL);
 }
 
 function renderKpis(){
@@ -610,6 +660,8 @@ function renderTable(){
         tds += '<td class="num"><div class="cell-money-pct"><span class="m">'+fmtFull(r.financiado)+'</span><span class="p">'+p+'%</span></div></td>';
       }else if(c.key==='reservas'){
         tds += '<td class="num">'+fmtShort(r.reservas)+'</td>';
+      }else if(c.key==='proyeccion'){
+        tds += '<td class="num" style="font-weight:700;color:var(--navy)">'+fmtFull(r.proyeccion)+'</td>';
       }else if(c.key==='ops'){
         tds += '<td class="num">'+r.ops+'</td>';
       }else if(c.key==='varPct'){
@@ -659,6 +711,7 @@ function renderTfoot(cols){
       const p = tNeto>0 ? Math.round(tFinanciado/tNeto*100) : 0;
       tds += '<td class="num"><div class="cell-money-pct"><span class="m">'+fmtFull(tFinanciado)+'</span><span class="p">'+p+'%</span></div></td>';
     }else if(c.key==='reservas') tds += '<td class="num">'+fmtShort(tReservas)+'</td>';
+    else if(c.key==='proyeccion') tds += '<td class="num" style="color:var(--navy)">'+fmtFull(tNeto+tReservas)+'</td>';
     else if(c.key==='ops') tds += '<td class="num">'+tOps+'</td>';
     else if(c.key==='varPct') tds += '<td class="num">—</td>';
     else if(c.key==='objetivo'){
