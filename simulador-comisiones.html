@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de comisiones · Abril 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F4EC;
+    --surface: #FFFFFF;
+    --ink: #1A1A1A;
+    --ink-soft: #4a4a4a;
+    --muted: #8a8a85;
+    --line: #1A1A1A;
+    --line-soft: #E5E2D9;
+    --line-softer: #EFECE3;
+    --accent: #2F5D3A;
+    --accent-bg: #E8EEE5;
+    --amber-bg: #FBF5E4;
+    --amber-line: #E8D9A8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--ink); font-family: 'DM Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  body { min-height: 100vh; }
+  .app { max-width: 1120px; margin: 0 auto; padding: 40px 24px; }
+
+  /* Header */
+  .header { border-bottom: 1px solid var(--line); padding-bottom: 24px; margin-bottom: 32px; }
+  .header-row { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: var(--muted); margin-bottom: 4px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 500; font-size: 48px; line-height: 1; letter-spacing: -0.02em; }
+  @media (max-width: 640px) { h1 { font-size: 34px; } }
+  .header-right { text-align: right; }
+  .header-right .sub { font-family: 'Fraunces', serif; font-style: italic; font-size: 20px; color: var(--ink-soft); }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 1px solid var(--line-soft); margin-bottom: 32px; flex-wrap: wrap; }
+  .tab { background: transparent; border: none; padding: 12px 20px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); cursor: pointer; transition: color 0.15s; font-family: inherit; }
+  .tab:hover { color: var(--ink-soft); }
+  .tab.active { color: var(--ink); font-weight: 600; border-bottom: 2px solid var(--accent); margin-bottom: -1px; }
+
+  /* Layout */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; gap: 32px; } }
+  .section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: var(--muted); margin-bottom: 20px; }
+
+  /* Form */
+  .field { margin-bottom: 18px; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  label.lbl { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+  select, input[type="number"], input[type="text"] {
+    width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--ink);
+    padding: 8px 0; color: var(--ink); font-size: 14px; font-family: inherit; outline: none;
+    transition: border-color 0.15s; -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  }
+  select { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%231A1A1A' fill='none' stroke-width='1.2'/></svg>"); background-repeat: no-repeat; background-position: right 4px center; padding-right: 20px; cursor: pointer; }
+  select:focus, input:focus { border-bottom-color: var(--accent); }
+  input[type="number"] { font-family: 'JetBrains Mono', monospace; }
+  input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .input-with-prefix { display: flex; align-items: baseline; border-bottom: 1px solid var(--ink); transition: border-color 0.15s; }
+  .input-with-prefix:focus-within { border-bottom-color: var(--accent); }
+  .input-with-prefix span { color: var(--muted); font-size: 14px; padding-right: 4px; }
+  .input-with-prefix input { border: none; padding: 8px 0; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 6px; font-style: italic; line-height: 1.4; }
+
+  /* Toggle */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--line-soft); }
+  .toggle { position: relative; display: inline-flex; align-items: center; height: 24px; width: 44px; border-radius: 999px; background: #D4D1C6; cursor: pointer; border: none; transition: background 0.2s; padding: 0; }
+  .toggle.on { background: var(--accent); }
+  .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: white; border-radius: 999px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.2s; }
+  .toggle.on::after { transform: translateX(20px); }
+
+  /* Card result */
+  .card { background: var(--surface); border: 1px solid var(--line); padding: 32px; }
+  .card-muted { background: var(--surface); border: 1px solid var(--line-soft); padding: 24px; }
+  .hero-value { font-family: 'JetBrains Mono', monospace; font-size: 48px; font-weight: 500; color: var(--accent); letter-spacing: -0.02em; line-height: 1; }
+  @media (max-width: 640px) { .hero-value { font-size: 36px; } }
+  .hero-sub { font-family: 'Fraunces', serif; font-style: italic; font-size: 14px; color: var(--muted); margin-top: 8px; }
+  .hero-sub .mono { font-family: 'JetBrains Mono', monospace; font-style: normal; color: var(--ink-soft); }
+  .hero-block { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--line-soft); }
+
+  /* Breakdown rows */
+  .break-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 14px; }
+  .break-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 8px 0; }
+  .break-row + .break-row { border-top: 1px dashed var(--line-softer); }
+  .break-label { font-size: 14px; color: var(--ink); font-weight: 500; }
+  .break-detail { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .break-val { text-align: right; flex-shrink: 0; }
+  .break-val .pct { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--ink); }
+  .break-val .amt { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+  .break-val .amt.solo { font-size: 14px; color: var(--ink); }
+  .break-section { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--line-softer); }
+  .break-section:last-child { border-bottom: none; }
+
+  /* Notes box */
+  .notes { background: #FAF8F1; border-left: 2px solid var(--accent); padding: 16px; margin-top: 24px; }
+  .notes-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 8px; }
+  .notes ul { list-style: none; }
+  .notes li { font-size: 12px; color: var(--ink-soft); line-height: 1.6; }
+  .notes li::before { content: '— '; }
+
+  .empty { text-align: center; padding: 48px 0; color: #B0ADA2; font-family: 'Fraunces', serif; font-style: italic; }
+
+  /* Info banner */
+  .banner { background: var(--amber-bg); border: 1px solid var(--amber-line); padding: 16px 20px; margin-bottom: 32px; font-size: 12px; color: var(--ink-soft); line-height: 1.6; }
+  .banner .tag { font-family: 'Fraunces', serif; font-style: italic; color: var(--ink); font-weight: 500; }
+
+  /* Subsection divider */
+  .subsec { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line-soft); }
+
+  /* Table */
+  .ref-section { margin-top: 64px; padding-top: 32px; border-top: 1px solid var(--line-soft); }
+  .ref-toggle { display: flex; align-items: center; gap: 12px; background: transparent; border: none; cursor: pointer; font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: var(--muted); padding: 0; font-family: inherit; transition: color 0.15s; }
+  .ref-toggle:hover { color: var(--ink); }
+  .ref-toggle .sign { font-size: 14px; }
+  .ref-table-wrap { margin-top: 24px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+  thead tr { border-bottom: 1px solid var(--line); }
+  th { text-align: left; padding: 8px; font-weight: 500; }
+  th.num { text-align: right; }
+  tbody tr { border-bottom: 1px solid #F3F0E7; }
+  tbody tr:hover { background: #FBF9F2; }
+  td { padding: 6px 8px; }
+  td.num { text-align: right; }
+  td.soft { color: var(--muted); }
+  tr.highlight { background: var(--accent-bg); }
+
+  /* Mini table escala sur */
+  .mini-table { max-height: 280px; overflow-y: auto; }
+  .mini-table table thead th { background: var(--surface); position: sticky; top: 0; }
+
+  /* Escalones líder */
+  .tiers { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line-soft); }
+  .tiers-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 12px; }
+  .tier-row { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 2px 0; color: var(--ink-soft); }
+
+  /* Footer */
+  .footer { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line-soft); font-size: 11px; color: var(--muted); }
+  .footer-title { font-family: 'Fraunces', serif; font-style: italic; font-size: 14px; color: var(--ink-soft); margin-bottom: 8px; }
+  .footer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; }
+  @media (max-width: 640px) { .footer-grid { grid-template-columns: 1fr; } }
+
+  .hidden { display: none !important; }
+
+  /* ==== Mes del vendedor ==== */
+  .config-strip { background: var(--surface); border: 1px solid var(--line); padding: 20px 24px; margin-bottom: 24px; }
+  .config-strip-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; align-items: end; }
+  @media (max-width: 900px) { .config-strip-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 500px) { .config-strip-grid { grid-template-columns: 1fr; } }
+
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); margin-bottom: 24px; background: var(--surface); }
+  @media (max-width: 700px) { .stats-row { grid-template-columns: 1fr; } }
+  .stat-card { padding: 20px 24px; border-right: 1px solid var(--line-soft); }
+  .stat-card:last-child { border-right: none; }
+  @media (max-width: 700px) { .stat-card { border-right: none; border-bottom: 1px solid var(--line-soft); } .stat-card:last-child { border-bottom: none; } }
+  .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 8px; }
+  .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 500; color: var(--ink); letter-spacing: -0.01em; line-height: 1; }
+  .stat-value.accent { color: var(--accent); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 6px; font-style: italic; font-family: 'Fraunces', serif; }
+
+  .add-form { background: var(--surface); border: 1px solid var(--line); padding: 24px; }
+  .add-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; margin-bottom: 18px; }
+  .btn-primary { width: 100%; background: var(--ink); color: white; border: none; padding: 12px 20px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; font-family: inherit; cursor: pointer; transition: background 0.15s; font-weight: 500; }
+  .btn-primary:hover { background: var(--accent); }
+  .btn-primary:disabled { background: #D4D1C6; cursor: not-allowed; }
+  .btn-ghost { background: transparent; border: 1px solid var(--line-soft); color: var(--ink-soft); padding: 8px 14px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; font-family: inherit; cursor: pointer; transition: all 0.15s; }
+  .btn-ghost:hover { border-color: #8B2E2E; color: #8B2E2E; }
+
+  .ops-table-wrap { background: var(--surface); border: 1px solid var(--line); margin-top: 24px; }
+  .ops-table-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line-soft); }
+  .ops-table-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: var(--muted); font-weight: 500; }
+  .ops-table-inner { overflow-x: auto; }
+  .ops-table { width: 100%; font-size: 12px; }
+  .ops-table th { background: #FBF9F2; padding: 10px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); font-weight: 500; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  .ops-table th.num { text-align: right; }
+  .ops-table th.center { text-align: center; }
+  .ops-table td { padding: 12px; border-bottom: 1px solid #F3F0E7; }
+  .ops-table td.num { text-align: right; font-family: 'JetBrains Mono', monospace; }
+  .ops-table td.center { text-align: center; }
+  .ops-table tr:last-child td { border-bottom: none; }
+  .ops-table tr:hover { background: #FBF9F2; }
+  .ops-empty { padding: 48px 24px; text-align: center; color: #B0ADA2; font-family: 'Fraunces', serif; font-style: italic; font-size: 14px; }
+  .ops-pill { display: inline-block; padding: 2px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; background: #EFECE3; color: var(--ink-soft); border-radius: 2px; white-space: nowrap; }
+  .ops-pill.escala { background: #E8EEE5; color: var(--accent); }
+  .ops-pill.premio { background: #FBF5E4; color: #8B6B1F; }
+  .ops-pill.fijo { background: #F0E8E8; color: #7A2E2E; }
+  .btn-delete { background: transparent; border: none; color: #B0ADA2; cursor: pointer; font-size: 16px; padding: 4px 8px; transition: color 0.15s; font-family: inherit; }
+  .btn-delete:hover { color: #8B2E2E; }
+
+  .breakdown-card { background: var(--surface); border: 1px solid var(--line); padding: 24px; }
+  .breakdown-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: var(--muted); margin-bottom: 16px; }
+  .bd-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; font-size: 13px; border-bottom: 1px dashed var(--line-softer); }
+  .bd-row:last-child { border-bottom: none; }
+  .bd-row .bd-lbl { color: var(--ink-soft); flex: 1; }
+  .bd-row .bd-val { font-family: 'JetBrains Mono', monospace; color: var(--ink); text-align: right; }
+  .bd-row.total { border-top: 1px solid var(--line); border-bottom: none; margin-top: 8px; padding-top: 14px; font-weight: 600; }
+  .bd-row.total .bd-val { color: var(--accent); font-size: 15px; }
+  .bd-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .footer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; flex-wrap: wrap; gap: 12px; }
+
+  .confirm-overlay { position: fixed; inset: 0; background: rgba(26,26,26,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .confirm-box { background: white; border: 1px solid var(--line); padding: 32px; max-width: 400px; width: 90%; }
+  .confirm-box h3 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 500; margin-bottom: 12px; }
+  .confirm-box p { font-size: 13px; color: var(--ink-soft); margin-bottom: 24px; line-height: 1.5; }
+  .confirm-actions { display: flex; gap: 12px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-row">
+      <div>
+        <div class="eyebrow">Política de sueldos · Abril 2026</div>
+        <h1>Simulador de comisiones</h1>
+      </div>
+      <div class="header-right">
+        <div class="eyebrow">Comercial</div>
+        <div class="sub">Norte · Sur</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="operacion">01 · Comisión por operación</button>
+    <button class="tab" data-tab="lider">02 · Asegurado del líder</button>
+    <button class="tab" data-tab="sur">03 · Liquidación mensual Sur</button>
+    <button class="tab" data-tab="mes">04 · Mes del vendedor</button>
+  </div>
+
+  <!-- ========= TAB 1 ========= -->
+  <div class="tab-panel" id="panel-operacion">
+    <div class="two-col">
+      <div>
+        <div class="section-title">Parámetros de la operación</div>
+
+        <div class="row-2">
+          <div class="field">
+            <label class="lbl">Región</label>
+            <select id="op-region">
+              <option value="Norte">Norte</option>
+              <option value="Sur">Sur (Córdoba)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="lbl">Rol</label>
+            <select id="op-rol">
+              <option value="Vendedor">Vendedor</option>
+              <option value="VendedorFree">Vendedor Free</option>
+              <option value="Lider">Líder</option>
+              <option value="Gerente">Gerente</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field hidden" id="op-tipo-vendedor-sur-wrap">
+          <label class="lbl">Tipo de vendedor del Sur</label>
+          <select id="op-tipo-vendedor-sur">
+            <option value="Salon-CRM">Salón / CRM</option>
+            <option value="Redes">Redes</option>
+            <option value="Terreno">Terreno</option>
+          </select>
+          <div class="hint">Define el piso y la escala progresiva aplicable sobre el total mensual.</div>
+        </div>
+
+        <div class="field">
+          <label class="lbl">Lista de precios</label>
+          <select id="op-lista">
+            <option value="3767">3767 — Principal</option>
+            <option value="3838">3838 — Principal</option>
+            <option value="1018">1018 — Comisión fija 10%</option>
+            <option value="101">101 — Comisión fija 10%</option>
+            <option value="1000">1000 — Escala 3% máx.</option>
+            <option value="6001">6001 — Distribuidor</option>
+            <option value="6002">6002 — Distribuidor</option>
+          </select>
+        </div>
+
+        <div class="field hidden" id="op-tipo-producto-wrap">
+          <label class="lbl">Tipo de producto</label>
+          <select id="op-tipo-producto">
+            <option value="Nuevo">Producto nuevo</option>
+            <option value="Outlet">Outlet</option>
+            <option value="PDO">PDO</option>
+          </select>
+        </div>
+
+        <div class="row-2">
+          <div class="field" id="op-descuento-wrap">
+            <label class="lbl">Descuento sobre PL (%)</label>
+            <input type="number" id="op-descuento" placeholder="0" step="0.01" value="0">
+          </div>
+          <div class="field">
+            <label class="lbl">Importe de la venta</label>
+            <div class="input-with-prefix">
+              <span>$</span>
+              <input type="number" id="op-importe" placeholder="0.00" step="0.01">
+            </div>
+          </div>
+        </div>
+
+        <div class="field hidden" id="op-supera-wrap">
+          <div class="toggle-row">
+            <div>
+              <label class="lbl">¿Supera objetivo?</label>
+              <div class="hint" style="margin-top:2px;">Suma +1% sobre el importe.</div>
+            </div>
+            <button class="toggle" id="op-supera" type="button" aria-label="Supera objetivo"></button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" id="op-result-card">
+          <div class="section-title">Comisión calculada</div>
+          <div id="op-result-content">
+            <div class="empty">Completá los datos de la operación</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= TAB 2 ========= -->
+  <div class="tab-panel hidden" id="panel-lider">
+    <div class="two-col">
+      <div>
+        <div class="section-title">Datos del líder</div>
+
+        <div class="field">
+          <label class="lbl">Tipo de líder</label>
+          <select id="lid-tipo">
+            <option value="Comun">Común (producción / redes)</option>
+            <option value="CRM">Líder de CRM</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="lbl">Comisiones totales del equipo</label>
+          <div class="input-with-prefix">
+            <span>$</span>
+            <input type="number" id="lid-equipo" placeholder="0.00" step="0.01">
+          </div>
+          <div class="hint">Solo suman vendedores que facturen más de $8M en el mes.</div>
+        </div>
+
+        <div id="lid-comun-fields">
+          <div class="field">
+            <label class="lbl">Ventas personales del líder (importe facturado)</label>
+            <div class="input-with-prefix">
+              <span>$</span>
+              <input type="number" id="lid-ventas" placeholder="0.00" step="0.01">
+            </div>
+            <div class="hint">Define el escalón de asegurado si el equipo no llega a $1,5M.</div>
+          </div>
+          <div class="field">
+            <label class="lbl">Comisión por sus ventas personales</label>
+            <div class="input-with-prefix">
+              <span>$</span>
+              <input type="number" id="lid-comision-propia" placeholder="0.00" step="0.01">
+            </div>
+            <div class="hint">Se suma al asegurado o al total del equipo.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="section-title">Liquidación del líder</div>
+          <div id="lid-result-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= TAB 3 ========= -->
+  <div class="tab-panel hidden" id="panel-sur">
+    <div class="banner">
+      <span class="tag">Concepto clave · </span>
+      El vendedor del Sur no comisiona operación por operación. Comisiona sobre el <strong>total vendido en el mes</strong> según una escala progresiva (tramo aplicado al total). Si no alcanza el mínimo, no comisiona por la escala, pero igual cobra los premios y las listas 1018/101 como premio.
+    </div>
+
+    <div class="two-col">
+      <div>
+        <div class="section-title">Parámetros del mes</div>
+
+        <div class="field">
+          <label class="lbl">Tipo de vendedor</label>
+          <select id="sur-tipo">
+            <option value="Salon-CRM">Salón / CRM · piso $25M</option>
+            <option value="Redes">Redes · piso $20M</option>
+            <option value="Terreno">Terreno · piso $15M</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="lbl">Ventas totales del mes (base escala)</label>
+          <div class="input-with-prefix">
+            <span>$</span>
+            <input type="number" id="sur-ventas-total" placeholder="0.00" step="0.01">
+          </div>
+          <div class="hint">Sumatoria de las ventas del mes que se imputan a la escala progresiva.</div>
+        </div>
+
+        <div class="subsec">
+          <div class="section-title" style="margin-bottom:8px;">Adicionales por lista</div>
+          <div class="hint" style="margin-top:0; margin-bottom:18px;">Cargá opcionalmente las ventas específicas del mes en cada lista para sumar premios y fijos.</div>
+
+          <div class="field">
+            <label class="lbl">Ventas Lista 1000 (+1% premio)</label>
+            <div class="input-with-prefix"><span>$</span><input type="number" id="sur-v1000" placeholder="0.00" step="0.01"></div>
+          </div>
+          <div class="field">
+            <label class="lbl">Ventas Outlet / PDO en 3767 (+1% premio)</label>
+            <div class="input-with-prefix"><span>$</span><input type="number" id="sur-vOutletPDO" placeholder="0.00" step="0.01"></div>
+          </div>
+          <div class="field">
+            <label class="lbl">Ventas Lista 1018 (10% fijo)</label>
+            <div class="input-with-prefix"><span>$</span><input type="number" id="sur-v1018" placeholder="0.00" step="0.01"></div>
+          </div>
+          <div class="field">
+            <label class="lbl">Ventas Lista 101 (10% fijo)</label>
+            <div class="input-with-prefix"><span>$</span><input type="number" id="sur-v101" placeholder="0.00" step="0.01"></div>
+          </div>
+          <div class="field">
+            <label class="lbl">Ventas Listas 6001 / 6002 (1,5% distribuidor)</label>
+            <div class="input-with-prefix"><span>$</span><input type="number" id="sur-vDist" placeholder="0.00" step="0.01"></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom:24px;">
+          <div class="section-title">Liquidación del mes</div>
+          <div id="sur-result-content"></div>
+        </div>
+
+        <div class="card-muted">
+          <div class="section-title" style="margin-bottom:12px;">Escala aplicada · <span id="sur-escala-nombre">Salón / CRM</span></div>
+          <div class="mini-table" id="sur-escala-table"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= TAB 4: Mes del vendedor ========= -->
+  <div class="tab-panel hidden" id="panel-mes">
+
+    <!-- Config del vendedor -->
+    <div class="config-strip">
+      <div class="config-strip-grid">
+        <div>
+          <label class="lbl">Región</label>
+          <select id="mes-region">
+            <option value="Norte">Norte</option>
+            <option value="Sur">Sur (Córdoba)</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl">Rol</label>
+          <select id="mes-rol">
+            <option value="Vendedor">Vendedor</option>
+            <option value="VendedorFree">Vendedor Free</option>
+            <option value="Lider">Líder</option>
+            <option value="Gerente">Gerente</option>
+          </select>
+        </div>
+        <div id="mes-tipo-sur-wrap" class="hidden">
+          <label class="lbl">Tipo de vendedor del Sur</label>
+          <select id="mes-tipo-sur">
+            <option value="Salon-CRM">Salón / CRM</option>
+            <option value="Redes">Redes</option>
+            <option value="Terreno">Terreno</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl">¿Supera objetivo del mes?</label>
+          <div style="display:flex;align-items:center;gap:12px;padding-top:6px;">
+            <button class="toggle" id="mes-supera" type="button"></button>
+            <span style="font-size:11px;color:var(--muted);font-style:italic;">+1% en 3767/3838</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Operaciones cargadas</div>
+        <div class="stat-value" id="mes-stat-ops">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total facturado</div>
+        <div class="stat-value" id="mes-stat-vendido">$ 0,00</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Comisión del mes</div>
+        <div class="stat-value accent" id="mes-stat-comision">$ 0,00</div>
+        <div class="stat-sub" id="mes-stat-comision-sub"></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- Form agregar operación -->
+      <div>
+        <div class="add-form">
+          <div class="section-title" style="margin-bottom:18px;">Agregar operación</div>
+
+          <div class="add-form-grid">
+            <div class="field" style="margin:0;">
+              <label class="lbl">Lista</label>
+              <select id="mes-add-lista">
+                <option value="3767">3767</option>
+                <option value="3838">3838</option>
+                <option value="1018">1018</option>
+                <option value="101">101</option>
+                <option value="1000">1000</option>
+                <option value="6001">6001</option>
+                <option value="6002">6002</option>
+              </select>
+            </div>
+
+            <div class="field hidden" id="mes-add-tipo-producto-wrap" style="margin:0;">
+              <label class="lbl">Producto</label>
+              <select id="mes-add-tipo-producto">
+                <option value="Nuevo">Nuevo</option>
+                <option value="Outlet">Outlet</option>
+                <option value="PDO">PDO</option>
+              </select>
+            </div>
+
+            <div class="field hidden" id="mes-add-descuento-wrap" style="margin:0;">
+              <label class="lbl">Descuento (%)</label>
+              <input type="number" id="mes-add-descuento" placeholder="0" step="0.01" value="0">
+            </div>
+
+            <div class="field" style="margin:0;">
+              <label class="lbl">Importe</label>
+              <div class="input-with-prefix">
+                <span>$</span>
+                <input type="number" id="mes-add-importe" placeholder="0.00" step="0.01">
+              </div>
+            </div>
+
+            <div class="field" style="margin:0;">
+              <label class="lbl">Fecha / N° op. (opcional)</label>
+              <input type="text" id="mes-add-ref" placeholder="Ej: 05/04 · #1234">
+            </div>
+          </div>
+
+          <button class="btn-primary" id="mes-add-btn">Agregar operación</button>
+        </div>
+      </div>
+
+      <!-- Desglose -->
+      <div>
+        <div class="breakdown-card">
+          <div class="breakdown-title">Desglose de la comisión</div>
+          <div id="mes-breakdown-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de operaciones -->
+    <div class="ops-table-wrap">
+      <div class="ops-table-header">
+        <div class="ops-table-title">Operaciones del mes</div>
+        <button class="btn-ghost" id="mes-clear-btn">Limpiar mes</button>
+      </div>
+      <div class="ops-table-inner" id="mes-ops-container"></div>
+    </div>
+
+  </div>
+
+  <!-- Tabla de referencia 3767/3838 -->
+  <div class="ref-section">
+    <button class="ref-toggle" id="ref-toggle"><span class="sign" id="ref-sign">+</span><span>Referencia · Escala Lista 3767 / 3838</span></button>
+    <div class="ref-table-wrap hidden" id="ref-table-wrap"></div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-title">Resumen de reglas clave</div>
+    <div class="footer-grid">
+      <div>— Listas 1018 y 101: vendedor cobra 10% fijo sin escala.</div>
+      <div>— Líder / Gerente en 101 usan escala 3767.</div>
+      <div>— Listas 6001 / 6002: porcentajes planos, sin premio.</div>
+      <div>— Lista 1000 no tiene supera-objetivo.</div>
+      <div>— PDO 5% fijo aplica solo a vendedor del Norte.</div>
+      <div>— Sur: +1% adicional en Lista 1000, Outlet y PDO de 3767.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============ ESCALAS ============
+
+const ESCALA_3767 = [
+  { letra: 'B', desc: '0% - 1%',     min: 0,     max: 1,   vendedor: 3.8, vendedorFree: 4.8, lider: 1.88,  gerente: 0.53,  outlet: 9.0 },
+  { letra: 'C', desc: '1,01% - 2%',  min: 1.01,  max: 2,   vendedor: 3.6, vendedorFree: 4.6, lider: 1.88,  gerente: 0.53,  outlet: 8.5 },
+  { letra: 'D', desc: '2,01% - 3%',  min: 2.01,  max: 3,   vendedor: 3.4, vendedorFree: 4.4, lider: 1.88,  gerente: 0.53,  outlet: 8.0 },
+  { letra: 'E', desc: '3,01% - 4%',  min: 3.01,  max: 4,   vendedor: 3.2, vendedorFree: 4.2, lider: 1.88,  gerente: 0.53,  outlet: 7.5 },
+  { letra: 'F', desc: '4,01% - 5%',  min: 4.01,  max: 5,   vendedor: 3.0, vendedorFree: 4.0, lider: 1.88,  gerente: 0.53,  outlet: 7.0 },
+  { letra: 'G', desc: '5,01% - 6%',  min: 5.01,  max: 6,   vendedor: 2.8, vendedorFree: 3.8, lider: 1.25,  gerente: 0.35,  outlet: 6.5 },
+  { letra: 'H', desc: '6,01% - 7%',  min: 6.01,  max: 7,   vendedor: 2.6, vendedorFree: 3.6, lider: 1.25,  gerente: 0.35,  outlet: 6.0 },
+  { letra: 'I', desc: '7,01% - 8%',  min: 7.01,  max: 8,   vendedor: 2.4, vendedorFree: 3.4, lider: 1.25,  gerente: 0.35,  outlet: 5.5 },
+  { letra: 'J', desc: '8,01% - 9%',  min: 8.01,  max: 9,   vendedor: 2.2, vendedorFree: 3.2, lider: 1.25,  gerente: 0.35,  outlet: 5.0 },
+  { letra: 'K', desc: '9,01% - 10%', min: 9.01,  max: 10,  vendedor: 2.0, vendedorFree: 3.0, lider: 1.25,  gerente: 0.35,  outlet: 4.5 },
+  { letra: 'L', desc: '10,01% - 11%',min: 10.01, max: 11,  vendedor: 1.0, vendedorFree: 2.0, lider: 0.675, gerente: 0.188, outlet: 4.0 },
+  { letra: 'M', desc: '11,01% - 12%',min: 11.01, max: 12,  vendedor: 0.8, vendedorFree: 1.8, lider: 0.45,  gerente: 0.125, outlet: 3.5 },
+  { letra: 'N', desc: '12,01% - 13%',min: 12.01, max: 13,  vendedor: 0.6, vendedorFree: 1.6, lider: 0.225, gerente: 0.0625,outlet: 3.0 },
+  { letra: 'O', desc: '13,01% - 14%',min: 13.01, max: 14,  vendedor: 0.4, vendedorFree: 1.4, lider: 0.113, gerente: 0.031, outlet: 2.5 },
+  { letra: 'P', desc: '14,01% - 15%',min: 14.01, max: 15,  vendedor: 0.2, vendedorFree: 1.2, lider: 0.056, gerente: 0.016, outlet: 2.0 },
+  { letra: 'Q', desc: 'Mayor a 15%', min: 15.01, max: 999, vendedor: 0.0, vendedorFree: 1.0, lider: 0.0,   gerente: 0.0,   outlet: 1.5 },
+];
+
+const ESCALA_1000 = [
+  { letra: 'A',         desc: '0%',         min: 0,     max: 0,   vendedor: 3.00, vendedorFree: 3.00, lider: 0.500, gerente: 0.400 },
+  { letra: 'B',         desc: '0,01% - 1%', min: 0.001, max: 1,   vendedor: 2.55, vendedorFree: 2.55, lider: 0.500, gerente: 0.400 },
+  { letra: 'C',         desc: '1,01% - 2%', min: 1.01,  max: 2,   vendedor: 2.10, vendedorFree: 2.10, lider: 0.500, gerente: 0.400 },
+  { letra: 'D',         desc: '2,01% - 3%', min: 2.01,  max: 3,   vendedor: 1.65, vendedorFree: 1.65, lider: 0.500, gerente: 0.400 },
+  { letra: 'E',         desc: '3,01% - 4%', min: 3.01,  max: 4,   vendedor: 1.20, vendedorFree: 1.20, lider: 0.500, gerente: 0.400 },
+  { letra: 'F', desc: '4,01% - 5%', min: 4.01,  max: 5,   vendedor: 1.01, vendedorFree: 1.01, lider: 0.500, gerente: 0.400 },
+  { letra: 'A evaluar', desc: 'Mayor a 5%', min: 5.01,  max: 999, vendedor: 1.01, vendedorFree: 1.01, lider: 0.500, gerente: 0.400 },
+];
+
+const ESCALA_SUR_TERRENO = [
+  { min: 15000000,  max: 19999999,  pct: 1.50 },
+  { min: 20000000,  max: 24999999,  pct: 1.75 },
+  { min: 25000000,  max: 29999999,  pct: 2.00 },
+  { min: 30000000,  max: 34999999,  pct: 2.25 },
+  { min: 35000000,  max: 39999999,  pct: 2.50 },
+  { min: 40000000,  max: 44999999,  pct: 2.75 },
+  { min: 45000000,  max: 49999999,  pct: 3.00 },
+  { min: 50000000,  max: 54999999,  pct: 3.20 },
+  { min: 55000000,  max: 59999999,  pct: 3.40 },
+  { min: 60000000,  max: 64999999,  pct: 3.60 },
+  { min: 65000000,  max: 69999999,  pct: 3.80 },
+  { min: 70000000,  max: 74999999,  pct: 4.00 },
+  { min: 75000000,  max: 79999999,  pct: 4.20 },
+  { min: 80000000,  max: 84999999,  pct: 4.40 },
+  { min: 85000000,  max: 89999999,  pct: 4.60 },
+  { min: 90000000,  max: 94999999,  pct: 4.80 },
+  { min: 95000000,  max: Infinity,  pct: 5.00 },
+];
+
+const ESCALA_SUR_REDES = [
+  { min: 20000000,  max: 24999999,  pct: 1.50 },
+  { min: 25000000,  max: 29999999,  pct: 1.75 },
+  { min: 30000000,  max: 34999999,  pct: 2.00 },
+  { min: 35000000,  max: 39999999,  pct: 2.25 },
+  { min: 40000000,  max: 44999999,  pct: 2.50 },
+  { min: 45000000,  max: 49999999,  pct: 2.75 },
+  { min: 50000000,  max: 54999999,  pct: 3.00 },
+  { min: 55000000,  max: 59999999,  pct: 3.20 },
+  { min: 60000000,  max: 64999999,  pct: 3.40 },
+  { min: 65000000,  max: 69999999,  pct: 3.60 },
+  { min: 70000000,  max: 74999999,  pct: 3.80 },
+  { min: 75000000,  max: 79999999,  pct: 4.00 },
+  { min: 80000000,  max: 84999999,  pct: 4.20 },
+  { min: 85000000,  max: 89999999,  pct: 4.40 },
+  { min: 90000000,  max: 94999999,  pct: 4.60 },
+  { min: 95000000,  max: 99999999,  pct: 4.80 },
+  { min: 100000000, max: Infinity,  pct: 5.00 },
+];
+
+const ESCALA_SUR_SALON = [
+  { min: 25000000,  max: 29999999,  pct: 1.50 },
+  { min: 30000000,  max: 34999999,  pct: 1.75 },
+  { min: 35000000,  max: 39999999,  pct: 2.00 },
+  { min: 40000000,  max: 44999999,  pct: 2.25 },
+  { min: 45000000,  max: 49999999,  pct: 2.50 },
+  { min: 50000000,  max: 54999999,  pct: 2.75 },
+  { min: 55000000,  max: 59999999,  pct: 3.00 },
+  { min: 60000000,  max: 64999999,  pct: 3.20 },
+  { min: 65000000,  max: 69999999,  pct: 3.40 },
+  { min: 70000000,  max: 74999999,  pct: 3.60 },
+  { min: 75000000,  max: 79999999,  pct: 3.80 },
+  { min: 80000000,  max: 84999999,  pct: 4.00 },
+  { min: 85000000,  max: 89999999,  pct: 4.20 },
+  { min: 90000000,  max: 94999999,  pct: 4.40 },
+  { min: 95000000,  max: 99999999,  pct: 4.60 },
+  { min: 100000000, max: 104999999, pct: 4.80 },
+  { min: 105000000, max: Infinity,  pct: 5.00 },
+];
+
+const ESCALAS_SUR = {
+  'Salon-CRM': { escala: ESCALA_SUR_SALON,   minimo: 25000000, nombre: 'Salón / CRM' },
+  'Redes':     { escala: ESCALA_SUR_REDES,   minimo: 20000000, nombre: 'Redes' },
+  'Terreno':   { escala: ESCALA_SUR_TERRENO, minimo: 15000000, nombre: 'Terreno' },
+};
+
+// ============ HELPERS ============
+
+function encontrarTramo(descuento, escala) {
+  for (const t of escala) {
+    if (descuento >= t.min && descuento <= t.max) return t;
+  }
+  return escala[escala.length - 1];
+}
+
+const fmtMoney = (n) => '$ ' + (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtMoneyShort = (n) => '$ ' + (Number(n) || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+const fmtPct = (n) => (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + '%';
+
+// ============ CALCULO OPERACION ============
+
+function calcularComision(inp) {
+  const { region, rol, lista, tipoProducto, descuento, importe, superaObjetivo } = inp;
+  if (!importe || importe <= 0) return { valida: false, mensaje: 'Ingresá un importe mayor a cero para calcular' };
+
+  let pctBase = 0, pctSupera = 0, pctPremioSur = 0;
+  const notas = [];
+  let tramoAplicado = null;
+  let origenBase = '';
+
+  if (lista === '3767' || lista === '3838') {
+    const tramo = encontrarTramo(descuento, ESCALA_3767);
+    tramoAplicado = tramo;
+
+    if (tipoProducto === 'Nuevo') {
+      if (rol === 'Vendedor')          pctBase = tramo.vendedor;
+      else if (rol === 'VendedorFree') pctBase = tramo.vendedorFree;
+      else if (rol === 'Lider')        pctBase = tramo.lider;
+      else if (rol === 'Gerente')      pctBase = tramo.gerente;
+      origenBase = `Escala ${lista} · Nuevo · Tramo ${tramo.letra} (${tramo.desc})`;
+      if (superaObjetivo) { pctSupera = 1; notas.push('Supera objetivo: +1% sobre importe.'); }
+    }
+    else if (tipoProducto === 'Outlet') {
+      if (rol === 'Vendedor' || rol === 'VendedorFree') pctBase = tramo.outlet;
+      else if (rol === 'Lider')   pctBase = tramo.lider;
+      else if (rol === 'Gerente') pctBase = tramo.gerente;
+      origenBase = `Escala ${lista} · Outlet · Tramo ${tramo.letra} (${tramo.desc})`;
+      if (superaObjetivo) { pctSupera = 1; notas.push('Supera objetivo: +1% sobre importe.'); }
+      if (region === 'Sur') { pctPremioSur = 1; notas.push('Premio Sur: +1% adicional sobre Outlet en lista 3767 (se paga siempre).'); }
+    }
+    else if (tipoProducto === 'PDO') {
+      if ((rol === 'Vendedor' || rol === 'VendedorFree') && region === 'Norte') {
+        pctBase = 5.0;
+        origenBase = 'PDO · 5% fijo (solo vendedores del Norte)';
+      } else {
+        if (rol === 'Vendedor' || rol === 'VendedorFree') pctBase = tramo.outlet;
+        else if (rol === 'Lider')   pctBase = tramo.lider;
+        else if (rol === 'Gerente') pctBase = tramo.gerente;
+        origenBase = `Escala ${lista} · PDO asimilado a Outlet · Tramo ${tramo.letra}`;
+        if ((rol === 'Vendedor' || rol === 'VendedorFree') && region === 'Sur') {
+          notas.push('El 5% fijo PDO solo aplica al vendedor del Norte. En el Sur se usa la escala Outlet.');
+        }
+      }
+      if (superaObjetivo) { pctSupera = 1; notas.push('Supera objetivo: +1% sobre importe.'); }
+      if (region === 'Sur') { pctPremioSur = 1; notas.push('Premio Sur: +1% adicional sobre PDO en lista 3767 (se paga siempre).'); }
+    }
+  }
+  else if (lista === '1018') {
+    if (rol === 'Vendedor' || rol === 'VendedorFree') { pctBase = 10.0; origenBase = '10% fijo · supere o no objetivo · sin escala'; }
+    else if (rol === 'Lider') { pctBase = 0.5; origenBase = 'Líder · 0,5% plano (según tabla 1018)'; }
+    else if (rol === 'Gerente') { pctBase = 0.4; origenBase = 'Gerente · 0,4% plano (según tabla 1018)'; }
+    notas.push('Lista 1018 aplica a Norte y Sur.');
+    if (region === 'Sur' && (rol === 'Vendedor' || rol === 'VendedorFree')) {
+      notas.push('Si el vendedor del Sur no llega a comisionar por su escala, igual cobra esta comisión como premio.');
+    }
+  }
+  else if (lista === '101') {
+    if (rol === 'Vendedor' || rol === 'VendedorFree') { pctBase = 10.0; origenBase = '10% fijo · supere o no objetivo · sin escala'; }
+    else {
+      const tramo = encontrarTramo(descuento, ESCALA_3767);
+      tramoAplicado = tramo;
+      if (rol === 'Lider')   pctBase = tramo.lider;
+      if (rol === 'Gerente') pctBase = tramo.gerente;
+      origenBase = `101 se liquida con escala 3767 · Tramo ${tramo.letra} (${tramo.desc})`;
+    }
+    if (region === 'Sur' && (rol === 'Vendedor' || rol === 'VendedorFree')) {
+      notas.push('Si el vendedor del Sur no llega a comisionar por su escala, igual cobra esta comisión como premio.');
+    }
+  }
+  else if (lista === '1000') {
+    const tramo = encontrarTramo(descuento, ESCALA_1000);
+    tramoAplicado = tramo;
+    if (rol === 'Vendedor')          pctBase = tramo.vendedor;
+    else if (rol === 'VendedorFree') pctBase = tramo.vendedorFree;
+    else if (rol === 'Lider')        pctBase = tramo.lider;
+    else if (rol === 'Gerente')      pctBase = tramo.gerente;
+    origenBase = `Escala 1000 · Tramo ${tramo.letra} (${tramo.desc})`;
+    notas.push('Lista 1000 no tiene supera-objetivo.');
+    if (region === 'Sur') { pctPremioSur = 1; notas.push('Premio Sur: +1% adicional sobre lista 1000 (se paga siempre).'); }
+  }
+  else if (lista === '6001' || lista === '6002') {
+    if (rol === 'Vendedor' || rol === 'VendedorFree') pctBase = 1.5;
+    else if (rol === 'Lider')   pctBase = 1.0;
+    else if (rol === 'Gerente') pctBase = 0.5;
+    origenBase = `Lista distribuidor ${lista} · porcentaje plano`;
+    notas.push('Ventas distribuidor: vendedor sin premio por superar objetivo.');
+  }
+
+  const pctTotal = pctBase + pctSupera + pctPremioSur;
+  return {
+    valida: true,
+    pctBase, pctSupera, pctPremioSur, pctTotal,
+    comisionBase: importe * pctBase / 100,
+    comisionSupera: importe * pctSupera / 100,
+    comisionPremioSur: importe * pctPremioSur / 100,
+    comisionTotal: importe * pctTotal / 100,
+    notas, origenBase, tramoAplicado,
+  };
+}
+
+function calcularAseguradoLider(inp) {
+  const { tipoLider, comisionesEquipo, ventasPersonales, comisionVentasPropias } = inp;
+  const ce = parseFloat(comisionesEquipo) || 0;
+  const vp = parseFloat(ventasPersonales) || 0;
+  const cvp = parseFloat(comisionVentasPropias) || 0;
+
+  if (tipoLider === 'CRM') {
+    const opcion1 = 1200000;
+    const opcion2 = ce * 0.01;
+    const base = Math.max(opcion1, opcion2);
+    const regla = opcion2 >= opcion1
+      ? `1% sobre comisiones de equipo (${fmtMoneyShort(opcion2)}) supera el asegurado fijo de $1.200.000`
+      : `Asegurado fijo de $1.200.000 supera al 1% sobre equipo (${fmtMoneyShort(opcion2)})`;
+    return { base, regla, total: base, extra: 'En el líder CRM las ventas personales NO se suman al total del equipo.', crm: true };
+  }
+
+  let base = 0, regla = '';
+  if (ce >= 1500000) {
+    base = ce;
+    regla = `Comisiones de equipo ≥ $1.500.000 → se cobra el importe completo del equipo`;
+  } else {
+    if (vp >= 20000000)      { base = 1500000; regla = 'Ventas personales > $20M → asegurado $1.500.000'; }
+    else if (vp >= 12000000) { base = 1300000; regla = 'Ventas personales entre $12M y $20M → asegurado $1.300.000'; }
+    else                     { base = 1100000; regla = 'Ventas personales entre $0 y $12M → asegurado $1.100.000'; }
+  }
+  return { base, regla, total: base + cvp, comisionesPropias: cvp, extra: 'Los vendedores de producción que no superan $8M no suman a la comisión de equipo.', crm: false };
+}
+
+function calcularEscalaSur(tipoVendedor, ventasTotal) {
+  const config = ESCALAS_SUR[tipoVendedor];
+  if (!config) return { alcanzaMinimo: false, pct: 0, comision: 0, tramo: null, minimo: 0, config: null };
+  if (ventasTotal < config.minimo) return { alcanzaMinimo: false, pct: 0, comision: 0, tramo: null, minimo: config.minimo, config };
+  const tramo = config.escala.find(t => ventasTotal >= t.min && ventasTotal <= t.max);
+  if (!tramo) return { alcanzaMinimo: false, pct: 0, comision: 0, tramo: null, minimo: config.minimo, config };
+  return { alcanzaMinimo: true, pct: tramo.pct, comision: ventasTotal * tramo.pct / 100, tramo, minimo: config.minimo, config };
+}
+
+// ============ ESTADO Y DOM ============
+
+const $ = (id) => document.getElementById(id);
+const state = {
+  tab: 'operacion',
+  op: { region: 'Norte', rol: 'Vendedor', tipoVendedorSur: 'Salon-CRM', lista: '3767', tipoProducto: 'Nuevo', descuento: 0, importe: 0, superaObjetivo: false },
+  lid: { tipo: 'Comun', equipo: '', ventas: '', comisionPropia: '' },
+  sur: { tipo: 'Salon-CRM', ventasTotal: '', v1000: '', vOutletPDO: '', v1018: '', v101: '', vDist: '' },
+  refExpanded: false,
+};
+
+// ============ TABS ============
+
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    state.tab = tab;
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    ['operacion', 'lider', 'sur', 'mes'].forEach(t => {
+      $(`panel-${t}`).classList.toggle('hidden', t !== tab);
+    });
+  });
+});
+
+// ============ TAB 1 ============
+
+function updateOpVisibility() {
+  const { rol, region, lista } = state.op;
+  $('op-tipo-vendedor-sur-wrap').classList.toggle('hidden', !(region === 'Sur' && (rol === 'Vendedor' || rol === 'VendedorFree')));
+  $('op-tipo-producto-wrap').classList.toggle('hidden', !(lista === '3767' || lista === '3838'));
+  const tieneDescuento = ['3767', '3838', '1000'].includes(lista) || (lista === '101' && rol !== 'Vendedor' && rol !== 'VendedorFree');
+  $('op-descuento-wrap').classList.toggle('hidden', !tieneDescuento);
+  $('op-supera-wrap').classList.toggle('hidden', !(lista === '3767' || lista === '3838'));
+}
+
+function renderOpResult() {
+  updateOpVisibility();
+  const r = calcularComision(state.op);
+  const el = $('op-result-content');
+
+  if (!r.valida) {
+    el.innerHTML = `<div class="empty">${r.mensaje || 'Completá los datos de la operación'}</div>`;
+    return;
+  }
+
+  let html = `
+    <div class="hero-block">
+      <div class="hero-value">${fmtMoney(r.comisionTotal)}</div>
+      <div class="hero-sub">Equivalente al <span class="mono">${fmtPct(r.pctTotal)}</span> del importe de venta</div>
+    </div>
+    <div class="break-section">
+      <div class="break-title">Desglose</div>
+      <div class="break-row">
+        <div>
+          <div class="break-label">Comisión base</div>
+          <div class="break-detail">${r.origenBase}</div>
+        </div>
+        <div class="break-val">
+          <div class="pct">${fmtPct(r.pctBase)}</div>
+          <div class="amt">${fmtMoney(r.comisionBase)}</div>
+        </div>
+      </div>`;
+
+  if (r.pctSupera > 0) html += `
+      <div class="break-row">
+        <div>
+          <div class="break-label">+ Supera objetivo</div>
+          <div class="break-detail">Premio por exceder objetivo mensual</div>
+        </div>
+        <div class="break-val">
+          <div class="pct">${fmtPct(r.pctSupera)}</div>
+          <div class="amt">${fmtMoney(r.comisionSupera)}</div>
+        </div>
+      </div>`;
+
+  if (r.pctPremioSur > 0) html += `
+      <div class="break-row">
+        <div>
+          <div class="break-label">+ Premio Sur</div>
+          <div class="break-detail">Adicional fijo del Sur · se paga siempre</div>
+        </div>
+        <div class="break-val">
+          <div class="pct">${fmtPct(r.pctPremioSur)}</div>
+          <div class="amt">${fmtMoney(r.comisionPremioSur)}</div>
+        </div>
+      </div>`;
+
+  html += `</div>`;
+
+  if (r.notas.length > 0) {
+    html += `<div class="notes"><div class="notes-title">Notas</div><ul>` + r.notas.map(n => `<li>${n}</li>`).join('') + `</ul></div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+$('op-region').addEventListener('change', e => { state.op.region = e.target.value; renderOpResult(); });
+$('op-rol').addEventListener('change', e => { state.op.rol = e.target.value; renderOpResult(); });
+$('op-tipo-vendedor-sur').addEventListener('change', e => { state.op.tipoVendedorSur = e.target.value; renderOpResult(); });
+$('op-lista').addEventListener('change', e => { state.op.lista = e.target.value; renderOpResult(); });
+$('op-tipo-producto').addEventListener('change', e => { state.op.tipoProducto = e.target.value; renderOpResult(); });
+$('op-descuento').addEventListener('input', e => { state.op.descuento = parseFloat(e.target.value) || 0; renderOpResult(); });
+$('op-importe').addEventListener('input', e => { state.op.importe = parseFloat(e.target.value) || 0; renderOpResult(); });
+$('op-supera').addEventListener('click', () => {
+  state.op.superaObjetivo = !state.op.superaObjetivo;
+  $('op-supera').classList.toggle('on', state.op.superaObjetivo);
+  renderOpResult();
+});
+
+// ============ TAB 2 ============
+
+function updateLidVisibility() {
+  $('lid-comun-fields').classList.toggle('hidden', state.lid.tipo === 'CRM');
+}
+
+function renderLidResult() {
+  updateLidVisibility();
+  const r = calcularAseguradoLider({
+    tipoLider: state.lid.tipo,
+    comisionesEquipo: state.lid.equipo,
+    ventasPersonales: state.lid.ventas,
+    comisionVentasPropias: state.lid.comisionPropia,
+  });
+
+  let html = `
+    <div class="hero-block">
+      <div class="break-title" style="margin-bottom:4px;">Total a cobrar</div>
+      <div class="hero-value">${fmtMoney(r.total)}</div>
+    </div>
+    <div class="break-section">
+      <div class="break-row">
+        <div>
+          <div class="break-label">Base / asegurado</div>
+          <div class="break-detail">${r.regla}</div>
+        </div>
+        <div class="break-val"><div class="amt solo">${fmtMoney(r.base)}</div></div>
+      </div>`;
+
+  if (!r.crm) html += `
+      <div class="break-row">
+        <div>
+          <div class="break-label">+ Comisión por ventas personales</div>
+          <div class="break-detail">Se suma en todos los casos</div>
+        </div>
+        <div class="break-val"><div class="amt solo">${fmtMoney(r.comisionesPropias || 0)}</div></div>
+      </div>`;
+
+  html += `</div>
+    <div class="notes"><div class="notes-title">Nota</div><ul><li>${r.extra}</li></ul></div>`;
+
+  if (!r.crm) html += `
+    <div class="tiers">
+      <div class="tiers-title">Escalones de asegurado</div>
+      <div class="tier-row"><span>Equipo ≥ $1,5M</span><span>→ cobra equipo completo</span></div>
+      <div class="tier-row"><span>Vende 0 – $12M</span><span>→ asegurado $1,1M</span></div>
+      <div class="tier-row"><span>Vende $12M – $20M</span><span>→ asegurado $1,3M</span></div>
+      <div class="tier-row"><span>Vende &gt; $20M</span><span>→ asegurado $1,5M</span></div>
+    </div>`;
+
+  $('lid-result-content').innerHTML = html;
+}
+
+$('lid-tipo').addEventListener('change', e => { state.lid.tipo = e.target.value; renderLidResult(); });
+$('lid-equipo').addEventListener('input', e => { state.lid.equipo = e.target.value; renderLidResult(); });
+$('lid-ventas').addEventListener('input', e => { state.lid.ventas = e.target.value; renderLidResult(); });
+$('lid-comision-propia').addEventListener('input', e => { state.lid.comisionPropia = e.target.value; renderLidResult(); });
+
+// ============ TAB 3 ============
+
+function renderSurResult() {
+  const { tipo, ventasTotal, v1000, vOutletPDO, v1018, v101, vDist } = state.sur;
+  const vt = parseFloat(ventasTotal) || 0;
+  const n1000 = parseFloat(v1000) || 0;
+  const nOP = parseFloat(vOutletPDO) || 0;
+  const n1018 = parseFloat(v1018) || 0;
+  const n101 = parseFloat(v101) || 0;
+  const nDist = parseFloat(vDist) || 0;
+
+  const escala = calcularEscalaSur(tipo, vt);
+  const premio1000 = n1000 * 0.01;
+  const premioOP = nOP * 0.01;
+  const com1018 = n1018 * 0.10;
+  const com101 = n101 * 0.10;
+  const comDist = nDist * 0.015;
+  const total = escala.comision + premio1000 + premioOP + com1018 + com101 + comDist;
+
+  let html = `
+    <div class="hero-block">
+      <div class="break-title" style="margin-bottom:4px;">Total a cobrar</div>
+      <div class="hero-value">${fmtMoney(total)}</div>
+    </div>
+    <div class="break-section">
+      <div class="break-title">Escala progresiva</div>`;
+
+  if (escala.alcanzaMinimo) {
+    const maxStr = escala.tramo.max === Infinity ? 'en adelante' : fmtMoneyShort(escala.tramo.max);
+    html += `
+      <div class="break-row">
+        <div>
+          <div class="break-label">Comisión sobre ventas totales</div>
+          <div class="break-detail">${escala.config.nombre} · tramo ${fmtMoneyShort(escala.tramo.min)} – ${maxStr}</div>
+        </div>
+        <div class="break-val">
+          <div class="pct">${fmtPct(escala.pct)}</div>
+          <div class="amt">${fmtMoney(escala.comision)}</div>
+        </div>
+      </div>`;
+  } else {
+    if (vt > 0) {
+      html += `<div class="break-detail" style="font-style:italic;font-size:12px;color:#6a6a66;line-height:1.6;">No alcanza el mínimo de ${fmtMoneyShort(ESCALAS_SUR[tipo].minimo)} para ${ESCALAS_SUR[tipo].nombre}. No comisiona por la escala este mes, pero los premios y las listas 1018 / 101 se pagan igual.</div>`;
+    } else {
+      html += `<div class="break-detail" style="font-style:italic;">Ingresá el total de ventas del mes.</div>`;
+    }
+  }
+  html += `</div>`;
+
+  html += `<div class="break-section"><div class="break-title">Premios sobre listas específicas</div>`;
+  let algoCargado = false;
+
+  const adic = [
+    { v: n1000, c: premio1000, label: 'Lista 1000 · +1% premio' },
+    { v: nOP, c: premioOP, label: 'Outlet / PDO en 3767 · +1% premio' },
+    { v: n1018, c: com1018, label: 'Lista 1018 · 10% fijo' },
+    { v: n101, c: com101, label: 'Lista 101 · 10% fijo' },
+    { v: nDist, c: comDist, label: 'Listas 6001 / 6002 · 1,5%' },
+  ];
+
+  adic.forEach(a => {
+    if (a.v > 0) {
+      algoCargado = true;
+      html += `
+        <div class="break-row">
+          <div>
+            <div class="break-label">${a.label}</div>
+            <div class="break-detail">Sobre ${fmtMoney(a.v)}</div>
+          </div>
+          <div class="break-val"><div class="amt solo">${fmtMoney(a.c)}</div></div>
+        </div>`;
+    }
+  });
+
+  if (!algoCargado) html += `<div class="break-detail" style="font-style:italic;color:#B0ADA2;">Sin premios ni adicionales cargados.</div>`;
+  html += `</div>`;
+
+  html += `
+    <div class="notes">
+      <ul>
+        <li>Los premios y listas 1018 / 101 se pagan aun si no alcanza el mínimo de la escala.</li>
+        <li>Los líderes y gerentes del Sur también perciben los +1% sobre Lista 1000 y Outlet / PDO de 3767.</li>
+      </ul>
+    </div>`;
+
+  $('sur-result-content').innerHTML = html;
+
+  // Mini tabla de escala
+  $('sur-escala-nombre').textContent = ESCALAS_SUR[tipo].nombre;
+  const esc = ESCALAS_SUR[tipo].escala;
+  let tblHtml = `<table><thead><tr><th>Desde</th><th>Hasta</th><th class="num">%</th></tr></thead><tbody>`;
+  esc.forEach(t => {
+    const activo = vt >= t.min && vt <= t.max;
+    const maxStr = t.max === Infinity ? 'en adelante' : fmtMoneyShort(t.max);
+    tblHtml += `<tr class="${activo ? 'highlight' : ''}"><td>${fmtMoneyShort(t.min)}</td><td class="soft">${maxStr}</td><td class="num">${t.pct.toFixed(2)}%</td></tr>`;
+  });
+  tblHtml += `</tbody></table>`;
+  $('sur-escala-table').innerHTML = tblHtml;
+}
+
+$('sur-tipo').addEventListener('change', e => { state.sur.tipo = e.target.value; renderSurResult(); });
+$('sur-ventas-total').addEventListener('input', e => { state.sur.ventasTotal = e.target.value; renderSurResult(); });
+$('sur-v1000').addEventListener('input', e => { state.sur.v1000 = e.target.value; renderSurResult(); });
+$('sur-vOutletPDO').addEventListener('input', e => { state.sur.vOutletPDO = e.target.value; renderSurResult(); });
+$('sur-v1018').addEventListener('input', e => { state.sur.v1018 = e.target.value; renderSurResult(); });
+$('sur-v101').addEventListener('input', e => { state.sur.v101 = e.target.value; renderSurResult(); });
+$('sur-vDist').addEventListener('input', e => { state.sur.vDist = e.target.value; renderSurResult(); });
+
+// ============ TABLA REFERENCIA ============
+
+function renderRefTable() {
+  if (!state.refExpanded) { $('ref-table-wrap').classList.add('hidden'); return; }
+  let html = `<table><thead><tr>
+    <th>Tramo</th><th>Descuento</th>
+    <th class="num">Vendedor</th><th class="num">Vendedor Free</th>
+    <th class="num">Líder</th><th class="num">Gerente</th><th class="num">Outlet</th>
+  </tr></thead><tbody>`;
+  ESCALA_3767.forEach(t => {
+    html += `<tr>
+      <td>${t.letra}</td><td class="soft">${t.desc}</td>
+      <td class="num">${t.vendedor.toFixed(2)}%</td>
+      <td class="num">${t.vendedorFree.toFixed(2)}%</td>
+      <td class="num">${t.lider.toFixed(3)}%</td>
+      <td class="num">${t.gerente.toFixed(4)}%</td>
+      <td class="num">${t.outlet.toFixed(2)}%</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  $('ref-table-wrap').innerHTML = html;
+  $('ref-table-wrap').classList.remove('hidden');
+}
+
+$('ref-toggle').addEventListener('click', () => {
+  state.refExpanded = !state.refExpanded;
+  $('ref-sign').textContent = state.refExpanded ? '–' : '+';
+  renderRefTable();
+});
+
+// ============ TAB 4: MES DEL VENDEDOR ============
+
+const STORAGE_KEY = 'simuladorComisionesMes_v1';
+
+function cargarMesDesdeStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) { return null; }
+}
+
+function guardarMesEnStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      config: state.mes.config,
+      operaciones: state.mes.operaciones,
+    }));
+  } catch (e) { /* noop */ }
+}
+
+function bucketDeOperacion(op, config) {
+  // Clasifica una operación para el Sur vendedor
+  if (op.lista === '1018' || op.lista === '101') return { tipo: 'fijo', label: '10% fijo' };
+  if (op.lista === '6001' || op.lista === '6002') return { tipo: 'fijo', label: '1,5% distribuidor' };
+  if (op.lista === '1000') return { tipo: 'premio', label: 'Escala + 1% premio' };
+  if ((op.lista === '3767' || op.lista === '3838') && (op.tipoProducto === 'Outlet' || op.tipoProducto === 'PDO')) {
+    return { tipo: 'premio', label: 'Escala + 1% premio' };
+  }
+  return { tipo: 'escala', label: 'Escala progresiva' };
+}
+
+function calcularMesVendedor(config, operaciones) {
+  const { region, rol, tipoVendedorSur, superaObjetivoMensual } = config;
+  const esVendedorSur = region === 'Sur' && (rol === 'Vendedor' || rol === 'VendedorFree');
+
+  const totalVendido = operaciones.reduce((s, op) => s + (parseFloat(op.importe) || 0), 0);
+
+  // Calcular comisión individual de cada operación (útil para Norte y para auxiliar al Sur)
+  const operacionesCalculadas = operaciones.map(op => {
+    const r = calcularComision({
+      region, rol,
+      lista: op.lista,
+      tipoProducto: op.tipoProducto || 'Nuevo',
+      descuento: parseFloat(op.descuento) || 0,
+      importe: parseFloat(op.importe) || 0,
+      superaObjetivo: !!superaObjetivoMensual && (op.lista === '3767' || op.lista === '3838'),
+    });
+    const bucket = esVendedorSur ? bucketDeOperacion(op, config) : null;
+    return { ...op, resultado: r, bucket };
+  });
+
+  if (!esVendedorSur) {
+    // Modelo Norte / líderes / gerentes: suma de comisiones por operación
+    const totalComision = operacionesCalculadas.reduce((s, o) => s + (o.resultado?.comisionTotal || 0), 0);
+
+    // Desglose por lista
+    const porLista = {};
+    operacionesCalculadas.forEach(o => {
+      const k = o.lista;
+      if (!porLista[k]) porLista[k] = { lista: k, vendido: 0, comision: 0, cantidad: 0 };
+      porLista[k].vendido += parseFloat(o.importe) || 0;
+      porLista[k].comision += o.resultado?.comisionTotal || 0;
+      porLista[k].cantidad += 1;
+    });
+
+    return {
+      modo: 'norte',
+      esVendedorSur: false,
+      operacionesCalculadas,
+      totalVendido,
+      totalComision,
+      porLista: Object.values(porLista),
+    };
+  }
+
+  // Modelo Sur vendedor
+  const imp = (op) => parseFloat(op.importe) || 0;
+  const ventasEscala = operaciones
+    .filter(op => ['3767', '3838', '1000'].includes(op.lista))
+    .reduce((s, o) => s + imp(o), 0);
+  const ventas1000 = operaciones.filter(op => op.lista === '1000').reduce((s, o) => s + imp(o), 0);
+  const ventasOutletPDO3767 = operaciones
+    .filter(op => (op.lista === '3767' || op.lista === '3838') && (op.tipoProducto === 'Outlet' || op.tipoProducto === 'PDO'))
+    .reduce((s, o) => s + imp(o), 0);
+  const ventas1018 = operaciones.filter(op => op.lista === '1018').reduce((s, o) => s + imp(o), 0);
+  const ventas101  = operaciones.filter(op => op.lista === '101').reduce((s, o) => s + imp(o), 0);
+  const ventasDist = operaciones.filter(op => op.lista === '6001' || op.lista === '6002').reduce((s, o) => s + imp(o), 0);
+
+  const escala = calcularEscalaSur(tipoVendedorSur, ventasEscala);
+  const premio1000 = ventas1000 * 0.01;
+  const premioOP = ventasOutletPDO3767 * 0.01;
+  const com1018 = ventas1018 * 0.10;
+  const com101 = ventas101 * 0.10;
+  const comDist = ventasDist * 0.015;
+
+  const totalComision = (escala.comision || 0) + premio1000 + premioOP + com1018 + com101 + comDist;
+
+  return {
+    modo: 'sur',
+    esVendedorSur: true,
+    operacionesCalculadas,
+    totalVendido,
+    totalComision,
+    ventasEscala, ventas1000, ventasOutletPDO3767, ventas1018, ventas101, ventasDist,
+    escala, premio1000, premioOP, com1018, com101, comDist,
+  };
+}
+
+function updateMesVisibility() {
+  const { region, rol, lista } = state.mes.config;
+  const addLista = state.mes.form.lista;
+  const esVendedor = rol === 'Vendedor' || rol === 'VendedorFree';
+
+  $('mes-tipo-sur-wrap').classList.toggle('hidden', !(region === 'Sur' && esVendedor));
+
+  // Form de agregar: mostrar tipo producto solo si lista es 3767/3838
+  $('mes-add-tipo-producto-wrap').classList.toggle('hidden', !(addLista === '3767' || addLista === '3838'));
+  // Descuento: mostrar si lista lo usa
+  const tieneDescAdd = ['3767', '3838', '1000'].includes(addLista) || (addLista === '101' && !esVendedor);
+  $('mes-add-descuento-wrap').classList.toggle('hidden', !tieneDescAdd);
+}
+
+function renderMes() {
+  updateMesVisibility();
+  const r = calcularMesVendedor(state.mes.config, state.mes.operaciones);
+
+  // Stats
+  $('mes-stat-ops').textContent = state.mes.operaciones.length;
+  $('mes-stat-vendido').textContent = fmtMoney(r.totalVendido);
+  $('mes-stat-comision').textContent = fmtMoney(r.totalComision);
+  const pctEfectivo = r.totalVendido > 0 ? (r.totalComision / r.totalVendido * 100) : 0;
+  $('mes-stat-comision-sub').textContent = r.totalVendido > 0 ? `${fmtPct(pctEfectivo)} efectivo sobre venta` : '';
+
+  // Desglose
+  let bdHtml = '';
+  if (r.esVendedorSur) {
+    // Escala progresiva
+    if (r.escala.alcanzaMinimo) {
+      bdHtml += `<div class="bd-row">
+        <div>
+          <div class="bd-lbl">Escala progresiva · ${r.escala.config.nombre}</div>
+          <div class="bd-sub">${fmtPct(r.escala.pct)} sobre ${fmtMoney(r.ventasEscala)}</div>
+        </div>
+        <div class="bd-val">${fmtMoney(r.escala.comision)}</div>
+      </div>`;
+    } else {
+      bdHtml += `<div class="bd-row">
+        <div>
+          <div class="bd-lbl">Escala progresiva · ${ESCALAS_SUR[state.mes.config.tipoVendedorSur].nombre}</div>
+          <div class="bd-sub">Ventas imputables ${fmtMoney(r.ventasEscala)} — no alcanza mínimo ${fmtMoneyShort(ESCALAS_SUR[state.mes.config.tipoVendedorSur].minimo)}</div>
+        </div>
+        <div class="bd-val">${fmtMoney(0)}</div>
+      </div>`;
+    }
+
+    if (r.ventas1000 > 0) bdHtml += `<div class="bd-row"><div><div class="bd-lbl">+ Premio Lista 1000 (1%)</div><div class="bd-sub">Sobre ${fmtMoney(r.ventas1000)}</div></div><div class="bd-val">${fmtMoney(r.premio1000)}</div></div>`;
+    if (r.ventasOutletPDO3767 > 0) bdHtml += `<div class="bd-row"><div><div class="bd-lbl">+ Premio Outlet / PDO en 3767 (1%)</div><div class="bd-sub">Sobre ${fmtMoney(r.ventasOutletPDO3767)}</div></div><div class="bd-val">${fmtMoney(r.premioOP)}</div></div>`;
+    if (r.ventas1018 > 0) bdHtml += `<div class="bd-row"><div><div class="bd-lbl">Lista 1018 (10% fijo)</div><div class="bd-sub">Sobre ${fmtMoney(r.ventas1018)}</div></div><div class="bd-val">${fmtMoney(r.com1018)}</div></div>`;
+    if (r.ventas101 > 0) bdHtml += `<div class="bd-row"><div><div class="bd-lbl">Lista 101 (10% fijo)</div><div class="bd-sub">Sobre ${fmtMoney(r.ventas101)}</div></div><div class="bd-val">${fmtMoney(r.com101)}</div></div>`;
+    if (r.ventasDist > 0) bdHtml += `<div class="bd-row"><div><div class="bd-lbl">Listas 6001 / 6002 (1,5%)</div><div class="bd-sub">Sobre ${fmtMoney(r.ventasDist)}</div></div><div class="bd-val">${fmtMoney(r.comDist)}</div></div>`;
+
+    bdHtml += `<div class="bd-row total"><div class="bd-lbl">Total del mes</div><div class="bd-val">${fmtMoney(r.totalComision)}</div></div>`;
+  } else {
+    // Norte: desglose por lista
+    if (r.porLista.length === 0) {
+      bdHtml += `<div class="bd-sub" style="text-align:center;padding:20px 0;">Agregá operaciones para ver el desglose.</div>`;
+    } else {
+      r.porLista.sort((a, b) => b.comision - a.comision).forEach(p => {
+        bdHtml += `<div class="bd-row">
+          <div>
+            <div class="bd-lbl">Lista ${p.lista}</div>
+            <div class="bd-sub">${p.cantidad} ${p.cantidad === 1 ? 'operación' : 'operaciones'} · ${fmtMoney(p.vendido)}</div>
+          </div>
+          <div class="bd-val">${fmtMoney(p.comision)}</div>
+        </div>`;
+      });
+      bdHtml += `<div class="bd-row total"><div class="bd-lbl">Total del mes</div><div class="bd-val">${fmtMoney(r.totalComision)}</div></div>`;
+    }
+  }
+  $('mes-breakdown-content').innerHTML = bdHtml;
+
+  // Tabla de operaciones
+  const cont = $('mes-ops-container');
+  if (state.mes.operaciones.length === 0) {
+    cont.innerHTML = `<div class="ops-empty">Todavía no cargaste operaciones. Completá el formulario arriba y presioná "Agregar operación".</div>`;
+  } else {
+    let tblHtml = `<table class="ops-table"><thead><tr>
+      <th style="width:40px;">#</th>
+      <th>Referencia</th>
+      <th>Lista</th>
+      <th>Producto</th>
+      <th class="num">Desc.</th>
+      <th class="num">Importe</th>
+      <th class="num">%</th>
+      <th class="num">${r.esVendedorSur ? 'Bucket' : 'Comisión'}</th>
+      <th class="center"></th>
+    </tr></thead><tbody>`;
+
+    r.operacionesCalculadas.forEach((op, idx) => {
+      const desc = op.descuento != null && op.descuento !== '' ? `${parseFloat(op.descuento).toFixed(2)}%` : '—';
+      const prod = (op.lista === '3767' || op.lista === '3838') ? (op.tipoProducto || 'Nuevo') : '—';
+      const pct = op.resultado?.pctTotal || 0;
+      let colFinal;
+      if (r.esVendedorSur) {
+        const b = op.bucket || { tipo: 'escala', label: '—' };
+        colFinal = `<span class="ops-pill ${b.tipo}">${b.label}</span>`;
+      } else {
+        colFinal = fmtMoney(op.resultado?.comisionTotal || 0);
+      }
+      tblHtml += `<tr>
+        <td class="num" style="color:var(--muted);">${idx + 1}</td>
+        <td style="color:var(--ink-soft);">${op.referencia || '—'}</td>
+        <td><strong>${op.lista}</strong></td>
+        <td>${prod}</td>
+        <td class="num">${desc}</td>
+        <td class="num"><strong>${fmtMoney(op.importe)}</strong></td>
+        <td class="num">${r.esVendedorSur ? '—' : fmtPct(pct)}</td>
+        <td class="num">${colFinal}</td>
+        <td class="center"><button class="btn-delete" data-op-id="${op.id}" title="Eliminar">×</button></td>
+      </tr>`;
+    });
+
+    tblHtml += `</tbody></table>`;
+    cont.innerHTML = tblHtml;
+
+    // Bind delete buttons
+    cont.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.opId;
+        state.mes.operaciones = state.mes.operaciones.filter(o => o.id !== id);
+        guardarMesEnStorage();
+        renderMes();
+      });
+    });
+  }
+
+  guardarMesEnStorage();
+}
+
+// Init state mes
+state.mes = {
+  config: { region: 'Norte', rol: 'Vendedor', tipoVendedorSur: 'Salon-CRM', superaObjetivoMensual: false },
+  operaciones: [],
+  form: { lista: '3767', tipoProducto: 'Nuevo', descuento: 0, importe: '', referencia: '' },
+};
+
+// Restaurar desde localStorage
+const saved = cargarMesDesdeStorage();
+if (saved && saved.config && Array.isArray(saved.operaciones)) {
+  state.mes.config = { ...state.mes.config, ...saved.config };
+  state.mes.operaciones = saved.operaciones;
+  // Restaurar UI de config
+  $('mes-region').value = state.mes.config.region;
+  $('mes-rol').value = state.mes.config.rol;
+  $('mes-tipo-sur').value = state.mes.config.tipoVendedorSur;
+  if (state.mes.config.superaObjetivoMensual) $('mes-supera').classList.add('on');
+}
+
+// Handlers config
+$('mes-region').addEventListener('change', e => { state.mes.config.region = e.target.value; renderMes(); });
+$('mes-rol').addEventListener('change', e => { state.mes.config.rol = e.target.value; renderMes(); });
+$('mes-tipo-sur').addEventListener('change', e => { state.mes.config.tipoVendedorSur = e.target.value; renderMes(); });
+$('mes-supera').addEventListener('click', () => {
+  state.mes.config.superaObjetivoMensual = !state.mes.config.superaObjetivoMensual;
+  $('mes-supera').classList.toggle('on', state.mes.config.superaObjetivoMensual);
+  renderMes();
+});
+
+// Handlers del form
+$('mes-add-lista').addEventListener('change', e => { state.mes.form.lista = e.target.value; updateMesVisibility(); });
+$('mes-add-tipo-producto').addEventListener('change', e => { state.mes.form.tipoProducto = e.target.value; });
+$('mes-add-descuento').addEventListener('input', e => { state.mes.form.descuento = e.target.value; });
+$('mes-add-importe').addEventListener('input', e => { state.mes.form.importe = e.target.value; });
+$('mes-add-ref').addEventListener('input', e => { state.mes.form.referencia = e.target.value; });
+
+$('mes-add-btn').addEventListener('click', () => {
+  const importe = parseFloat(state.mes.form.importe);
+  if (!importe || importe <= 0) {
+    alert('Ingresá un importe mayor a cero.');
+    return;
+  }
+  const op = {
+    id: 'op_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    lista: state.mes.form.lista,
+    tipoProducto: state.mes.form.tipoProducto,
+    descuento: parseFloat(state.mes.form.descuento) || 0,
+    importe,
+    referencia: state.mes.form.referencia || '',
+    fechaCarga: new Date().toISOString(),
+  };
+  state.mes.operaciones.push(op);
+  // Limpiar form (pero mantener lista seleccionada y referencia vacía)
+  state.mes.form.importe = '';
+  state.mes.form.referencia = '';
+  $('mes-add-importe').value = '';
+  $('mes-add-ref').value = '';
+  renderMes();
+  $('mes-add-importe').focus();
+});
+
+// Permitir enter para agregar
+['mes-add-importe', 'mes-add-descuento', 'mes-add-ref'].forEach(id => {
+  $(id).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); $('mes-add-btn').click(); }
+  });
+});
+
+// Clear mes
+$('mes-clear-btn').addEventListener('click', () => {
+  if (state.mes.operaciones.length === 0) return;
+  if (confirm('¿Limpiar todas las operaciones cargadas del mes? Esto no se puede deshacer.')) {
+    state.mes.operaciones = [];
+    guardarMesEnStorage();
+    renderMes();
+  }
+});
+
+// ============ INIT ============
+
+renderOpResult();
+renderLidResult();
+renderSurResult();
+renderMes();
+</script>
+</body>
+</html>
