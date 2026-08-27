@@ -260,6 +260,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
         <select id="monthSelect" class="pill" title="Mes a visualizar"></select>
         <div class="pill pill-date" id="updatedPill">—</div>
         <div class="pill pill-date" id="lastFetchPill" title="Última vez que este panel consultó ventas-backup.json">—</div>
+        <button class="tool-btn" id="forceBackupBtn" title="Sube a GitHub el estado actual de Drive, sin esperar al backup automático de las 23:00">☁ Forzar backup</button>
         <button class="tool-btn" id="refreshBtn" title="Volver a consultar ventas-backup.json">↻ Actualizar</button>
       </div>
     </div>
@@ -387,6 +388,10 @@ const GERENTES = [
 ];
 const GERENTE_KEYS = new Set(GERENTES.map(g=>g.key));
 const META_GLOBAL = 300000000;
+// CloudSync.gs — mismo deploy que reporte-comercial.html, solo para action=backup_now.
+const CLOUD_CONFIG = {
+  APPSSCRIPT_URL: "https://script.google.com/macros/s/AKfycbz8fI9AL71EQxT2YVnJb3mX-XwkUWwmNEXQRutAMOYUPFiPya6y-CUygITuqNe34CFz8A/exec",
+};
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 /* ---------- Estado persistido ---------- */
@@ -499,6 +504,25 @@ async function loadData(manual){
   if(manual){ btn.disabled = false; btn.textContent = '↻ Actualizar'; }
 }
 document.getElementById('refreshBtn').addEventListener('click', ()=>loadData(true));
+
+document.getElementById('forceBackupBtn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('forceBackupBtn');
+  if(!CLOUD_CONFIG.APPSSCRIPT_URL){ btn.textContent = 'Sin configurar'; return; }
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Subiendo…';
+  try{
+    const r = await fetch(CLOUD_CONFIG.APPSSCRIPT_URL + '?action=backup_now', {cache:'no-store'});
+    const data = await r.json();
+    if(!data.ok) throw new Error(data.error || 'Error desconocido');
+    btn.textContent = '✓ Subido, esperá ~1 min y Actualizar';
+  }catch(e){
+    console.warn('No se pudo forzar el backup a GitHub', e);
+    btn.textContent = '✕ Falló';
+  }finally{
+    setTimeout(()=>{ btn.disabled = false; btn.textContent = original; }, 5000);
+  }
+});
 
 /* ---------- Agregación por gerente ---------- */
 function buildGerentesData(month){

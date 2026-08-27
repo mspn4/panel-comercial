@@ -35,6 +35,14 @@
  *       → de 23:00 a 24:00. Guardar.
  *    Cada noche vas a tener un commit en tu repo con la foto completa de ese
  *    momento — útil como historial y como respaldo si algo falla en Drive.
+ *
+ * 6) Backup a pedido (sin esperar a las 23:00): la Web App expone
+ *    ?action=backup_now (mismo botón "Forzar backup ahora" en
+ *    reporte-comercial.html y proyeccion-gerentes-dashboard.html). Usa la
+ *    misma configuración del punto 5, así que si ya la tenés no hay nada
+ *    más que hacer ahí — pero como este archivo cambió, hay que volver a
+ *    Implementar → Gestionar implementaciones → ✎ en la implementación
+ *    activa → Versión: Nueva versión → Implementar (la URL /exec no cambia).
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
@@ -48,6 +56,7 @@ function doGet(e) {
     var action = e.parameter.action;
     if (action === "ventas_get") return json({ ventas: leerVentas() });
     if (action === "reservas_get") return json({ reservas: leerReservas() });
+    if (action === "backup_now") return json(backupToGithub("Backup manual de ventas"));
     return json({ error: "Acción desconocida: " + action });
   } catch (err) {
     return json({ error: String(err) });
@@ -180,21 +189,32 @@ function seedFromDrive() {
   Logger.log("Importadas " + ventas.length + " ventas desde seed.json.");
 }
 
-/* ═══════════════════════════ Backup diario a GitHub ═══════════════════════════ */
+/* ═══════════════════════════ Backup a GitHub (diario por trigger + a pedido) ═══════════════════════════ */
+// Llamada por el activador de tiempo (23:00). Mantiene este nombre exacto:
+// si se renombra, hay que rehacer el activador en script.google.com.
 function dailyGithubBackup() {
+  var res = backupToGithub("Backup automático de ventas");
+  if (res.ok) Logger.log("Backup a GitHub OK — " + res.ventas + " ventas, " + res.reservas + " líneas de reservas.");
+  else Logger.log("Error en backup a GitHub: " + res.error);
+}
+
+// Misma lógica, invocable a pedido desde el dashboard (action=backup_now) o desde
+// el trigger diario. Devuelve un resultado en vez de solo loguear, para poder
+// mostrarle algo al usuario cuando lo dispara a mano.
+function backupToGithub(mensajePrefijo) {
   var props = PropertiesService.getScriptProperties();
   var token = props.getProperty("GITHUB_TOKEN");
   var repo = props.getProperty("GITHUB_REPO");
   var path = props.getProperty("GITHUB_PATH") || "ventas-backup.json";
   var branch = props.getProperty("GITHUB_BRANCH") || "main";
   if (!token || !repo) {
-    Logger.log("Backup a GitHub no configurado (faltan GITHUB_TOKEN / GITHUB_REPO en Propiedades del script). Salteando.");
-    return;
+    return { ok: false, error: "Backup a GitHub no configurado (faltan GITHUB_TOKEN / GITHUB_REPO en Propiedades del script)." };
   }
 
   var ventas = leerVentas();
   var reservas = leerReservas();
-  var content = JSON.stringify({ ventas: ventas, reservas: reservas, exportado: new Date().toISOString() }, null, 0);
+  var exportado = new Date().toISOString();
+  var content = JSON.stringify({ ventas: ventas, reservas: reservas, exportado: exportado }, null, 0);
   var contentB64 = Utilities.base64Encode(content, Utilities.Charset.UTF_8);
 
   var apiUrl = "https://api.github.com/repos/" + repo + "/contents/" + path;
@@ -214,7 +234,7 @@ function dailyGithubBackup() {
 
   // 2) Crear o actualizar el archivo.
   var payload = {
-    message: "Backup automático de ventas — " + new Date().toISOString().slice(0, 16).replace("T", " "),
+    message: (mensajePrefijo || "Backup de ventas") + " — " + exportado.slice(0, 16).replace("T", " "),
     content: contentB64,
     branch: branch,
   };
@@ -229,8 +249,7 @@ function dailyGithubBackup() {
   });
 
   if (putResp.getResponseCode() >= 200 && putResp.getResponseCode() < 300) {
-    Logger.log("Backup a GitHub OK — " + ventas.length + " ventas, " + reservas.length + " líneas de reservas.");
-  } else {
-    Logger.log("Error en backup a GitHub: " + putResp.getResponseCode() + " " + putResp.getContentText());
+    return { ok: true, ventas: ventas.length, reservas: reservas.length, exportado: exportado };
   }
+  return { ok: false, error: putResp.getResponseCode() + " " + putResp.getContentText() };
 }

@@ -2548,6 +2548,12 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
       <!-- BACKUP -->
       <div class="mgmt-pane" data-pane="backup">
         <div class="backup-section">
+          <h4>Forzar backup a GitHub ahora</h4>
+          <p>El backup que lee <strong style="color:var(--text)">Proyección Gerentes</strong> (<code>ventas-backup.json</code>) normalmente se actualiza solo, una vez por noche. Usá este botón para subirlo en el momento, después de cargar ventas o reservas nuevas.</p>
+          <button class="btn btn-primary" id="forceBackupBtn">☁ Forzar backup ahora</button>
+          <div id="forceBackupStatus" style="font-size:12px;color:var(--text-muted);margin-top:8px"></div>
+        </div>
+        <div class="backup-section">
           <h4>Exportar estado completo</h4>
           <p>Descarga un archivo JSON con todas tus maestras y ventas acumuladas. Importante: exportá después de cualquier cambio grande. Podés usar este archivo para mover el estado a otra máquina o para restaurar ante cualquier imprevisto.</p>
           <button class="btn btn-primary" id="exportJson">↓ Exportar a JSON</button>
@@ -2719,6 +2725,31 @@ async function pushReservasToCloud(reservas) {
     toast('warn', 'Reservas cargadas localmente, pero no se pudieron guardar en la nube. Reintentá más tarde.');
   }
 }
+
+async function forceBackupNow() {
+  const btn = document.getElementById('forceBackupBtn');
+  const status = document.getElementById('forceBackupStatus');
+  if (!CLOUD_CONFIG.APPSSCRIPT_URL) { toast('warn', 'Falta configurar CLOUD_CONFIG.APPSSCRIPT_URL.'); return; }
+  btn.disabled = true;
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Subiendo…';
+  status.textContent = '';
+  try {
+    const r = await fetch(CLOUD_CONFIG.APPSSCRIPT_URL + '?action=backup_now', { cache: 'no-store' });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
+    toast('ok', 'Backup subido a GitHub: ' + fmt.int(data.ventas) + ' ventas, ' + fmt.int(data.reservas) + ' líneas de reservas.');
+    status.textContent = 'Listo. GitHub Pages puede tardar hasta 1 minuto en publicarlo — esperá un poco antes de actualizar Proyección Gerentes.';
+  } catch (e) {
+    console.warn('No se pudo forzar el backup a GitHub', e);
+    toast('warn', 'No se pudo subir el backup: ' + e.message);
+    status.textContent = 'Falló. Revisá que CloudSync.gs tenga GITHUB_TOKEN/GITHUB_REPO configurados y esté deployado con la acción backup_now.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
+}
+document.getElementById('forceBackupBtn')?.addEventListener('click', forceBackupNow);
 
 // ====================== STORAGE LAYER ======================
 function loadState() {
