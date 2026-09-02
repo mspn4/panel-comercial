@@ -450,11 +450,14 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   <div class="panel-row">
     <div class="panel-group">
       <div class="panel-label">Datos cargados</div>
-      <div style="display:flex;align-items:center;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-ghost" onclick="document.getElementById('jsonFileInput').click()">📥 Cargar JSON del Reporte Comercial</button>
         <input type="file" id="jsonFileInput" accept="application/json,.json" style="display:none" onchange="onJSONFileSelected(event)">
+        <button class="btn btn-ghost" id="forceBackupBtn" onclick="forzarBackupAhora()" title="Sube a GitHub el estado actual de Drive, sin esperar al backup automático de las 23:00">☁ Forzar backup ahora</button>
+        <button class="btn btn-ghost" id="loadBackupBtn" onclick="cargarDesdeBackup()" title="Trae ventas-backup.json directo de GitHub Pages, sin tener que elegir el archivo a mano">↻ Cargar desde backup</button>
       </div>
       <div id="dataInfo" style="font-size:11px;color:var(--muted-ink);"></div>
+      <div id="backupStatus" style="font-size:11px;color:var(--muted-ink);margin-top:4px;"></div>
     </div>
     <div class="panel-group">
       <div class="panel-label">Estilo del gráfico</div>
@@ -476,6 +479,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
       <div class="mode-toggle">
         <button class="mode-btn on" id="modeVendBtn" onclick="setMode('vendedor')">👤 Por colaborador</button>
         <button class="mode-btn" id="modeSucBtn"  onclick="setMode('sucursal')">🏢 Solo sucursal</button>
+        <button class="mode-btn" id="modeEmpresaBtn" onclick="setMode('empresa')">💼 Empresa</button>
       </div>
     </div>
     <div class="panel-group">
@@ -812,12 +816,7 @@ function onJSONFileSelected(ev){
   const reader=new FileReader();
   reader.onload=()=>{
     try{
-      const raw=JSON.parse(reader.result);
-      if(!Array.isArray(raw.ventas)) throw new Error('El archivo no tiene un array "ventas" — no parece un backup del Reporte Comercial.');
-      const nuevo=rebuildD(raw.ventas);
-      if(!nuevo.vendors.length) throw new Error('No se encontró ninguna venta con vendedor y fecha válidos.');
-      nuevo.reservasDaily=buildReservasDaily(raw.reservas);
-      aplicarNuevaData(nuevo);
+      aplicarRawBackup(JSON.parse(reader.result));
     }catch(e){
       alert('No se pudo cargar el archivo: '+e.message);
     }finally{
@@ -826,6 +825,67 @@ function onJSONFileSelected(ev){
   };
   reader.onerror=()=>alert('No se pudo leer el archivo.');
   reader.readAsText(file);
+}
+
+// Misma validación/reconstrucción de D sin importar si el JSON vino de un
+// <input type="file"> (onJSONFileSelected) o de un fetch directo a
+// ventas-backup.json (cargarDesdeBackup).
+function aplicarRawBackup(raw){
+  if(!Array.isArray(raw.ventas)) throw new Error('El archivo no tiene un array "ventas" — no parece un backup del Reporte Comercial.');
+  const nuevo=rebuildD(raw.ventas);
+  if(!nuevo.vendors.length) throw new Error('No se encontró ninguna venta con vendedor y fecha válidos.');
+  nuevo.reservasDaily=buildReservasDaily(raw.reservas);
+  aplicarNuevaData(nuevo);
+}
+
+// CloudSync.gs — mismo deploy que reporte-comercial.html y proyeccion-gerentes-dashboard.html.
+const CLOUD_CONFIG = {
+  APPSSCRIPT_URL: "https://script.google.com/macros/s/AKfycbz8fI9AL71EQxT2YVnJb3mX-XwkUWwmNEXQRutAMOYUPFiPya6y-CUygITuqNe34CFz8A/exec",
+};
+
+// Trae ventas-backup.json directo de GitHub Pages (mismo archivo que ya lee
+// proyeccion-gerentes-dashboard.html), sin tener que exportarlo y elegirlo a mano.
+async function cargarDesdeBackup(){
+  const btn=document.getElementById('loadBackupBtn');
+  const status=document.getElementById('backupStatus');
+  btn.disabled=true;
+  const original=btn.textContent;
+  btn.textContent='Cargando…';
+  status.textContent='';
+  try{
+    const r=await fetch('ventas-backup.json',{cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    aplicarRawBackup(await r.json());
+    status.textContent='Cargado desde ventas-backup.json.';
+  }catch(e){
+    status.textContent='No se pudo cargar ventas-backup.json: '+e.message;
+  }finally{
+    btn.disabled=false;
+    btn.textContent=original;
+  }
+}
+
+// Mismo botón "Forzar backup ahora" que reporte-comercial.html y
+// proyeccion-gerentes-dashboard.html: sube a GitHub el estado actual de Drive
+// sin esperar al trigger de las 23:00.
+async function forzarBackupAhora(){
+  const btn=document.getElementById('forceBackupBtn');
+  const status=document.getElementById('backupStatus');
+  btn.disabled=true;
+  const original=btn.textContent;
+  btn.textContent='Subiendo…';
+  status.textContent='';
+  try{
+    const r=await fetch(CLOUD_CONFIG.APPSSCRIPT_URL+'?action=backup_now',{cache:'no-store'});
+    const data=await r.json();
+    if(!data.ok) throw new Error(data.error||'Error desconocido');
+    status.textContent='Backup subido. Esperá ~1 min y usá "Cargar desde backup".';
+  }catch(e){
+    status.textContent='No se pudo subir el backup: '+e.message;
+  }finally{
+    btn.disabled=false;
+    btn.textContent=original;
+  }
 }
 
 // Reservas vienen en el mismo backup ({ventas, reservas, exportado}) que exporta
@@ -842,6 +902,10 @@ function buildReservasDaily(reservas){
     const dv=(out[name] ||= {});
     const slot=(dv[fecha] ||= [0,0,0]);
     slot[0]+=monto;
+    // Total empresa (mismo truco que rebuildD: clave reservada '__EMPRESA__').
+    const dvE=(out['__EMPRESA__'] ||= {});
+    const slotE=(dvE[fecha] ||= [0,0,0]);
+    slotE[0]+=monto;
   });
   return out;
 }
@@ -864,6 +928,12 @@ function rebuildD(ventas){
     const dv=(daily[name] ||= {});
     const slotV=(dv[fecha] ||= [0,0,0]);
     slotV[0]+=neto; if(idx) slotV[idx]+=neto;
+
+    // Total empresa: misma estructura [total,contado,fin] que un vendedor más,
+    // bajo una clave reservada — así sumPeriod/render la usan sin cambios.
+    const dvE=(daily['__EMPRESA__'] ||= {});
+    const slotE=(dvE[fecha] ||= [0,0,0]);
+    slotE[0]+=neto; if(idx) slotE[idx]+=neto;
 
     if(suc){
       const ds=(daily_suc[suc] ||= {});
@@ -1113,7 +1183,9 @@ function setMode(m){
   mode=m;
   document.getElementById('modeVendBtn').classList.toggle('on',m==='vendedor');
   document.getElementById('modeSucBtn').classList.toggle('on', m==='sucursal');
-  document.body.classList.toggle('mode-suc',m==='sucursal');
+  document.getElementById('modeEmpresaBtn').classList.toggle('on', m==='empresa');
+  // 'empresa' no usa fuerza/sucursal/equipo — reutiliza el mismo atenuado que sucursal
+  document.body.classList.toggle('mode-suc',m==='sucursal'||m==='empresa');
   document.getElementById('sucursalVendRow').style.display=m==='vendedor'?'':'none';
   document.getElementById('sucursalSucRow').style.display=m==='sucursal'?'':'none';
   refreshPills();
@@ -1261,7 +1333,10 @@ function sumPeriod(dataSource,key,dateFrom,dateTo){
 function buildSlides(){
   if(periods.length<1){alert('Agregá al menos 1 período.');return;}
   slides=[];
-  if(mode==='sucursal'){
+  if(mode==='empresa'){
+    if(!D.vendors.length){alert('Sin datos cargados.');return;}
+    slides.push({type:'empresa', key:'__EMPRESA__', label:'M&A Equipamientos Comerciales', sub:'Total empresa · '+D.vendors.length+' colaboradores', badge:'EMPRESA'});
+  } else if(mode==='sucursal'){
     if(!selSucOnly.size){alert('Seleccioná al menos una sucursal.');return;}
     selSucOnly.forEach(suc=>slides.push({type:'suc',key:suc,label:suc,sub:'Sucursal',badge:'SUCURSAL'}));
     slides.sort((a,b)=>{
