@@ -1492,11 +1492,16 @@ function updateZipSelCount(){
 
 // ─── FORMAT ───────────────────────────────────────────────────
 function fmtLabel(val){
-  if(!val||val===0) return '';
-  const n=val;
-  if(n>=1e6) return '$ '+Math.round(n/1e6).toLocaleString('es-AR')+' mill.';
-  if(n>=1e3) return '$ '+Math.round(n/1e3)+' k';
-  return '$ '+Math.round(n);
+  if(!val) return '';
+  // Antes comparaba "val>=1e6" directo: para un valor negativo (ej. financiado en devolución,
+  // -1636758) esa comparación siempre daba falso y caía al último "return", que muestra el
+  // número crudo sin redondear ni el sufijo "mill./k" ("$ -1636758" en vez de "$ -2 mill.").
+  // Comparar por magnitud (abs) y dejar el signo puesto en el cálculo (Math.round ya lo respeta:
+  // Math.round(-1.636758) = -2) aplica la misma lógica de positivos también a los negativos.
+  const abs=Math.abs(val);
+  if(abs>=1e6) return '$ '+Math.round(val/1e6).toLocaleString('es-AR')+' mill.';
+  if(abs>=1e3) return '$ '+Math.round(val/1e3)+' k';
+  return '$ '+Math.round(val);
 }
 
 // ─── AJUSTE MANUAL DE MONTOS (overrides) ───────────────────────
@@ -1617,6 +1622,18 @@ function render(idx){
   const contData=periodVals.map(s=>s.contado);
   const finData=periodVals.map(s=>s.fin);
   const labels=periods.map(p=>p.label);
+  // Si algún colaborador cierra el mes en negativo en alguna forma de pago (ej. devoluciones
+  // en Financiado superan lo facturado), el valor real se sigue mostrando tal cual en la
+  // etiqueta — pero para DIBUJAR la línea se lo "pisa" a un valor chico y positivo (piso), en
+  // vez de dejar que la línea se hunda por debajo de cero. Motivos: (1) visualmente queda casi
+  // pegada a la línea base en vez de generar un pozo grande fuera de escala con el resto de los
+  // meses, y (2) la etiqueta de esa serie se ancla "abajo" del punto — si el punto está deep
+  // abajo (o en 0), no queda lugar debajo para el texto y termina pisando las fechas del eje X
+  // (justo el bug reportado: "$ -1636758" superpuesto con "Abr 2026").
+  const negFloorBase=[...netoData,...contData,...finData].filter(v=>v>0);
+  const negFloor=(negFloorBase.length?Math.max(...negFloorBase):1)*0.06;
+  const clampNeg=arr=>arr.map(v=>v<0?negFloor:v);
+  const netoPlot=clampNeg(netoData), contPlot=clampNeg(contData), finPlot=clampNeg(finData);
 
   document.getElementById('sLegend').innerHTML=[
     '<div class="leg-item"><div class="leg-dot" style="background:#0C447C"></div>Neto Total</div>',
@@ -1644,7 +1661,9 @@ function render(idx){
   // halo mantiene el texto legible sin depender de calcular con precisión por dónde pasa cada
   // curva (la tensión del spline puede "pandear" más allá de los dos puntos que une).
   const labelBg={backgroundColor:'rgba(255,255,255,.82)',borderRadius:4,padding:{top:1,bottom:1,left:4,right:4}};
-  const dlNeto=(color)=>({display:true,align:'top',anchor:'end',offset:10,clip:false,clamp:true,color,font:fontCfg,formatter:fmtLabel,...labelBg});
+  // formatter recibe el valor REAL (no el "plot" con piso) — el número mostrado siempre es el
+  // verdadero, incluso cuando la posición del punto en el gráfico está pisada a un piso positivo.
+  const dlNeto=(color,realArr)=>({display:true,align:'top',anchor:'end',offset:10,clip:false,clamp:true,color,font:fontCfg,formatter:(v,ctx)=>fmtLabel(realArr[ctx.dataIndex]),...labelBg});
   // Offset de una serie "secundaria" (Contado o Financiado) en un punto dado: la de mayor
   // valor absoluto de las dos queda pegada abajo de su punto (offset chico fijo); la menor
   // va más lejos, pero el offset se recorta al espacio real hasta el eje X (medido en
@@ -1655,26 +1674,38 @@ function render(idx){
   // termina pegado a la etiqueta de la "perdedora" aunque cada una respete su propio punto.
   // Se mide la distancia real en pixels entre los dos puntos (mismo eje Y) y si es menor a lo
   // que ocupa una línea de texto, se estira el offset de la perdedora para separarlas.
-  function secOffset(mineArr,otherArr,ctx){
-    const i=ctx.dataIndex, mine=mineArr[i]||0, other=otherArr[i]||0;
+  // minePlot/otherPlot: valores ya "pisados" (con el piso positivo si eran negativos) — se usan
+  // para toda la geometría (posición real en pantalla del punto). mineReal/otherReal: valores
+  // verdaderos — se usan solo para decidir cuál de las dos series "gana" (queda pegada a su
+  // punto) cuando hay empate en el valor pisado (ej. Contado y Financiado negativos el mismo
+  // mes, ambos caen al mismo piso — sin esto, sus dos etiquetas quedarían exactamente superpuestas).
+  function secOffset(minePlot,otherPlot,mineReal,otherReal,ctx){
+    const i=ctx.dataIndex, mine=minePlot[i]||0, other=otherPlot[i]||0;
     const yScale=ctx.chart.scales.y, area=ctx.chart.chartArea;
-    if(Math.abs(mine)>Math.abs(other)) return 4;
+    if(Math.abs(mineReal[i]||0)>Math.abs(otherReal[i]||0)) return 4;
     const room=Math.max(0,area.bottom-yScale.getPixelForValue(mine));
     let off=Math.min(labelSize+5,Math.max(2,room-6));
-    const pxGap=Math.abs(yScale.getPixelForValue(mine)-yScale.getPixelForValue(other));
+    // Diferencia de pixels CON SIGNO entre los dos puntos (no valor absoluto): positiva cuando mi
+    // punto queda más abajo en pantalla que el del otro (caso normal: yo soy la "perdedora" con
+    // menor valor real, y un valor menor cae más abajo). Con el piso para negativos ese orden
+    // puede invertirse (la "ganadora" por magnitud real puede terminar pisada más abajo que la
+    // "perdedora" positiva) — usar el signo evita que ahí el cálculo dé un offset de más chico
+    // en vez de más grande, que era lo que dejaba la etiqueta de la ganadora tapada.
+    const signedGap=yScale.getPixelForValue(mine)-yScale.getPixelForValue(other);
     const minSep=labelSize+10;
-    if(pxGap<minSep) off=Math.max(off,minSep-pxGap+4);
+    const needed=minSep-signedGap+4;
+    if(needed>off) off=needed;
     return Math.min(off,Math.max(2,room-6));
   }
-  const dlSec=(color,mineArr,otherArr)=>({display:true,align:'bottom',anchor:'end',
-    offset:(ctx)=>secOffset(mineArr,otherArr,ctx),
-    clip:false,clamp:true,color,font:fontCfg,formatter:fmtLabel,...labelBg});
+  const dlSec=(color,minePlot,otherPlot,mineReal,otherReal)=>({display:true,align:'bottom',anchor:'end',
+    offset:(ctx)=>secOffset(minePlot,otherPlot,mineReal,otherReal,ctx),
+    clip:false,clamp:true,color,font:fontCfg,formatter:(v,ctx)=>fmtLabel(mineReal[ctx.dataIndex]),...labelBg});
   chart=new Chart(ctx,{
     type:'line',plugins:[ChartDataLabels],
     data:{labels,datasets:[
-      {label:'Neto Total',data:netoData,borderColor:'#0C447C',backgroundColor:gB,borderWidth:3,tension:.35,fill:true,pointRadius:7,pointHoverRadius:9,pointBackgroundColor:'#0C447C',pointBorderColor:'#fff',pointBorderWidth:2.5,datalabels:dlNeto('#0C447C')},
-      {label:'Contado',data:contData,borderColor:'#0b7fc2',backgroundColor:gC,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#0b7fc2',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#0b7fc2',contData,finData)},
-      {label:'Financiado',data:finData,borderColor:'#F97316',backgroundColor:gF,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#F97316',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#F97316',finData,contData)},
+      {label:'Neto Total',data:netoPlot,borderColor:'#0C447C',backgroundColor:gB,borderWidth:3,tension:.35,fill:true,pointRadius:7,pointHoverRadius:9,pointBackgroundColor:'#0C447C',pointBorderColor:'#fff',pointBorderWidth:2.5,datalabels:dlNeto('#0C447C',netoData)},
+      {label:'Contado',data:contPlot,borderColor:'#0b7fc2',backgroundColor:gC,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#0b7fc2',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#0b7fc2',contPlot,finPlot,contData,finData)},
+      {label:'Financiado',data:finPlot,borderColor:'#F97316',backgroundColor:gF,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#F97316',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#F97316',finPlot,contPlot,finData,contData)},
     ]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:36,right:36,left:36,bottom:34}},animation:{duration:0},interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{enabled:false},datalabels:{display:false}},
