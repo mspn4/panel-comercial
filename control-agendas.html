@@ -20,6 +20,11 @@ const CONFIG = {
   // Ahí se guardan los informes de Covente, en la categoría "Covente".
   BACKEND_URL: "https://script.google.com/macros/s/AKfycby3TXMd0s-HJBjyi_i362KIQq_yD_89-f0brHau1K11kLuyzVC7YjbBnHQJS-JX0DmC/exec",
 
+  // Backend de historial de agendas (AgendaHistorial.gs) — lee los backups semanales
+  // que genera AgendaBackup.gs. Sin esto el selector de "semana" no aparece (se
+  // oculta solo si no hay URL o todavía no hay backups guardados).
+  HISTORIAL_URL: "https://script.google.com/a/macros/myacomercial.com/s/AKfycbzzNnIiCMrLODnVZIuStf1UMjrNLD29aHd-wCLc3gnIgmwRYl7SvzD10R56L4rHiDdW/exec",
+
   // Clave de edición fija (uso interno, sin prompt). Tiene que coincidir con
   // el EDIT_KEY configurado en BackendPanel.gs.
   EDIT_KEY: "MAeditor2026",
@@ -158,6 +163,13 @@ main{padding:16px 22px 60px}
   padding:11px 15px;margin-bottom:16px;font-size:13.5px;display:flex;gap:9px;align-items:flex-start}
 .notice.err{background:var(--err-tint);border-color:var(--notice-err-border);color:var(--notice-err-text)}
 .notice code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px;font-size:12.5px}
+.notice.hist{background:var(--blue-tint);border-color:var(--blue-tint-2);color:var(--blue-active)}
+.notice.hist button{margin-left:auto;flex:none}
+
+.histsel{display:flex;align-items:center;gap:7px;color:var(--muted)}
+.histsel select{font-family:inherit;font-size:13px;font-weight:600;color:var(--text);background:var(--surface);
+  border:1px solid var(--border-strong);border-radius:9px;padding:7px 10px;cursor:pointer}
+.histsel select:focus{outline:none;border-color:var(--blue)}
 
 /* Grupos */
 .group{margin-bottom:26px}
@@ -428,6 +440,10 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
     <button class="tab" data-view="covente">Covente</button>
   </div>
   <div class="weeklabel" id="weekLabel"></div>
+  <div class="histsel" id="histSel" style="display:none">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5M3.05 13a9 9 0 1 0 2.13-8.83L3 8"/><path d="M12 7v5l4 2"/></svg>
+    <select id="semanaSelect" title="Ver una semana anterior"><option value="">Semana actual (en vivo)</option></select>
+  </div>
   <div class="search">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
     <input type="text" id="search" placeholder="Buscar tarea…" autocomplete="off">
@@ -437,6 +453,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
 <div class="daybar" id="dayBar"></div>
 
 <main>
+  <div id="histBanner"></div>
   <div id="notice"></div>
   <div id="view"></div>
 </main>
@@ -471,6 +488,9 @@ const state = {
   cvRegistros:null,  // registros ya leídos (kb_get de cada uno) — evita releer todo al abrir/cerrar un acordeón
   cvEditKey:CONFIG.EDIT_KEY,
   cvExpanded:{},     // sucursal -> true si está desplegada (vista Covente)
+  modo:"vivo",              // "vivo" | "historial"
+  semanaHistorial:null,     // "YYYY-MM-DD" (sábado de cierre) cuando modo==="historial"
+  semanasDisponibles:null,  // cache de accion=semanas (AgendaHistorial.gs)
 };
 let timer=null;
 
@@ -495,6 +515,19 @@ function semanaRealActual(){
     const d=new Date(lunes); d.setDate(lunes.getDate()+i);
     const ddmm=String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");
     return {dia, ddmm, esHoy:ddmm===hoyStr};
+  });
+}
+/* Semana (lunes a sábado) de un backup histórico, calculada a partir del sábado
+   de cierre conocido (state.semanaHistorial) — no del contenido de la planilla.
+   Evita depender del parser de fechas de cada hoja (que puede traer columnas
+   basura fuera de la semana real) solo para armar la barra de días/etiqueta. */
+function semanaDeSabado(iso){
+  const sab=new Date(iso+"T00:00:00");
+  const lunes=new Date(sab); lunes.setDate(sab.getDate()-5);
+  return DIAS_SEMANA.map((dia,i)=>{
+    const d=new Date(lunes); d.setDate(lunes.getDate()+i);
+    const ddmm=String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");
+    return {dia, ddmm, esHoy:false};
   });
 }
 function haceCuanto(iso){
@@ -567,6 +600,26 @@ function parseAgenda(rows){
 }
 
 /* ───────── Lectura ───────── */
+/* Arma las "personas" (una por hoja/pestaña) de una sucursal a partir de las filas
+   crudas ya leídas — la usan tanto la lectura en vivo (cargarTodo) como la
+   histórica (aplicarSnapshotHistorico), para no duplicar el criterio de rol. */
+function personasDeSucursal(s,hojas,modificado){
+  const out=[];
+  (hojas||[]).forEach(h=>{
+    const p=parseAgenda(h.rows);
+    if(!p) return;
+    const apellidosGerente=[].concat(s.gerente);
+    const apellidosCobrador=s.cobradores||[];
+    let rol="lider";
+    if(apellidosGerente.some(g=>norm(h.nombre).includes(norm(g)))) rol="gerente";
+    else if(apellidosCobrador.some(c=>norm(h.nombre).includes(norm(c)))) rol="cobrador";
+    const key=s.sucursal+"|"+h.nombre;
+    out.push({key,sucursal:s.sucursal,gerente:s.gerente,nombre:h.nombre,rol,
+      dates:p.dates,slots:p.slots,count:p.count,semana:p.semana,modificado,
+      estado:p.count>0?"ok":"vacia", visible:!state.oculta[key]});
+  });
+  return out;
+}
 async function leerSucursal(s){
   const url=CONFIG.APPSSCRIPT_URL+(CONFIG.APPSSCRIPT_URL.includes("?")?"&":"?")+"id="+encodeURIComponent(s.id);
   const r=await fetch(url,{cache:"no-store",redirect:"follow"});
@@ -592,21 +645,12 @@ async function cargarTodo(manual){
     try{
       const data=await leerSucursal(s);
       s.estado="ok"; s.modificado=data.modificado;
-      data.hojas.forEach(h=>{
-        const p=parseAgenda(h.rows);
-        if(!p) return;
-        const apellidosGerente=[].concat(s.gerente);
-        const apellidosCobrador=s.cobradores||[];
-        let rol="lider";
-        if(apellidosGerente.some(g=>norm(h.nombre).includes(norm(g)))) rol="gerente";
-        else if(apellidosCobrador.some(c=>norm(h.nombre).includes(norm(c)))) rol="cobrador";
-        const key=s.sucursal+"|"+h.nombre;
-        personas.push({key,sucursal:s.sucursal,gerente:s.gerente,nombre:h.nombre,rol,
-          dates:p.dates,slots:p.slots,count:p.count,semana:p.semana,modificado:data.modificado,
-          estado:p.count>0?"ok":"vacia", visible:!state.oculta[key]});
-      });
+      personas.push(...personasDeSucursal(s,data.hojas,data.modificado));
     }catch(e){ s.estado="error"; s.error=e.message; fallaron.push(s.sucursal); }
   }));
+  // El usuario pudo haber saltado a una semana histórica mientras esto cargaba
+  // (esta llamada quedó "en vuelo") — no pisar esos datos con la lectura en vivo.
+  if(state.modo!=="vivo"){ setLoading(false); return; }
 
   const ordenRol={gerente:0,lider:1,cobrador:2};
   personas.sort((a,b)=> a.sucursal.localeCompare(b.sucursal) ||
@@ -615,6 +659,96 @@ async function cargarTodo(manual){
 
   pintarNotice(personas.length>0,fallaron);
   marcarReloj(); setLoading(false); render(); renderDrawer();
+}
+
+/* ───────── Historial de agendas (backups semanales, AgendaHistorial.gs) ─────────
+   El backup guarda una copia completa de cada Sheet todos los sábados (ver
+   AgendaBackup.gs). Estas funciones leen esas copias — mismo parseAgenda() de
+   arriba, mismo criterio de rol — para poder navegar semanas pasadas sin salir
+   del panel. Si CONFIG.HISTORIAL_URL está vacío o todavía no hay backups, el
+   selector queda oculto solo y el resto del dashboard funciona igual que antes. */
+function ddmmDeISO(iso){
+  const m=(iso||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m?m[3]+"/"+m[2]:(iso||"");
+}
+/* Los Web Apps de Apps Script recién deployados/autorizados devuelven 404
+   sueltos de forma intermitente durante un rato (problema conocido de Google,
+   se estabiliza solo) — reintenta un par de veces antes de darse por vencido. */
+async function fetchHistorialJSON(url,intentos){
+  intentos=intentos||3;
+  let ultimoError;
+  for(let i=0;i<intentos;i++){
+    try{
+      const r=await fetch(url,{cache:"no-store"});
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      const d=await r.json();
+      if(d.error) throw new Error(d.error);
+      return d;
+    }catch(e){ ultimoError=e; if(i<intentos-1) await new Promise(res=>setTimeout(res,600)); }
+  }
+  throw ultimoError;
+}
+async function cargarSemanasDisponibles(){
+  if(!CONFIG.HISTORIAL_URL) return;
+  try{
+    const d=await fetchHistorialJSON(CONFIG.HISTORIAL_URL+"?accion=semanas");
+    state.semanasDisponibles=d.semanas||[];
+  }catch(e){ state.semanasDisponibles=[]; }
+  pintarSemanaSelect();
+}
+function pintarSemanaSelect(){
+  const wrap=$("#histSel"), sel=$("#semanaSelect");
+  const semanas=state.semanasDisponibles||[];
+  if(!semanas.length){ wrap.style.display="none"; return; }
+  wrap.style.display="";
+  sel.innerHTML=`<option value="">Semana actual (en vivo)</option>`+
+    semanas.map(s=>`<option value="${esc(s)}">Semana cerrada el ${esc(ddmmDeISO(s))}</option>`).join("");
+  sel.value=state.modo==="historial"?state.semanaHistorial:"";
+}
+async function irASemana(semana){
+  if(!semana){ volverAVivo(); return; }
+  if(timer){ clearInterval(timer); timer=null; }
+  state.modo="historial"; state.semanaHistorial=semana;
+  $("#semanaSelect").value=semana;
+  setLoading(true,false);
+  try{
+    const d=await fetchHistorialJSON(CONFIG.HISTORIAL_URL+"?accion=leer&semana="+encodeURIComponent(semana));
+    // Si mientras esto cargaba el usuario ya eligió otra semana (o volvió a vivo),
+    // esta respuesta quedó vieja — no pisar lo que se esté mostrando ahora.
+    if(state.semanaHistorial!==semana) return;
+    aplicarSnapshotHistorico(d);
+    $("#clockVal").textContent="Vista histórica";
+  }catch(e){
+    if(state.semanaHistorial!==semana) return;
+    $("#notice").innerHTML=`<div class="notice err">⚠️ No se pudo leer esa semana: ${esc(e.message)}</div>`;
+  }
+  setLoading(false); render(); renderDrawer();
+}
+function aplicarSnapshotHistorico(d){
+  const fallaron=[];
+  state.sucursales=CONFIG.SUCURSALES.map(cs=>{
+    const s=(d.sucursales||[]).find(x=>x.sucursal===cs.sucursal);
+    if(!s||s.error) fallaron.push(cs.sucursal);
+    return {...cs, estado:(s&&!s.error)?"ok":"error", modificado:(s&&s.modificado)||null, error:(s&&s.error)||(s?null:"No está en este backup")};
+  });
+  let personas=[];
+  (d.sucursales||[]).forEach(s=>{
+    if(s.error||!s.hojas) return;
+    const cs=CONFIG.SUCURSALES.find(x=>x.sucursal===s.sucursal); if(!cs) return;
+    personas.push(...personasDeSucursal(cs,s.hojas,s.modificado));
+  });
+  const ordenRol={gerente:0,lider:1,cobrador:2};
+  personas.sort((a,b)=> a.sucursal.localeCompare(b.sucursal) ||
+    (ordenRol[a.rol]-ordenRol[b.rol]) || a.nombre.localeCompare(b.nombre));
+  state.personas=personas;
+  state.diaSel=semanaDeSabado(state.semanaHistorial)[0].ddmm; // lunes de esa semana
+  pintarNotice(personas.length>0,fallaron);
+}
+function volverAVivo(){
+  state.modo="vivo"; state.semanaHistorial=null; state.diaSel=hoyDDMM();
+  cargarTodo(false);
+  if(timer) clearInterval(timer);
+  timer=setInterval(()=>cargarTodo(false),CONFIG.REFRESCO_MINUTOS*60*1000);
 }
 
 /* ───────── UI helpers ───────── */
@@ -637,15 +771,23 @@ function pintarNotice(ok,fallaron){
   if(fallaron.length) partes.push(`No cargó: <b>${esc(fallaron.join(", "))}</b>.`);
   if(partes.length) el.innerHTML=`<div class="notice">ℹ️ <div>${partes.join("<br>")}</div></div>`;
 }
+/* Semana a mostrar en la barra: la real de calendario en vivo, o la del
+   snapshot cargado cuando se está viendo una semana histórica. */
+function semanaParaBarra(){
+  if(state.modo==="historial" && state.semanaHistorial) return semanaDeSabado(state.semanaHistorial);
+  return semanaRealActual();
+}
 function pintarWeekLabel(){
-  const s=semanaRealActual();
-  $("#weekLabel").innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg> Semana <b>${esc(s[0].ddmm)} al ${esc(s[s.length-1].ddmm)}</b>`;
+  const s=semanaParaBarra();
+  if(!s.length){ $("#weekLabel").innerHTML=""; return; }
+  const etiqueta=state.modo==="historial"?"Semana histórica":"Semana";
+  $("#weekLabel").innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg> ${etiqueta} <b>${esc(s[0].ddmm)} al ${esc(s[s.length-1].ddmm)}</b>`;
 }
 function highlight(t){const x=esc(t);if(!state.query)return x;
   const re=new RegExp("("+state.query.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig");return x.replace(re,"<mark>$1</mark>");}
 
 function pintarDayBar(){
-  const semana=semanaRealActual();
+  const semana=semanaParaBarra();
   $("#dayBar").innerHTML=semana.map(d=>`<button class="daypill ${d.ddmm===state.diaSel?"active":""} ${d.esHoy?"today":""}" data-day="${esc(d.ddmm)}">
     <span class="d">${esc(d.dia)}</span><span class="f">${esc(d.ddmm)}</span></button>`).join("");
 }
@@ -688,7 +830,15 @@ function cardsQueAplican(){
   return arr;
 }
 
+function pintarHistBanner(){
+  const el=$("#histBanner"); if(!el) return;
+  if(state.modo!=="historial"){ el.innerHTML=""; return; }
+  el.innerHTML=`<div class="notice hist">📜 <div>Estás viendo una <b>semana histórica</b> (backup del sábado ${esc(ddmmDeISO(state.semanaHistorial))}). No se actualiza sola.</div>
+    <button class="btn-cv ghost" id="btnVolverVivo">Volver a la semana actual</button></div>`;
+  $("#btnVolverVivo").onclick=volverAVivo;
+}
 function render(){
+  pintarHistBanner();
   if(state.vista==="covente"){ $("#weekLabel").innerHTML=""; $("#dayBar").innerHTML=""; renderCoventeView(); return; }
   pintarWeekLabel(); pintarDayBar();
   const cont=$("#view"); const arr=cardsQueAplican();
@@ -1286,8 +1436,13 @@ function renderCoventeResumenTabla(desde, hasta){
 /* ───────── Eventos ───────── */
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-  t.classList.add("active"); state.vista=t.dataset.view; render();
+  t.classList.add("active"); state.vista=t.dataset.view;
+  // Covente no tiene sentido dentro de una semana histórica (son informes sueltos,
+  // no la agenda semanal) — al entrar ahí se vuelve a la vista en vivo sola.
+  if(state.vista==="covente" && state.modo==="historial"){ volverAVivo(); return; }
+  render();
 }));
+$("#semanaSelect").addEventListener("change",e=>irASemana(e.target.value));
 $("#dayBar").addEventListener("click",e=>{const b=e.target.closest(".daypill");if(!b)return;state.diaSel=b.dataset.day;render();});
 function toggleSuc(suc){ state.expanded[suc]=!state.expanded[suc]; render(); }
 function toggleCvSuc(suc){ state.cvExpanded[suc]=!state.cvExpanded[suc]; renderCoventeView(); }
@@ -1300,7 +1455,9 @@ $("#view").addEventListener("click",e=>{
 });
 let tB=null;
 $("#search").addEventListener("input",e=>{clearTimeout(tB);tB=setTimeout(()=>{state.query=e.target.value.trim();render();},180);});
-$("#btnRefresh").addEventListener("click",()=>cargarTodo(true));
+$("#btnRefresh").addEventListener("click",()=>{
+  if(state.modo==="historial") irASemana(state.semanaHistorial); else cargarTodo(true);
+});
 $("#btnManage").addEventListener("click",()=>{$("#drawerBg").classList.add("open");$("#drawer").classList.add("open");});
 function cerrarDrawer(){$("#drawerBg").classList.remove("open");$("#drawer").classList.remove("open");}
 $("#drawerClose").addEventListener("click",cerrarDrawer);
@@ -1319,6 +1476,7 @@ window.addEventListener("storage", e=>{ if(e.key==="panelTheme") aplicarTema(e.n
 /* ───────── Inicio ───────── */
 $("#refMin").textContent=CONFIG.REFRESCO_MINUTOS;
 cargarTodo(false);
+cargarSemanasDisponibles();
 if(timer)clearInterval(timer);
 timer=setInterval(()=>cargarTodo(false),CONFIG.REFRESCO_MINUTOS*60*1000);
 </script>
