@@ -559,6 +559,21 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
     </div>
   </div>
 
+  <!-- Row 1c: Team builder — sumar varios colaboradores en una sola placa -->
+  <div class="panel-row vendor-only">
+    <div class="panel-group" style="flex:1;min-width:280px;">
+      <div class="panel-label">Sumar varios colaboradores como equipo (1 sola placa)</div>
+      <div class="search-wrap" style="width:100%;max-width:340px;">
+        <input type="text" id="teamSearchInput" placeholder="Buscar y agregar al equipo…" autocomplete="off">
+        <div class="ddlist" id="teamDdList"></div>
+      </div>
+      <div id="teamPickChips" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;"></div>
+    </div>
+    <div class="panel-group" style="justify-content:flex-end;">
+      <button class="btn btn-primary" id="btnCommitTeam" onclick="commitTeamPick()" disabled>+ Sumar seleccionados como equipo</button>
+    </div>
+  </div>
+
   <!-- Row 2: Period + Search + Actions -->
   <div class="panel-row">
     <div class="panel-group period-builder">
@@ -1014,6 +1029,8 @@ function aplicarNuevaData(nuevo){
 let mode='vendedor', estilo=1, showSummary=true;
 let selFuerzas=new Set(), selSucursales=new Set(), selSucOnly=new Set(), selIndividuals=new Set();
 let periods=[];
+let customTeams=[]; // equipos armados a mano: {id,label,members:[nombre,...]} — se suman como 1 sola placa
+let teamPick=new Set(); // nombres elegidos en el armador de equipo, todavía sin confirmar
 let overrides={}; // key: slideKey|dateFrom|dateTo -> {total,contado,fin} — ajuste manual sobre un valor calculado
 let textOverrides={}; // key: slideKey -> {label,sub,badge} — ajuste manual del texto del encabezado del slide
 let slides=[], cur=0, chart=null;
@@ -1286,13 +1303,48 @@ sinput.addEventListener('input',()=>{
 });
 document.addEventListener('click',e=>{ if(!e.target.closest('.search-wrap')) ddlist.classList.remove('open'); });
 
+// ─── TEAM BUILDER (sumar varios colaboradores como equipo) ────
+const tsInput=document.getElementById('teamSearchInput'),tddlist=document.getElementById('teamDdList');
+tsInput.addEventListener('input',()=>{
+  const q=tsInput.value.trim().toUpperCase();
+  if(q.length<2){tddlist.classList.remove('open');return;}
+  const matches=D.vendors.filter(v=>v.n.includes(q)&&!teamPick.has(v.n)).slice(0,25);
+  if(!matches.length){tddlist.classList.remove('open');return;}
+  tddlist.innerHTML=matches.map(v=>`<div class="ddi" data-nombre="${v.n}"><div>${fmtName(v.n)}</div><div class="ddi-meta">${v.s} · ${v.f}</div></div>`).join('');
+  tddlist.classList.add('open');
+  tddlist.querySelectorAll('.ddi').forEach(el=>{
+    el.addEventListener('click',()=>{ teamPick.add(el.dataset.nombre); tsInput.value=''; tddlist.classList.remove('open'); renderTeamPickChips(); });
+  });
+});
+document.addEventListener('click',e=>{ if(!e.target.closest('#teamSearchInput')&&!e.target.closest('#teamDdList')) tddlist.classList.remove('open'); });
+
+function renderTeamPickChips(){
+  const el=document.getElementById('teamPickChips');
+  el.innerHTML=[...teamPick].map(n=>`<span class="pill">${fmtName(n)}<span class="pill-x" onclick="removeTeamPick('${n.replace(/'/g,"\\'")}')">&times;</span></span>`).join('');
+  const btn=document.getElementById('btnCommitTeam');
+  btn.disabled=teamPick.size<2;
+  btn.textContent=teamPick.size?`+ Sumar ${teamPick.size} seleccionados como equipo`:'+ Sumar seleccionados como equipo';
+}
+function removeTeamPick(n){ teamPick.delete(n); renderTeamPickChips(); }
+function commitTeamPick(){
+  if(teamPick.size<2){alert('Elegí al menos 2 colaboradores para armar un equipo.');return;}
+  const members=[...teamPick];
+  const suggested='Equipo '+fmtName(members[0]).split(' ')[0];
+  const name=prompt('Nombre del equipo (después lo podés cambiar con "✎ Editar texto"):',suggested);
+  if(name===null) return; // canceló
+  customTeams.push({id:Date.now()+'_'+Math.random().toString(36).slice(2),label:name.trim()||suggested,members});
+  teamPick.clear();
+  renderTeamPickChips();
+  refreshPills();
+}
+
 // ─── PILLS ────────────────────────────────────────────────────
 function refreshPills(){
   const row=document.getElementById('pillsRow');
   const items=[];
-  if(mode==='vendedor'){ selFuerzas.forEach(f=>items.push({label:f,type:'f',val:f})); selSucursales.forEach(s=>items.push({label:s,type:'s',val:s})); selIndividuals.forEach(n=>items.push({label:fmtName(n),type:'i',val:n})); }
+  if(mode==='vendedor'){ selFuerzas.forEach(f=>items.push({label:f,type:'f',val:f})); selSucursales.forEach(s=>items.push({label:s,type:'s',val:s})); selIndividuals.forEach(n=>items.push({label:fmtName(n),type:'i',val:n})); customTeams.forEach(t=>items.push({label:'👥 '+t.label+' ('+t.members.length+')',type:'ct',val:t.id})); }
   else { selSucOnly.forEach(s=>items.push({label:'🏢 '+s,type:'so',val:s})); }
-  const pillsHtml=items.map(item=>`<span class="pill">${item.label}<span class="pill-x" onclick="removePill('${item.type}','${item.val.replace(/'/g,"\'")}')">&times;</span></span>`).join('');
+  const pillsHtml=items.map(item=>`<span class="pill">${item.label}<span class="pill-x" onclick="removePill('${item.type}','${String(item.val).replace(/'/g,"\'")}')">&times;</span></span>`).join('');
   const periodsHtml=periods.map((p,i)=>`<span class="pill" style="background:#eef3fb">[P${i+1}] ${p.label}</span>`).join('');
   row.innerHTML=(pillsHtml+periodsHtml)||'<span class="sel-empty">Nada seleccionado</span>';
 }
@@ -1300,13 +1352,15 @@ function removePill(type,val){
   if(type==='f'){selFuerzas.delete(val);document.querySelectorAll('#fuerzaChips .chip').forEach(c=>{if(c.dataset.val===val)c.classList.remove('on');});}
   else if(type==='s'){selSucursales.delete(val);document.querySelectorAll('#sucursalChips .chip').forEach(c=>{if(c.dataset.val===val)c.classList.remove('on');});}
   else if(type==='so'){selSucOnly.delete(val);document.querySelectorAll('#sucursalOnlyChips .chip').forEach(c=>{if(c.dataset.val===val)c.classList.remove('on');});}
+  else if(type==='ct'){customTeams=customTeams.filter(t=>String(t.id)!==val);}
   else selIndividuals.delete(val);
   refreshPills();
 }
 function clearAll(){
   selFuerzas.clear();selSucursales.clear();selSucOnly.clear();selIndividuals.clear();periods=[];
+  customTeams=[]; teamPick.clear();
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
-  sinput.value=''; renderPeriodTags(); refreshPills(); hideSlides();
+  sinput.value=''; renderPeriodTags(); refreshPills(); renderTeamPickChips(); hideSlides();
 }
 function hideSlides(){
   document.getElementById('navBar').classList.remove('vis');
@@ -1374,8 +1428,15 @@ function buildSlides(){
     selIndividuals.forEach(nombre=>{
       if(!seen.has(nombre)){ const v=D.vendors.find(x=>x.n===nombre); if(v){seen.add(v.n);slides.push({type:'vend',key:v.n,label:fmtName(v.n),sub:'Sucursal: '+(v.s||'—'),badge:v.f||'—'});} }
     });
+    customTeams.forEach(t=>{
+      slides.push({type:'team',key:'__customteam__'+t.id,label:t.label,sub:`Equipo · ${t.members.length} colaboradores`,badge:'EQUIPO',members:t.members.slice(),custom:true});
+    });
     if(!slides.length){alert('Sin colaboradores para esa selección.');return;}
-    slides.sort((a,b)=>{ const p=periods[periods.length-1]; return sumPeriod(D.daily,b.key,p.dateFrom,p.dateTo).total-sumPeriod(D.daily,a.key,p.dateFrom,p.dateTo).total; });
+    slides.sort((a,b)=>{
+      const p=periods[periods.length-1];
+      const totalOf=sl=>sl.type==='team'?sumPeriodTeam(sl.members,p.dateFrom,p.dateTo).total:sumPeriod(D.daily,sl.key,p.dateFrom,p.dateTo).total;
+      return totalOf(b)-totalOf(a);
+    });
   }
   cur=0;
   document.getElementById('emptyState').style.display='none';
@@ -1575,22 +1636,39 @@ function render(idx){
   // de abajo. La cercanía al eje se mide en pixels reales (context.chart.scales.y), no
   // en valor, para que funcione sea cual sea la escala del gráfico.
   const fontCfg={weight:labelWeight,size:labelSize,family:"'Segoe UI',Calibri,Arial"};
-  const dlNeto=(color)=>({display:true,align:'top',anchor:'end',offset:10,clip:false,color,font:fontCfg,formatter:fmtLabel});
+  // clamp:true empuja la etiqueta hacia adentro si su punto está pegado al borde del gráfico
+  // (primer/último período) — sin esto, la mitad izquierda/derecha del texto queda fuera del
+  // canvas y se recorta (el "$" del primer punto o el "mill." del último aparecían cortados).
+  // Halo blanco detrás del texto: cuando dos series se cruzan (valores parecidos), la curva
+  // de una línea puede pasar justo por donde va la etiqueta de la otra y tapar el número — el
+  // halo mantiene el texto legible sin depender de calcular con precisión por dónde pasa cada
+  // curva (la tensión del spline puede "pandear" más allá de los dos puntos que une).
+  const labelBg={backgroundColor:'rgba(255,255,255,.82)',borderRadius:4,padding:{top:1,bottom:1,left:4,right:4}};
+  const dlNeto=(color)=>({display:true,align:'top',anchor:'end',offset:10,clip:false,clamp:true,color,font:fontCfg,formatter:fmtLabel,...labelBg});
   // Offset de una serie "secundaria" (Contado o Financiado) en un punto dado: la de mayor
   // valor absoluto de las dos queda pegada abajo de su punto (offset chico fijo); la menor
   // va más lejos, pero el offset se recorta al espacio real hasta el eje X (medido en
   // pixels, vía context.chart.scales.y) para que nunca tape las fechas de abajo — en vez
   // de "saltar" al otro lado, que terminaba chocando con la etiqueta de Neto.
+  // Cuando Contado y Financiado están muy cerca en valor (cruce de las dos líneas), sus dos
+  // puntos quedan casi a la misma altura en pantalla — el offset chico (4) de la "ganadora"
+  // termina pegado a la etiqueta de la "perdedora" aunque cada una respete su propio punto.
+  // Se mide la distancia real en pixels entre los dos puntos (mismo eje Y) y si es menor a lo
+  // que ocupa una línea de texto, se estira el offset de la perdedora para separarlas.
   function secOffset(mineArr,otherArr,ctx){
     const i=ctx.dataIndex, mine=mineArr[i]||0, other=otherArr[i]||0;
-    if(Math.abs(mine)>Math.abs(other)) return 4;
     const yScale=ctx.chart.scales.y, area=ctx.chart.chartArea;
+    if(Math.abs(mine)>Math.abs(other)) return 4;
     const room=Math.max(0,area.bottom-yScale.getPixelForValue(mine));
-    return Math.min(labelSize+5,Math.max(2,room-6));
+    let off=Math.min(labelSize+5,Math.max(2,room-6));
+    const pxGap=Math.abs(yScale.getPixelForValue(mine)-yScale.getPixelForValue(other));
+    const minSep=labelSize+10;
+    if(pxGap<minSep) off=Math.max(off,minSep-pxGap+4);
+    return Math.min(off,Math.max(2,room-6));
   }
   const dlSec=(color,mineArr,otherArr)=>({display:true,align:'bottom',anchor:'end',
     offset:(ctx)=>secOffset(mineArr,otherArr,ctx),
-    clip:false,color,font:fontCfg,formatter:fmtLabel});
+    clip:false,clamp:true,color,font:fontCfg,formatter:fmtLabel,...labelBg});
   chart=new Chart(ctx,{
     type:'line',plugins:[ChartDataLabels],
     data:{labels,datasets:[
@@ -1598,7 +1676,7 @@ function render(idx){
       {label:'Contado',data:contData,borderColor:'#0b7fc2',backgroundColor:gC,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#0b7fc2',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#0b7fc2',contData,finData)},
       {label:'Financiado',data:finData,borderColor:'#F97316',backgroundColor:gF,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#F97316',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#F97316',finData,contData)},
     ]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:36,right:14,left:8,bottom:34}},animation:{duration:0},interaction:{mode:'index',intersect:false},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:36,right:36,left:36,bottom:34}},animation:{duration:0},interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{enabled:false},datalabels:{display:false}},
       scales:{x:{grid:{color:'rgba(0,0,0,.04)',drawBorder:false},border:{display:false},ticks:{font:{size:12,weight:'600'},color:'#566579',padding:8}},y:{display:false,beginAtZero:true}}}
   });
@@ -1710,8 +1788,11 @@ let _mIdx=null, _mMembers=[];
 function openModal(idx){
   _mIdx=idx;
   const sl=slides[idx];
-  let all=D.vendors.filter(v=>v.f===sl.label);
-  if(selSucursales.size>0) all=all.filter(v=>selSucursales.has(v.s));
+  // Equipo automático (por fuerza de venta): el universo de candidatos es esa fuerza (+ sucursal si hay filtro).
+  // Equipo personalizado (armado a mano, cualquier combinación): el universo es TODA la nómina, para poder
+  // sumar por ejemplo un líder de otra categoría junto con su equipo.
+  let all = sl.custom ? D.vendors.slice() : D.vendors.filter(v=>v.f===sl.label);
+  if(!sl.custom && selSucursales.size>0) all=all.filter(v=>selSucursales.has(v.s));
   const activeSet=new Set(sl.members);
   _mMembers=all.map(v=>({n:v.n,s:v.s,active:activeSet.has(v.n)}));
   _mMembers.sort((a,b)=>(b.active-a.active)||a.n.localeCompare(b.n));
