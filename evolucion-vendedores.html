@@ -927,7 +927,8 @@ function buildReservasDaily(reservas){
 
 function rebuildD(ventas){
   const daily={}, daily_suc={};
-  const vendorMeta={}; // nombre -> {lastFecha,s,f}
+  const vendorMeta={}; // nombre -> {lastFecha,s,f} (fallback si el último mes no tiene datos)
+  const vendorMonthSuc={}, vendorMonthFuerza={}; // nombre -> mes(YYYY-MM) -> {valor:cantidad}
   const fuerzasSet=new Set(), sucursalesSet=new Set(), monthsSet=new Set();
   let minF=null, maxF=null;
   for(const r of ventas){
@@ -957,16 +958,36 @@ function rebuildD(ventas){
       sucursalesSet.add(suc);
     }
     if(fuerza) fuerzasSet.add(fuerza);
-    monthsSet.add(fecha.slice(0,7));
+    const month=fecha.slice(0,7);
+    monthsSet.add(month);
     if(!minF||fecha<minF) minF=fecha;
     if(!maxF||fecha>maxF) maxF=fecha;
 
-    // Sucursal/fuerza "actual" del vendedor = la de su venta más reciente
-    // (un vendedor puede haber cambiado de sucursal/fuerza durante el período).
     const vm=(vendorMeta[name] ||= {lastFecha:'',s:suc,f:fuerza});
     if(fecha>=vm.lastFecha){ vm.lastFecha=fecha; if(suc) vm.s=suc; if(fuerza) vm.f=fuerza; }
+
+    if(suc){ const mm=(vendorMonthSuc[name] ||= {}); const mc=(mm[month] ||= {}); mc[suc]=(mc[suc]||0)+1; }
+    if(fuerza){ const mm=(vendorMonthFuerza[name] ||= {}); const mc=(mm[month] ||= {}); mc[fuerza]=(mc[fuerza]||0)+1; }
   }
-  const vendors=Object.keys(vendorMeta).sort().map(n=>({n, s:vendorMeta[n].s, f:vendorMeta[n].f}));
+  // Sucursal/fuerza "actual" del vendedor = la más FRECUENTE entre sus ventas del último mes en
+  // que tuvo actividad — no la de su venta puntual más reciente. Sigue reflejando un traspaso
+  // real de sucursal/fuerza (basta con que la mayoría de ese último mes ya esté en la nueva), pero
+  // ya no se deja "pegar" por uno o dos registros sueltos mal cargados el último día. Caso real
+  // que motivó el cambio: Mamani José Luis Alberto tenía 275 ventas en Salta y 2 cargadas por
+  // error como Norte Interior el 28/08 (último día con datos) — con "venta más reciente" ganaba
+  // Norte Interior; con "más frecuente del último mes" gana Salta (27 contra 2 esa misma semana).
+  function mode(counts){
+    let best='',bestN=0;
+    for(const k in counts) if(counts[k]>bestN){best=k;bestN=counts[k];}
+    return best;
+  }
+  const vendors=Object.keys(vendorMeta).sort().map(name=>{
+    const vm=vendorMeta[name];
+    const lastMonth=vm.lastFecha.slice(0,7);
+    const s=mode((vendorMonthSuc[name]||{})[lastMonth]||{})||vm.s;
+    const f=mode((vendorMonthFuerza[name]||{})[lastMonth]||{})||vm.f;
+    return {n:name, s, f};
+  });
   return {
     vendors,
     fuerzas:[...fuerzasSet].sort(),
