@@ -503,6 +503,14 @@ function pill(area,cat){
   </div><span class="basehint" data-basehint="${area}|${cat}">${ch?`base <b>${b}</b>`:`base ${b}`}</span>`;
 }
 
+function statsGridHtml(){
+  return CAT_ORDER.map(cat=>`<div class="stat" data-stat="${cat}">
+    <span class="bar" style="background:${CAT_COLOR[cat]}"></span>
+    <div class="sn"><span class="cat-dot" style="background:${CAT_COLOR[cat]}"></span>${cat}</div>
+    <div class="sv-row"><div class="sv num" data-statval="${cat}">0</div>${cat==='Vendedor Senior'?'<span class="sv-terreno num" data-terrenoval title="Vendedores de terreno: Senior + Junior"></span>':''}${cat==='Vendedor Redes'?'<span class="sv-terreno num" data-redesval title="Vendedores de redes: Redes + Redes Jr"></span>':''}</div>
+    <div class="sd" data-statdelta="${cat}"></div></div>`).join('');
+}
+
 function renderArea(area){
   const cards=CAT_ORDER.map(cat=>{
     const list=roster[area][cat];
@@ -532,16 +540,13 @@ function renderArea(area){
     </div>
     <div class="legend"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01" stroke-linecap="round"/></svg>
       <span>El número editable parte de la dotación real. Usá <b>−</b> / <b>+</b> para planificar bajas o altas; el total de la sucursal y el global se recalculan al instante. También podés editar desde la pestaña <b>Global</b>.</span></div>
+    <div class="cat-grid">${statsGridHtml()}</div>
     ${cards}
   </div></section>`;
 }
 
 function renderGlobal(){
-  const stats=CAT_ORDER.map(cat=>`<div class="stat" data-stat="${cat}">
-    <span class="bar" style="background:${CAT_COLOR[cat]}"></span>
-    <div class="sn"><span class="cat-dot" style="background:${CAT_COLOR[cat]}"></span>${cat}</div>
-    <div class="sv-row"><div class="sv num" data-statval="${cat}">0</div>${cat==='Vendedor Senior'?'<span class="sv-terreno num" data-terrenoval title="Vendedores de terreno: Senior + Junior"></span>':''}${cat==='Vendedor Redes'?'<span class="sv-terreno num" data-redesval title="Vendedores de redes: Redes + Redes Jr"></span>':''}</div>
-    <div class="sd" data-statdelta="${cat}"></div></div>`).join('');
+  const stats=statsGridHtml();
 
   const headCols=CAT_ORDER.map((c,i)=>`<th data-colhead="${i}"><div class="colhead"><span class="col-dot" style="background:${CAT_COLOR[c]}"></span>${CAT_SHORT[c]}</div></th>`).join('');
   const bodyRows=AREAS.map(a=>{
@@ -588,21 +593,26 @@ function updateAllNumbers(){
   document.getElementById('resetAll').disabled=!anyChanged();
   document.querySelectorAll('[data-tabcnt]').forEach(el=>{const t=el.dataset.tabcnt;el.textContent=t==='__global__'?gt:areaTotal(t);});
 
+  // Cards de categoría (cat-grid): global usa totales de todas las sucursales, en una sucursal usa sólo la suya.
+  const scope=activeTab;
+  const valFor=c=>scope==='__global__'?catTotal(c):state[scope][c];
+  const baseFor=c=>scope==='__global__'?catBaseTotal(c):base[scope][c];
+  CAT_ORDER.forEach(c=>{
+    const v=valFor(c),b=baseFor(c);
+    const sv=document.querySelector(`[data-statval="${c}"]`); if(sv)sv.textContent=v;
+    const sd=document.querySelector(`[data-statdelta="${c}"]`);
+    if(sd){ if(v!==b){sd.classList.add('changed');sd.innerHTML=`base ${b} · <b>${fmtDelta(v-b)}</b>`;}else{sd.classList.remove('changed');sd.textContent=`base ${b}`;} }
+  });
+  const tv=document.querySelector('[data-terrenoval]');
+  if(tv) tv.textContent = `(${TERRENO_CATS.reduce((s,c)=>s+valFor(c),0)} terreno)`;
+  const rv=document.querySelector('[data-redesval]');
+  if(rv) rv.textContent = `(${REDES_CATS.reduce((s,c)=>s+valFor(c),0)} redes total)`;
+
   if(activeTab==='__global__'){
     const he=document.querySelector('[data-heroval]'); if(he)he.textContent=gt;
     const ac=document.querySelector('[data-areacount]'); if(ac)ac.textContent=AREAS.length;
     const hd=document.querySelector('[data-herodelta]');
     if(hd)hd.innerHTML=gd===0?`Coincide con la dotación real cargada (<b>${gb}</b>)`:`Dotación real <b>${gb}</b> · ajuste <b>${fmtDelta(gd)}</b> persona${Math.abs(gd)===1?'':'s'}`;
-    CAT_ORDER.forEach(c=>{
-      const v=catTotal(c),b=catBaseTotal(c);
-      const sv=document.querySelector(`[data-statval="${c}"]`); if(sv)sv.textContent=v;
-      const sd=document.querySelector(`[data-statdelta="${c}"]`);
-      if(sd){ if(v!==b){sd.classList.add('changed');sd.innerHTML=`base ${b} · <b>${fmtDelta(v-b)}</b>`;}else{sd.classList.remove('changed');sd.textContent=`base ${b}`;} }
-    });
-    const tv=document.querySelector('[data-terrenoval]');
-    if(tv) tv.textContent = `(${TERRENO_CATS.reduce((s,c)=>s+catTotal(c),0)} terreno)`;
-    const rv=document.querySelector('[data-redesval]');
-    if(rv) rv.textContent = `(${REDES_CATS.reduce((s,c)=>s+catTotal(c),0)} redes total)`;
     AREAS.forEach(a=>{
       CAT_ORDER.forEach(c=>{
         const cell=document.querySelector(`[data-cellval="${a}|${c}"]`);
