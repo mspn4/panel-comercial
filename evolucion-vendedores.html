@@ -108,6 +108,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--page);color:var(-
 .ptag.p4{background:#fbeae8;border-color:#f5b5b5;color:#9e0a0a;}
 .ptag.p5{background:#f0fbe8;border-color:#c8f5b5;color:#2d7a0a;}
 .period-hint{font-size:10.5px;color:var(--mu);}
+.month-multi-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.month-multi-chips{display:flex;flex-wrap:wrap;gap:5px;}
+.month-multi-chips .chip{padding:4px 9px;font-size:11px;}
+.month-multi-chips .chip .cnt{background:rgba(255,255,255,.9);color:var(--accent);}
 
 /* ACTIONS */
 .actions{display:flex;gap:8px;align-items:flex-end;margin-left:auto;}
@@ -585,8 +589,12 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
         <select class="sel-input" id="pDayTo"><option value="">Hasta día</option></select>
         <button class="btn-add-period" onclick="addPeriod()">+ Agregar</button>
       </div>
+      <div class="month-multi-row">
+        <div class="month-multi-chips" id="monthMultiChips"></div>
+        <button class="btn-add-period" id="btnAddMonths" onclick="addPickedMonths()" disabled>+ Agregar seleccionados</button>
+      </div>
       <div class="period-tags" id="periodTags"></div>
-      <div class="period-hint">Sin mes = año completo · Sin días = mes completo · Máx. 6 períodos</div>
+      <div class="period-hint">Sin mes = año completo · Sin días = mes completo · Máx. 6 períodos · Tocá varios meses de arriba para agregarlos en el orden en que los toques</div>
     </div>
     <div class="panel-group vendor-only">
       <div class="panel-label">Buscar colaborador</div>
@@ -1014,6 +1022,7 @@ function aplicarNuevaData(nuevo){
   // Reset de selección/estado dependiente de los datos anteriores
   selFuerzas.clear(); selSucursales.clear(); selSucOnly.clear(); selIndividuals.clear();
   periods.length=0;
+  monthPickOrder=[];
   manualVendors.length=0;
   overrides={};
   textOverrides={};
@@ -1240,6 +1249,47 @@ function updateMonthOptions(){
   pMonth.innerHTML='<option value="">— Mes completo —</option>';
   months.forEach(mn=>{ const o=document.createElement('option');o.value=String(mn).padStart(2,'0');o.textContent=MONTH_NAMES[mn-1];pMonth.appendChild(o); });
   updateDayOptions();
+  renderMonthMultiChips();
+}
+
+// ─── SELECCIÓN MÚLTIPLE DE MESES (orden de click = orden de generación) ──
+let monthPickOrder=[]; // [{y,m}], en el orden en que se fueron tocando
+function toggleMonthPick(y,m){
+  const idx=monthPickOrder.findIndex(mp=>mp.y===y&&mp.m===m);
+  if(idx>=0) monthPickOrder.splice(idx,1);
+  else monthPickOrder.push({y,m});
+  renderMonthMultiChips();
+}
+function renderMonthMultiChips(){
+  const wrap=document.getElementById('monthMultiChips');
+  const y=pYear.value,months=getMonthsForYear(y);
+  wrap.innerHTML=months.map(mn=>{
+    const m=String(mn).padStart(2,'0');
+    const idx=monthPickOrder.findIndex(mp=>mp.y===y&&mp.m===m);
+    const on=idx>=0;
+    return `<div class="chip${on?' on':''}" onclick="toggleMonthPick('${y}','${m}')">${MONTH_NAMES[mn-1]}${on?`<span class="cnt">${idx+1}</span>`:''}</div>`;
+  }).join('');
+  const btn=document.getElementById('btnAddMonths');
+  btn.disabled=monthPickOrder.length===0;
+  btn.textContent=monthPickOrder.length?`+ Agregar ${monthPickOrder.length} seleccionado${monthPickOrder.length>1?'s':''}`:'+ Agregar seleccionados';
+}
+function addPickedMonths(){
+  if(!monthPickOrder.length) return;
+  let added=0,dup=0,limitHit=false;
+  for(const mp of monthPickOrder){
+    if(periods.length>=6){ limitHit=true; break; }
+    const lastD=new Date(parseInt(mp.y),parseInt(mp.m),0).getDate();
+    const dateFrom=`${mp.y}-${mp.m}-01`,dateTo=`${mp.y}-${mp.m}-${String(lastD).padStart(2,'0')}`;
+    if(periods.find(p=>p.dateFrom===dateFrom&&p.dateTo===dateTo)){ dup++; continue; }
+    const label=MONTH_NAMES[parseInt(mp.m)-1]+' '+mp.y;
+    periods.push({label,dateFrom,dateTo,colorIdx:periods.length});
+    added++;
+  }
+  monthPickOrder=[];
+  renderMonthMultiChips();
+  renderPeriodTags(); refreshPills();
+  if(limitHit) alert(`Máximo 6 períodos. Se agregaron ${added} de los meses seleccionados.`);
+  else if(dup) alert(`${dup} de los meses seleccionados ya estaban agregados y se omitieron.`);
 }
 function updateDayOptions(){
   const y=pYear.value,m=pMonth.value;
@@ -1380,6 +1430,7 @@ function removePill(type,val){
 function clearAll(){
   selFuerzas.clear();selSucursales.clear();selSucOnly.clear();selIndividuals.clear();periods=[];
   customTeams=[]; teamPick.clear();
+  monthPickOrder=[]; renderMonthMultiChips();
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
   sinput.value=''; renderPeriodTags(); refreshPills(); renderTeamPickChips(); hideSlides();
 }
@@ -1759,6 +1810,10 @@ function render(idx){
 function go(dir){ render(cur+dir); }
 document.addEventListener('keydown',e=>{ if(e.key==='ArrowRight') go(1); if(e.key==='ArrowLeft') go(-1); });
 
+// ─── FILE NAMING (prefijo = puesto, para agrupar al ordenar alfabéticamente) ──
+function sanitizeFN(str){ return (str||'').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ ]/g,'').replace(/\s+/g,'_'); }
+function currentFilePrefix(){ return sanitizeFN(document.getElementById('sBadge').textContent||'') || 'SINPUESTO'; }
+
 // ─── COPY AS JPG ─────────────────────────────────────────────
 async function copySlide(){
   const btn=document.getElementById('copyBtn');
@@ -1773,7 +1828,8 @@ async function copySlide(){
         btn.classList.add('done');
         setTimeout(()=>{ btn.innerHTML='Copiar JPG'; btn.classList.remove('done'); btn.disabled=false; },2500);
       } catch(e){
-        const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=(document.getElementById('sName').textContent||'slide')+'.png';a.click();URL.revokeObjectURL(url);
+        const sn=sanitizeFN(document.getElementById('sName').textContent||'slide');
+        const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${currentFilePrefix()}_${sn}.png`;a.click();URL.revokeObjectURL(url);
         btn.innerHTML='Copiar JPG'; btn.disabled=false;
       }
     },'image/png',1.0);
@@ -1816,9 +1872,9 @@ async function downloadAllZip(){
     const blob=await new Promise(r=>canvas.toBlob(r,'image/png',1.0));
     const arrBuf=await blob.arrayBuffer();
 
-    // filename: NombreColaborador_DDMMYYYY.png  (spaces→underscores)
-    const safeName=slideData.label.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ ]/g,'').replace(/\s+/g,'_');
-    zip.file(`${safeName}_${dateStr}.png`, arrBuf);
+    // filename: PUESTO_NombreColaborador_DDMMYYYY.png (prefijo=puesto, agrupa al ordenar alfabéticamente; spaces→underscores)
+    const safeName=sanitizeFN(slideData.label);
+    zip.file(`${currentFilePrefix()}_${safeName}_${dateStr}.png`, arrBuf);
   }
 
   zipFill.style.width='100%';
@@ -1846,9 +1902,9 @@ async function downloadSlide(){
     canvas.toBlob((blob)=>{
       const today=new Date();
       const ds=`${today.getDate().toString().padStart(2,'0')}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getFullYear()}`;
-      const sn=(document.getElementById('sName').textContent||'slide').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ ]/g,'').replace(/\s+/g,'_');
+      const sn=sanitizeFN(document.getElementById('sName').textContent||'slide');
       const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');a.href=url;a.download=`${sn}_${ds}.png`;a.click();
+      const a=document.createElement('a');a.href=url;a.download=`${currentFilePrefix()}_${sn}_${ds}.png`;a.click();
       URL.revokeObjectURL(url);
       btn.innerHTML='&#10003; ¡Descargado!';btn.classList.add('done');
       setTimeout(()=>{btn.innerHTML='Descargar';btn.classList.remove('done');btn.disabled=false;},2500);
