@@ -294,11 +294,14 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
       <div class="tablescroll"><table id="tabla"></table></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="chartsCard">
       <div class="card-head">
         <h3>Gráficos</h3>
         <div class="tabs" id="tabs"></div>
-        <div class="tools"><button class="btn" id="btnPng">Descargar gráfico PNG</button></div>
+        <div class="tools no-capture">
+          <button class="btn" id="btnCopyCard">📋 Copiar imagen</button>
+          <button class="btn" id="btnPng">Descargar gráfico PNG</button>
+        </div>
       </div>
       <div class="legend" id="chartLegend"></div>
       <div class="chartbox" id="chart"></div>
@@ -331,7 +334,7 @@ async function copiarKpiPng(card, btn){
   btn.disabled = true;
   try{
     const canvas = await html2canvas(card, {scale:3, backgroundColor:null, useCORS:true, logging:false,
-      ignoreElements: el => el.classList && el.classList.contains('kpi-copy')});
+      ignoreElements: el => el.classList && (el.classList.contains('kpi-copy') || el.classList.contains('no-capture'))});
     canvas.toBlob(async blob => {
       try{
         await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
@@ -986,6 +989,7 @@ $('corteChk').onchange = e => { S.corte = e.target.checked; render(); };
 $('btnCols').onclick = e => { e.stopPropagation(); abrirColumnas(e.currentTarget); };
 $('btnAuto').onclick = () => { S.colores = {}; render(); };
 $('btnPng').onclick = descargarPng;
+$('btnCopyCard').onclick = () => copiarKpiPng($('chartsCard'), $('btnCopyCard'));
 $('btnPrint').onclick = () => window.print();
 $('btnRefresh').onclick = () => cargarBackup(true);
 
