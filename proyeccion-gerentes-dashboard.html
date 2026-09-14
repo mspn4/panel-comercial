@@ -57,7 +57,15 @@
   select.pill{appearance:none;-webkit-appearance:none;cursor:pointer;font-family:inherit;background-image:none;}
   /* KPI */
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-top:18px;}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;box-shadow:var(--shadow-card);}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;box-shadow:var(--shadow-card);position:relative;}
+  .kpi-copy{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:8px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink-2);display:flex;align-items:center;justify-content:center;cursor:pointer;
+    opacity:0;transition:opacity .15s,background .15s;padding:0;}
+  .kpi:hover .kpi-copy{opacity:1;}
+  .kpi-copy:hover{background:var(--bg);}
+  .kpi-copy svg{width:13px;height:13px;}
+  .kpi.hero .kpi-copy{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.3);color:#fff;}
+  .kpi.hero .kpi-copy:hover{background:rgba(255,255,255,.24);}
   .kpi .lab{font-size:11.5px;color:var(--ink-2);font-weight:600;display:flex;align-items:center;gap:7px;}
   .kpi .lab .sw{width:9px;height:9px;border-radius:3px;}
   .kpi .val{font-size:26px;font-weight:700;letter-spacing:-1px;margin-top:6px;line-height:1;}
@@ -267,20 +275,24 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
 
     <div class="kpis">
       <div class="kpi">
+        <button class="kpi-copy" onclick="copiarKpiPng(this.closest('.kpi'),this)" title="Copiar como imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         <div class="lab"><span class="sw" style="background:var(--navy)"></span>Facturado Neto</div>
         <div class="val" id="k-neto">—</div>
       </div>
       <div class="kpi">
+        <button class="kpi-copy" onclick="copiarKpiPng(this.closest('.kpi'),this)" title="Copiar como imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         <div class="lab"><span class="sw" style="background:var(--blue)"></span>Contado</div>
         <div class="val" id="k-contado">—</div>
         <div class="sub" id="k-contado-pct">—</div>
       </div>
       <div class="kpi">
+        <button class="kpi-copy" onclick="copiarKpiPng(this.closest('.kpi'),this)" title="Copiar como imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         <div class="lab"><span class="sw" style="background:var(--orange)"></span>Financiado</div>
         <div class="val" id="k-financiado">—</div>
         <div class="sub" id="k-financiado-pct">—</div>
       </div>
       <div class="kpi hero">
+        <button class="kpi-copy" onclick="copiarKpiPng(this.closest('.kpi'),this)" title="Copiar como imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         <div class="lab">% Objetivo Alcanzado · Equipo</div>
         <div class="val" id="k-objetivo">—</div>
         <div class="sub" id="k-objetivo-sub">—</div>
@@ -943,6 +955,30 @@ async function exportPNG(){
   a.download = 'Proyeccion_Gerentes_'+(selectedMonth||'')+'.png';
   a.href = canvas.toDataURL('image/png');
   a.click();
+}
+
+/* ---------- Copiar tarjeta KPI como PNG ---------- */
+async function copiarKpiPng(card, btn){
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  try{
+    const canvas = await html2canvas(card, {scale:3, backgroundColor:null, useCORS:true, logging:false,
+      ignoreElements: el => el.classList && el.classList.contains('kpi-copy')});
+    canvas.toBlob(async blob => {
+      try{
+        await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      }catch(e){
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'kpi.png'; a.click();
+        URL.revokeObjectURL(url);
+      }
+      setTimeout(()=>{ btn.innerHTML = original; btn.disabled = false; }, 1600);
+    }, 'image/png', 1.0);
+  }catch(err){
+    btn.disabled = false;
+    console.warn('No se pudo copiar la tarjeta como imagen', err);
+  }
 }
 
 loadData();
