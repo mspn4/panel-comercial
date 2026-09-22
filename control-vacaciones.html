@@ -206,8 +206,11 @@ html[data-theme="dark"] .notice.err{color:#FF8A8D}
 .subhead{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:14px 0 6px;display:flex;align-items:center;gap:8px}
 .subhead .ln{flex:1;height:1px;background:var(--border)}
 
-/* Timeline (Gantt) */
-.tl{position:relative;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)}
+/* Timeline (Gantt) — ancho fijo (más grande que la pantalla) adentro de un contenedor con scroll
+   horizontal propio, en vez de achicar los 12 meses por porcentaje para que "entren" — así los
+   días se pueden leer y hay dónde desplazarse. La columna de nombre queda fija (sticky) al scrollear. */
+.tl-scroll{overflow-x:auto;border-radius:10px}
+.tl{position:relative;border:1px solid var(--border);border-radius:10px;background:var(--surface);min-width:1900px}
 .tl-months{position:relative;height:26px;background:var(--page);border-bottom:1px solid var(--border);margin-left:200px}
 .tl-months span{position:absolute;top:0;height:100%;display:flex;align-items:center;padding-left:5px;
   font-size:10.5px;font-weight:700;color:var(--muted);border-left:1px solid var(--border);white-space:nowrap}
@@ -216,7 +219,9 @@ html[data-theme="dark"] .notice.err{color:#FF8A8D}
 .tl-row{display:flex;align-items:center;min-height:38px;border-bottom:1px solid var(--border);position:relative}
 .tl-row:last-child{border-bottom:none}
 .tl-row:hover{background:var(--blue-tint)}
-.tl-label{width:200px;flex:none;padding:6px 10px;font-size:12.5px;overflow:hidden}
+.tl-row:hover .tl-label{background:var(--blue-tint)}
+.tl-label{width:200px;flex:none;padding:6px 10px;font-size:12.5px;overflow:hidden;
+  position:sticky;left:0;z-index:2;background:var(--surface);border-right:1px solid var(--border)}
 .tl-label .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tl-label .rl{font-size:10.5px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tl-track{position:relative;flex:1;height:32px;margin:3px 0}
@@ -366,6 +371,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   <div class="tabs">
     <button class="tab active" data-vista="sucursal">Por sucursal</button>
     <button class="tab" data-vista="fuerza">Por fuerza de venta</button>
+    <button class="tab" data-vista="cobertura" title="Gerente y Líder Comercial de cada sucursal juntos, para ver si se cubren entre sus vacaciones">🤝 Gerente + Líder</button>
   </div>
   <select id="filtroSucursal" class="sel" title="Filtrar por sucursal (vista por fuerza de venta)" style="display:none">
     <option value="">Todas las sucursales</option>
@@ -946,12 +952,12 @@ function renderTimelineGrupo(prefix, nombreGrupo, personas, anio, conflictos){
       ${enConflicto?`<span class="badge err">⚠ ${enConflicto} en conflicto</span>`:""}
     </button>
     <div class="acc-body">
-      <div class="tl">
+      <div class="tl-scroll"><div class="tl">
         <div class="tl-months">${timelineHeaderHtml(anio)}</div>
         <div class="tl-gridlines">${timelineGridlinesHtml(anio)}</div>
         ${personas.length?filas:'<div class="tl-empty">Nadie cargado en este grupo todavía.</div>'}
         ${anio===new Date().getFullYear()?`<div class="tl-today" style="left:${offsetPct(HOY,anio).toFixed(3)}%"></div>`:""}
-      </div>
+      </div></div>
     </div>
   </div>`;
 }
@@ -971,6 +977,18 @@ function renderVista(){
     }).join("");
     const sinAsignar=rosterActivo.filter(p=>!SUCURSALES.includes(p.sucursal));
     view.innerHTML=html + (sinAsignar.length?renderTimelineGrupo("suc","Sin sucursal asignada",sinAsignar,state.anio,conflictos):"");
+  }else if(state.vista==="cobertura"){
+    // Gerente de Área + Líder Comercial de cada sucursal, uno al lado del otro — se cubren entre
+    // sus vacaciones, así que acá importa verlos juntos y no mezclados con el resto del personal.
+    $("#filtroSucursal").style.display="none";
+    const ordenRol={"Gerente de Área":0,"Líder Comercial":1};
+    const html=SUCURSALES.map(suc=>{
+      const personas=rosterActivo.filter(p=>p.sucursal===suc && p.fuerza in ordenRol)
+        .sort((a,b)=>ordenRol[a.fuerza]-ordenRol[b.fuerza]||a.nombre.localeCompare(b.nombre));
+      if(!personas.length && q) return "";
+      return renderTimelineGrupo("cob",suc,personas,state.anio,conflictos);
+    }).join("");
+    view.innerHTML=html;
   }else{
     $("#filtroSucursal").style.display="";
     const filtro=state.filtroSucursal;
