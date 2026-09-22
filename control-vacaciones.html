@@ -26,7 +26,7 @@ const CONFIG = {
 // Sucursales — mismo set y mismo orden que control-agendas.html.
 const SUCURSALES = [
   "Jujuy","Salta","Catamarca","Norte Centro (Metán)","Tucumán Capital",
-  "Tucumán Interior (Concepción)","Santiago del Estero","Norte Interior (Orán)","Córdoba","La Rioja"
+  "Tucumán Interior (Concepción)","Santiago del Estero","Norte Interior (Orán)","Córdoba","La Rioja","CRM"
 ];
 // Alias con los que puede venir la sucursal en un excel/pdf (nómina o vacaciones) → nombre canónico de arriba.
 // Incluye las abreviaturas reales vistas en los planos de RRHH (ccosto/area), ej. "TUC. INT.", "N. CENTRO".
@@ -38,6 +38,7 @@ const SUCURSAL_ALIAS = {
   "santiago":"Santiago del Estero","santiago del estero":"Santiago del Estero",
   "norte interior":"Norte Interior (Orán)","oran":"Norte Interior (Orán)","n interior":"Norte Interior (Orán)",
   "cordoba":"Córdoba","la rioja":"La Rioja",
+  "crm":"CRM",
 };
 
 // Fuerza/puesto — categorías de fuerza de venta (nomina-produccion.html, CAT_ORDER) + roles de staff que
@@ -1219,22 +1220,57 @@ function wireFormularioPeriodo(){
 $("#btnNuevoPeriodo").addEventListener("click",abrirNuevoPeriodo);
 
 /* ═══════════════════════════ Modal: Nómina (ver/editar roster) ═══════════════════════════ */
+// Clave de agrupamiento por sucursal para el modal de Nómina — "__sin__" junta a quien no tiene
+// una sucursal reconocida (SUCURSALES incluye ahora "CRM" como una más, ver más abajo).
+function claveSucursalNomina(p){ return SUCURSALES.includes(p.sucursal) ? p.sucursal : "__sin__"; }
+function idsDeGrupoNomina(key){
+  const gente = key==="__sin__" ? state.roster.filter(p=>!SUCURSALES.includes(p.sucursal)) : state.roster.filter(p=>p.sucursal===key);
+  return new Set(gente.map(p=>p.id));
+}
+function periodosDePersona(id){ return state.periodos.filter(p=>p.personaId===id).length; }
+
 function abrirNomina(){
-  const filas=state.roster.slice().sort((a,b)=>(a.sucursal||"").localeCompare(b.sucursal||"")||a.nombre.localeCompare(b.nombre)).map(p=>`
-    <tr data-id="${esc(p.id)}">
-      <td>${esc(p.nombre)}</td>
+  const bySuc={}; SUCURSALES.forEach(s=>bySuc[s]=[]); bySuc.__sin__=[];
+  state.roster.forEach(p=>bySuc[claveSucursalNomina(p)].push(p));
+  Object.values(bySuc).forEach(arr=>arr.sort((a,b)=>a.nombre.localeCompare(b.nombre)));
+
+  const resumenHtml=[...SUCURSALES.map(s=>[s,bySuc[s]]), ["Sin sucursal",bySuc.__sin__]]
+    .filter(([,arr])=>arr.length)
+    .map(([nombre,arr])=>`<span class="chip" style="background:var(--blue-tint);color:var(--blue)">${esc(nombre)}: <b>${arr.length}</b></span>`).join("");
+
+  function filaPersona(p){
+    const nPer=periodosDePersona(p.id);
+    return `<tr data-id="${esc(p.id)}">
+      <td>${esc(p.nombre)}${nPer?` <span style="color:var(--muted-2);font-size:11px">(${nPer} período${nPer===1?"":"s"})</span>`:""}</td>
       <td><select data-campo="sucursal"><option value="">—</option>${SUCURSALES.map(s=>`<option ${p.sucursal===s?"selected":""}>${esc(s)}</option>`).join("")}</select></td>
       <td><select data-campo="fuerza"><option value="">—</option>${FUERZAS.map(f=>`<option ${p.fuerza===f?"selected":""}>${esc(f)}</option>`).join("")}</select></td>
       <td>${esc(p.legajo||"")}</td>
       <td><label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" data-campo="activo" ${p.activo!==false?"checked":""}> activo</label></td>
-      <td><button class="iconbtn" data-eliminar title="Quitar de la nómina">🗑️</button></td>
-    </tr>`).join("");
+      <td style="white-space:nowrap">
+        <button class="iconbtn" data-borrar-vac title="Borrar las vacaciones cargadas de esta persona" ${nPer?"":"disabled"}>🧹</button>
+        <button class="iconbtn" data-eliminar title="Quitar de la nómina">🗑️</button>
+      </td>
+    </tr>`;
+  }
+  function grupoHtml(nombreGrupo,key,personas){
+    if(!personas.length) return "";
+    const nPeriodos=personas.reduce((s,p)=>s+periodosDePersona(p.id),0);
+    return `<div class="subhead" style="margin-top:18px">
+        <span>${esc(nombreGrupo)} · ${personas.length} persona${personas.length===1?"":"s"}</span>
+        <span class="ln"></span>
+        ${nPeriodos?`<button class="btn" data-borrar-vac-suc="${esc(key)}" style="background:var(--err-tint);color:var(--err);padding:4px 10px;font-size:11px;font-weight:600;text-transform:none;letter-spacing:0">🗑️ Vacaciones (${nPeriodos})</button>`:""}
+      </div>
+      <table class="simple"><thead><tr><th>Nombre</th><th>Sucursal</th><th>Fuerza de venta</th><th>Legajo</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${personas.map(filaPersona).join("")}</tbody></table>`;
+  }
+  const gruposHtml=SUCURSALES.map(s=>grupoHtml(s,s,bySuc[s])).join("")+grupoHtml("Sin sucursal asignada","__sin__",bySuc.__sin__);
+
   abrirModal(`
     <div class="modal-head"><h2>Nómina (${state.roster.length})</h2><button class="x" data-close>&times;</button></div>
     <div class="modal-body">
-      <p style="font-size:12.5px;color:var(--muted);margin-top:0">Se completa importando el excel de nómina, y también podés corregir cualquier campo acá a mano.</p>
-      <div style="overflow:auto;max-height:55vh"><table class="simple"><thead><tr><th>Nombre</th><th>Sucursal</th><th>Fuerza de venta</th><th>Legajo</th><th>Estado</th><th></th></tr></thead>
-      <tbody>${filas||'<tr><td colspan="6" class="empty">Sin nómina cargada</td></tr>'}</tbody></table></div>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:0">Se completa importando el excel de nómina (o sincronizando), y también podés corregir cualquier campo acá a mano.</p>
+      ${resumenHtml?`<div style="display:flex;flex-wrap:wrap;gap:6px">${resumenHtml}</div>`:""}
+      <div style="overflow:auto;max-height:52vh">${gruposHtml||'<div class="empty">Sin nómina cargada</div>'}</div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong)" id="btnAgregarPersona">+ Agregar persona a mano</button>
         <button class="btn" style="background:var(--err-tint);color:var(--err)" id="btnBorrarNomina" ${state.roster.length?"":"disabled"}>🗑️ Borrar toda la nómina</button>
@@ -1255,6 +1291,26 @@ function abrirNomina(){
     state.roster=state.roster.filter(x=>x.id!==per.id);
     registrar("eliminar_persona",per.nombre);
     cerrarModal(); abrirNomina(); renderAll();
+  }));
+  $("#modal").querySelectorAll("[data-borrar-vac]").forEach(b=>b.addEventListener("click",e=>{
+    const tr=e.target.closest("tr"); const per=personaById(tr.dataset.id); if(!per) return;
+    const n=periodosDePersona(per.id); if(!n) return;
+    if(!confirm(`¿Borrar los ${n} período${n===1?"":"s"} de vacaciones de ${per.nombre}? Esta acción no se puede deshacer.`)) return;
+    state.periodos=state.periodos.filter(p=>p.personaId!==per.id);
+    registrar("borrar_vacaciones_persona",`${per.nombre}: ${n} período${n===1?"":"s"} borrado${n===1?"":"s"}`);
+    cerrarModal(); abrirNomina(); renderAll();
+    toast(`Vacaciones de ${per.nombre} borradas (${n})`);
+  }));
+  $("#modal").querySelectorAll("[data-borrar-vac-suc]").forEach(b=>b.addEventListener("click",e=>{
+    const key=e.target.dataset.borrarVacSuc;
+    const ids=idsDeGrupoNomina(key);
+    const n=state.periodos.filter(p=>ids.has(p.personaId)).length; if(!n) return;
+    const nombreGrupo=key==="__sin__"?"Sin sucursal asignada":key;
+    if(!confirm(`¿Borrar los ${n} período${n===1?"":"s"} de vacaciones cargados en ${nombreGrupo}? Esta acción no se puede deshacer.`)) return;
+    state.periodos=state.periodos.filter(p=>!ids.has(p.personaId));
+    registrar("borrar_vacaciones_sucursal",`${nombreGrupo}: ${n} período${n===1?"":"s"} borrado${n===1?"":"s"}`);
+    cerrarModal(); abrirNomina(); renderAll();
+    toast(`Vacaciones de ${nombreGrupo} borradas (${n})`);
   }));
   $("#btnBorrarNomina").addEventListener("click",()=>{
     const n=state.roster.length;
