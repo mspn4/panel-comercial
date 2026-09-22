@@ -732,14 +732,21 @@ $("#fileNomina").onchange=async function(ev){
       sucursal:findCol(headers,["Sucursal","Sede","Area","Área"]),
       fuerza:findCol(headers,["Fuerza de venta","Fuerza Venta","Fuerza","Categoria","Categoría","Tarea","Puesto"]),
     };
-    const nombreCombo = ci.nombre<0 && ci.apellido>=0; // arma nombre a partir de apellido+nombreSolo
-    if(ci.nombre<0 && !nombreCombo){ toast("No encontré la columna de nombre",true); return; }
+    // Si hay columna de apellido, siempre armamos el nombre apellido+nombre por separado — más
+    // confiable que confiar en una sola columna "Nombre": vimos un archivo real donde la columna
+    // se llamaba justo "nombre" pero solo traía el nombre de pila (el apellido estaba aparte), y
+    // tratarla como nombre completo pisaba el apellido y generaba fusiones falsas por nombre corto
+    // parecido (ver CLAUDE.md, bug real 2026-09-22). Si no hay "Nombres" propia, usamos la que haya
+    // matcheado como "nombre" — en ese caso es, en la práctica, el nombre de pila igual.
+    const nombreCombo = ci.apellido>=0;
+    const colNombreParte = ci.nombreSolo>=0 ? ci.nombreSolo : ci.nombre;
+    if(!nombreCombo && ci.nombre<0){ toast("No encontré la columna de nombre",true); return; }
     let nuevos=0, actualizados=0;
     rows.slice(1).forEach(r=>{
       let tareaSuelta="";
       let nombre;
       if(nombreCombo){
-        let nombreSoloTxt=ci.nombreSolo>=0?String(r[ci.nombreSolo]||"").trim():"";
+        let nombreSoloTxt=colNombreParte>=0?String(r[colNombreParte]||"").trim():"";
         if(ci.fuerza>=0 && !String(r[ci.fuerza]||"").trim()){
           const sep=separarNombreDeTarea(nombreSoloTxt);
           if(sep.tarea){ nombreSoloTxt=sep.nombre; tareaSuelta=sep.tarea; }
@@ -792,8 +799,12 @@ $("#fileVacaciones").onchange=async function(ev){
       pte:findCol(headers,["pte.","Pte","Pendiente","Días Pendientes","Dias Pendientes"]),
       notas:findCol(headers,["Notas","Observaciones","Comentario","obs.","Obs"]),
     };
-    const nombreCombo = ci.nombre<0 && ci.apellido>=0; // se arma con apellido+nombre
-    if((ci.nombre<0 && !nombreCombo) || ci.inicio<0){
+    // Ver el comentario largo en el importador de nómina más arriba — misma regla: si hay columna
+    // de apellido, siempre se arma apellido+nombre por separado en vez de confiar en una sola
+    // columna "Nombre" que puede en realidad traer solo el nombre de pila.
+    const nombreCombo = ci.apellido>=0;
+    const colNombreParte = ci.nombreSolo>=0 ? ci.nombreSolo : ci.nombre;
+    if((!nombreCombo && ci.nombre<0) || ci.inicio<0){
       toast("No reconocí las columnas de nombre y/o fecha de inicio en "+file.name,true); return;
     }
     let cargados=0, revisar=0, pendientesAsignar=0;
@@ -801,7 +812,7 @@ $("#fileVacaciones").onchange=async function(ev){
       let tareaSuelta=""; // "tarea" recuperada de una celda de nombre pegada, si hace falta (ver separarNombreDeTarea)
       let nombre;
       if(nombreCombo){
-        let nombreSoloTxt=ci.nombreSolo>=0?String(r[ci.nombreSolo]||"").trim():"";
+        let nombreSoloTxt=colNombreParte>=0?String(r[colNombreParte]||"").trim():"";
         if(ci.fuerza>=0 && !String(r[ci.fuerza]||"").trim()){
           const sep=separarNombreDeTarea(nombreSoloTxt);
           if(sep.tarea){ nombreSoloTxt=sep.nombre; tareaSuelta=sep.tarea; }
