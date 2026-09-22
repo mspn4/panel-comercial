@@ -337,6 +337,10 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12m0 0l-5-5m5 5l5-5"/><path d="M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2"/></svg>
       Exportar p/ Reporte Comercial
     </button>
+    <button class="hbtn" id="backupGithubBtn" title="Sube la nómina actual como nomina-backup.json al repo de GitHub — control-vacaciones.html (u otros .html del panel) la pueden leer directo de ahí, sin pasar por este backend">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 1.5-13.85A5.5 5.5 0 0 1 21 9.5c0 .17-.01.34-.03.5A4.5 4.5 0 0 1 17.5 19Z"/></svg>
+      Backup a GitHub
+    </button>
     <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls">
   </div>
 </header>
@@ -1008,6 +1012,19 @@ document.getElementById('exportReporteBtn').addEventListener('click', ()=>{
   XLSX.utils.book_append_sheet(wb, ws, 'Nomina');
   XLSX.writeFile(wb, 'nomina-fuerza-venta.xlsx');
   toast(`Exportados ${out.length} empleados · subilo con "Cargar Excel" en Tabla Detallada > Vendedores del reporte comercial`);
+});
+
+/* ================= Backup a GitHub (nomina-backup.json, mismo patrón que reporte-comercial.html) ================= */
+document.getElementById('backupGithubBtn').addEventListener('click', async ()=>{
+  const btn=document.getElementById('backupGithubBtn');
+  if(!CONFIG.APPSSCRIPT_URL){ toast('Falta configurar CONFIG.APPSSCRIPT_URL (NominaBackend.gs)', true); return; }
+  btn.disabled=true; const textoOriginal=btn.innerHTML; btn.innerHTML='Subiendo…';
+  try{
+    const d=await fetchNominaJSON(CONFIG.APPSSCRIPT_URL+'?accion=backup_now',{cache:'no-store'});
+    if(!d.ok) throw new Error(d.error||'Error desconocido');
+    toast(`Backup subido a GitHub: ${d.count} empleados. GitHub Pages puede tardar hasta 1 minuto en publicarlo.`);
+  }catch(e){ console.error(e); toast('No se pudo subir el backup: '+e.message, true); }
+  finally{ btn.disabled=false; btn.innerHTML=textoOriginal; }
 });
 
 /* ================= Tema claro/oscuro, sincronizado con el panel (localStorage compartido) ================= */

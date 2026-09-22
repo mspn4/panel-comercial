@@ -383,6 +383,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   </div>
   <div class="spacer"></div>
   <button class="btn btn-ghost" id="btnSyncNomina" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong)" title="Trae la nómina en vivo desde el mismo backend que usa nomina-produccion.html — no hace falta cargar el excel de nuevo acá">🔄 Sincronizar nómina</button>
+  <button class="btn btn-ghost" id="btnBackupNomina" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong)" title="Lee nomina-backup.json del repo (lo sube nomina-produccion.html con su botón 'Backup a GitHub') — no depende de que NominaBackend.gs esté despierto">📦 Backup GitHub</button>
   <input type="file" id="fileNomina" accept=".xlsx,.xls,.pdf" style="display:none">
   <button class="btn btn-ghost" id="btnCargarNomina" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong)" title="Alternativa manual: cargar acá el excel/pdf de nómina (Legajo/Apellido/Nombre/Sucursal/Fuerza o Tarea). Si tenés 'Sincronizar nómina' configurado, no hace falta usar esto.">📥 Cargar nómina (Excel/PDF)</button>
   <input type="file" id="fileVacaciones" accept=".xlsx,.xls,.pdf" style="display:none">
@@ -525,6 +526,29 @@ function buscarPersonaPorNombre(nombre){
    Forma de cada registro (ver buildFromRaw() en nomina-produccion.html): {areaKey,areaName,legajo,apellido,
    nombre,cat,alta,ingreso,tarea,tipodven,activo} — "cat" ya usa las mismas 11 categorías que FUERZAS acá,
    así que no hace falta mapearlas (solo la sucursal, vía SUCURSAL_ALIAS/areaName). */
+// Upsert compartido: recibe records con la forma de nomina-produccion.html (buildFromRaw()) — vengan de
+// su backend en vivo (NominaBackend.gs ?accion=leer) o de su backup estático en GitHub (nomina-backup.json)
+// — y los mergea al roster acá. Match por legajo si existe, si no por nombre normalizado.
+function aplicarRecsNomina(recs){
+  let nuevos=0, actualizados=0;
+  recs.forEach(rec=>{
+    const nombre=`${rec.apellido||""} ${rec.nombre||""}`.trim(); if(!nombre) return;
+    const legajo=rec.legajo!=null?String(rec.legajo):"";
+    const sucursal=resolverAlias(rec.areaName||rec.areaKey,SUCURSAL_ALIAS,SUCURSALES)||rec.areaName||"";
+    const fuerza=FUERZAS.includes(rec.cat)?rec.cat:(resolverAlias(rec.cat,FUERZA_ALIAS,FUERZAS)||rec.cat||"");
+    const activo=rec.activo!==false;
+    let p = (legajo && state.roster.find(x=>x.legajo===legajo)) || buscarPersonaPorNombre(nombre);
+    if(p){
+      const cambio = p.nombre!==nombre||p.sucursal!==sucursal||p.fuerza!==fuerza||p.legajo!==legajo||p.activo!==activo;
+      p.nombre=nombre; p.sucursal=sucursal; p.fuerza=fuerza; p.legajo=legajo; p.activo=activo;
+      if(cambio) actualizados++;
+    }else{
+      state.roster.push({id:uid(),legajo,nombre,sucursal,fuerza,activo});
+      nuevos++;
+    }
+  });
+  return {nuevos,actualizados};
+}
 async function sincronizarNomina(manual){
   if(!CONFIG.NOMINA_URL){
     if(manual) toast("Falta pegar CONFIG.NOMINA_URL (la misma URL de nomina-produccion.html) arriba del archivo",true);
@@ -534,27 +558,10 @@ async function sincronizarNomina(manual){
     const r=await fetch(CONFIG.NOMINA_URL+"?accion=leer",{cache:"no-store"});
     const d=await r.json();
     if(d.error) throw new Error(d.error);
-    const recs=d.recs;
-    if(!recs || !recs.length){ if(manual) toast("El backend de nómina todavía no tiene datos guardados",true); return; }
-    let nuevos=0, actualizados=0;
-    recs.forEach(rec=>{
-      const nombre=`${rec.apellido||""} ${rec.nombre||""}`.trim(); if(!nombre) return;
-      const legajo=rec.legajo!=null?String(rec.legajo):"";
-      const sucursal=resolverAlias(rec.areaName||rec.areaKey,SUCURSAL_ALIAS,SUCURSALES)||rec.areaName||"";
-      const fuerza=FUERZAS.includes(rec.cat)?rec.cat:(resolverAlias(rec.cat,FUERZA_ALIAS,FUERZAS)||rec.cat||"");
-      const activo=rec.activo!==false;
-      let p = (legajo && state.roster.find(x=>x.legajo===legajo)) || buscarPersonaPorNombre(nombre);
-      if(p){
-        const cambio = p.nombre!==nombre||p.sucursal!==sucursal||p.fuerza!==fuerza||p.legajo!==legajo||p.activo!==activo;
-        p.nombre=nombre; p.sucursal=sucursal; p.fuerza=fuerza; p.legajo=legajo; p.activo=activo;
-        if(cambio) actualizados++;
-      }else{
-        state.roster.push({id:uid(),legajo,nombre,sucursal,fuerza,activo});
-        nuevos++;
-      }
-    });
+    if(!d.recs || !d.recs.length){ if(manual) toast("El backend de nómina todavía no tiene datos guardados",true); return; }
+    const {nuevos,actualizados}=aplicarRecsNomina(d.recs);
     if(nuevos||actualizados){
-      registrar("sync_nomina",`Sincronizado desde nomina-produccion.html: ${nuevos} nuevas, ${actualizados} actualizadas`,!manual);
+      registrar("sync_nomina",`Sincronizado en vivo desde NominaBackend.gs: ${nuevos} nuevas, ${actualizados} actualizadas`,!manual);
       renderAll();
     }
     if(manual) toast(nuevos||actualizados ? `Nómina sincronizada: ${nuevos} nuevas, ${actualizados} actualizadas` : "Nómina ya estaba al día");
@@ -563,6 +570,27 @@ async function sincronizarNomina(manual){
   }
 }
 $("#btnSyncNomina").addEventListener("click",()=>sincronizarNomina(true));
+
+// Backup estático (nomina-backup.json, en la raíz del repo, publicado por GitHub Pages) — lo sube
+// nomina-produccion.html con su botón "Backup a GitHub". Más simple/rápido que el backend en vivo
+// (fetch directo, sin cold-start de Apps Script) pero solo tan fresco como el último push manual.
+async function cargarBackupNominaGithub(manual){
+  try{
+    const r=await fetch("nomina-backup.json",{cache:"no-store"});
+    if(!r.ok){ if(manual) toast("Todavía no existe nomina-backup.json en el repo — subilo desde nomina-produccion.html",true); return; }
+    const d=await r.json();
+    if(!d.recs || !d.recs.length){ if(manual) toast("El backup de GitHub está vacío",true); return; }
+    const {nuevos,actualizados}=aplicarRecsNomina(d.recs);
+    if(nuevos||actualizados){
+      registrar("backup_nomina_github",`Backup de GitHub (${d.exportado?ddmmyyyy(d.exportado.slice(0,10)):"?"}): ${nuevos} nuevas, ${actualizados} actualizadas`,!manual);
+      renderAll();
+    }
+    if(manual) toast(nuevos||actualizados ? `Backup cargado: ${nuevos} nuevas, ${actualizados} actualizadas` : "Nómina ya estaba al día con el backup");
+  }catch(e){
+    if(manual) toast("No se pudo leer nomina-backup.json: "+e.message,true);
+  }
+}
+$("#btnBackupNomina").addEventListener("click",()=>cargarBackupNominaGithub(true));
 
 /* ═══════════════════════════ Import: lectura de archivo → filas crudas (excel o pdf) ═══════════════════════════
    Los planos reales de RRHH vienen a veces en .xlsx, a veces en .pdf (export de una tabla ancha, a veces
@@ -1196,7 +1224,10 @@ function abrirNomina(){
       <p style="font-size:12.5px;color:var(--muted);margin-top:0">Se completa importando el excel de nómina, y también podés corregir cualquier campo acá a mano.</p>
       <div style="overflow:auto;max-height:55vh"><table class="simple"><thead><tr><th>Nombre</th><th>Sucursal</th><th>Fuerza de venta</th><th>Legajo</th><th>Estado</th><th></th></tr></thead>
       <tbody>${filas||'<tr><td colspan="6" class="empty">Sin nómina cargada</td></tr>'}</tbody></table></div>
-      <button class="btn" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong);margin-top:12px" id="btnAgregarPersona">+ Agregar persona a mano</button>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong)" id="btnAgregarPersona">+ Agregar persona a mano</button>
+        <button class="btn" style="background:var(--err-tint);color:var(--err)" id="btnBorrarNomina" ${state.roster.length?"":"disabled"}>🗑️ Borrar toda la nómina</button>
+      </div>
     </div>
     <div class="modal-actions"><button class="btn btn-primary" data-close>Cerrar</button></div>`, true);
   $("#modal").querySelectorAll("select,input[type=checkbox]").forEach(el=>el.addEventListener("change",e=>{
@@ -1214,6 +1245,15 @@ function abrirNomina(){
     registrar("eliminar_persona",per.nombre);
     cerrarModal(); abrirNomina(); renderAll();
   }));
+  $("#btnBorrarNomina").addEventListener("click",()=>{
+    const n=state.roster.length;
+    if(!n) return;
+    if(!confirm(`¿Borrar toda la nómina (${n} personas)? Los períodos de vacaciones ya cargados NO se borran, pero van a quedar sin sucursal/fuerza asociada hasta que vuelvas a cargar o sincronizar la nómina. Esta acción no se puede deshacer.`)) return;
+    state.roster=[];
+    registrar("borrar_nomina",`Nómina completa borrada (${n} personas)`);
+    cerrarModal(); abrirNomina(); renderAll();
+    toast(`Nómina borrada (${n} personas)`);
+  });
   $("#btnAgregarPersona").addEventListener("click",()=>{
     const nombre=prompt("Nombre completo:"); if(!nombre) return;
     state.roster.push({id:uid(),legajo:"",nombre:nombre.trim(),sucursal:"",fuerza:"",activo:true});
@@ -1352,6 +1392,7 @@ $("#btnHistorial").addEventListener("click",abrirHistorial);
   await cargarEstado();
   renderAll();
   sincronizarNomina(false); // silenciosa: si hay novedades las trae solas y actualiza; si no hay URL, no hace nada
+  cargarBackupNominaGithub(false); // idem con el backup estático — no pisa nada, solo hace upsert
 })();
 </script>
 </body>
