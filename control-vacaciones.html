@@ -709,6 +709,50 @@ function excelFechaAISO(v){
   if(m){ const [,y,mo,d]=m; return `${y}-${pad2(+mo)}-${pad2(+d)}`; }
   return "";
 }
+// Algunos planos reales no traen una fecha de inicio sola sino un RANGO en texto libre en esa misma
+// celda ("18/01 AL 13/02", "04 AL 23/01" sin mes, "07 AL 19/12/26", a veces sin espacio "01/02AL 13/02",
+// y a veces ni siquiera es una fecha: "PREGUNTAR A COMERCIAL"). anioArchivo sale del nombre del archivo
+// (ej. "...2027.xlsx" → 2027) y se usa para completar el año cuando falta: visto en los datos reales,
+// diciembre cae en el año ANTERIOR al del archivo y el resto de los meses en el año del archivo (temporada
+// dic-nov: "21/12/26 AL 02/01/27" en un archivo "...2027.xlsx").
+function inferirAnioRango(mes,anioArchivo){ return mes===12?anioArchivo-1:anioArchivo; }
+function parseParteFechaRango(txt){
+  const m=(txt||"").trim().match(/^(\d{1,2})(?:[\/\-.](\d{1,2}))?(?:[\/\-.](\d{2,4}))?$/);
+  if(!m) return null;
+  const dia=+m[1], mes=m[2]?+m[2]:null;
+  let anio=m[3]?+m[3]:null;
+  if(anio!=null && anio<100) anio+=2000;
+  if(dia<1||dia>31||(mes!=null&&(mes<1||mes>12))) return null;
+  return {dia,mes,anio};
+}
+function parseRangoFechas(texto,anioArchivo){
+  if(!texto) return null;
+  // "AL" como palabra suelta — no debe matchear dentro de "COMERCIAL", sí debe matchear pegado a
+  // dígitos sin espacio ("01/02AL 13/02", visto en un archivo real).
+  const partes=texto.split(/(?<![A-Za-zÁ-ÚÑá-úñ])AL(?![A-Za-zÁ-ÚÑá-úñ])/i);
+  if(partes.length!==2) return null;
+  const pIni=parseParteFechaRango(partes[0]), pFin=parseParteFechaRango(partes[1]);
+  if(!pIni||!pFin) return null;
+  let mesIni=pIni.mes, mesFin=pFin.mes;
+  if(mesIni==null && mesFin!=null) mesIni=mesFin;
+  if(mesFin==null && mesIni!=null) mesFin=mesIni;
+  if(mesIni==null||mesFin==null) return null; // ningún lado tiene mes explícito, no se puede inferir nada
+  let anioIni=pIni.anio!=null?pIni.anio:inferirAnioRango(mesIni,anioArchivo);
+  const anioFin=pFin.anio!=null?pFin.anio:inferirAnioRango(mesFin,anioArchivo);
+  const iso=(a,m,d)=>`${a}-${pad2(m)}-${pad2(d)}`;
+  let inicioISO=iso(anioIni,mesIni,pIni.dia);
+  const finISO=iso(anioFin,mesFin,pFin.dia);
+  // Si el mes "prestado" de fin deja el inicio DESPUÉS del fin (ej. "21 AL 02/01": día 21 sin mes
+  // propio, tomar el mes de fin (enero) da 21/01 > 02/01) es porque en realidad cruza de mes/año —
+  // el mes real de inicio es el anterior al de fin, no el mismo.
+  if(pIni.mes==null && inicioISO>finISO){
+    let m2=mesIni-1, a2=anioIni;
+    if(m2<1){ m2=12; a2--; }
+    anioIni=pIni.anio!=null?pIni.anio:inferirAnioRango(m2,anioArchivo);
+    inicioISO=iso(anioIni,m2,pIni.dia);
+  }
+  return {inicioISO,finISO};
+}
 // "pte." en los planos reales a veces es un número solo, a veces "7 p/julio" (días + nota de cuándo).
 function parsePte(v){
   if(v==null||v==="") return {dias:null,nota:""};
@@ -808,7 +852,12 @@ $("#fileVacaciones").onchange=async function(ev){
     if((!nombreCombo && ci.nombre<0) || ci.inicio<0){
       toast("No reconocí las columnas de nombre y/o fecha de inicio en "+file.name,true); return;
     }
-    let cargados=0, revisar=0, pendientesAsignar=0;
+    // Año de referencia para completar fechas de rango sin año propio (ver parseRangoFechas) —
+    // sale del nombre del archivo (ej. "VACACIONES LA RIOJA 2027.xlsx" → 2027), si no encuentra
+    // uno de 4 dígitos ahí cae al año seleccionado en el calendario.
+    const anioArchivoM=file.name.match(/(20\d{2})/);
+    const anioArchivo=anioArchivoM?+anioArchivoM[1]:state.anio;
+    let cargados=0, revisar=0, pendientesAsignar=0, sinFecha=0;
     rows.slice(1).forEach(r=>{
       let tareaSuelta=""; // "tarea" recuperada de una celda de nombre pegada, si hace falta (ver separarNombreDeTarea)
       let nombre;
@@ -823,8 +872,9 @@ $("#fileVacaciones").onchange=async function(ev){
         nombre=String(r[ci.nombre]||"").trim();
       }
       if(!nombre) return;
-      const inicioISO=excelFechaAISO(r[ci.inicio]);
-      if(!inicioISO) return;
+      // Persona primero, sin importar si la fecha se pudo leer — si no, igual queda cargada en
+      // la nómina (antes se perdía la fila entera si la celda de fecha no era una fecha reconocible,
+      // ej. "PREGUNTAR A COMERCIAL").
       let persona=buscarPersonaPorNombre(nombre);
       if(!persona){
         const sucursal=ci.sucursal>=0?(resolverAlias(r[ci.sucursal],SUCURSAL_ALIAS,SUCURSALES)||String(r[ci.sucursal]||"").trim()):"";
@@ -834,18 +884,32 @@ $("#fileVacaciones").onchange=async function(ev){
         state.roster.push(persona);
         if(!sucursal||!fuerza) pendientesAsignar++;
       }
+      // Algunos planos traen un rango completo ("18/01 AL 13/02") en la misma celda de inicio en vez
+      // de una fecha sola — se prueba primero (una fecha simple nunca matchea el patrón "X AL Y").
+      const celdaInicio=r[ci.inicio];
+      const rango=typeof celdaInicio==="string"?parseRangoFechas(celdaInicio.trim(),anioArchivo):null;
+      const inicioISO=rango?rango.inicioISO:excelFechaAISO(celdaInicio);
+      if(!inicioISO){ sinFecha++; return; }
       const esLun=esLunes(inicioISO);
-      const calc=calcularPeriodo(inicioISO);
-      const finExcel=ci.fin>=0?excelFechaAISO(r[ci.fin]):"";
       const diasEntitlement=ci.diasVacac>=0 ? (parseInt(String(r[ci.diasVacac]).replace(/\D/g,""),10)||null) : null;
       const pte=ci.pte>=0 ? parsePte(r[ci.pte]) : {dias:null,nota:""};
       const obsTxt=ci.notas>=0?String(r[ci.notas]||"").trim():"";
       const notasFinal=[obsTxt, pte.nota?`Pendiente: ${pte.nota}`:""].filter(Boolean).join(" · ")
         || (esLun?"":"Fecha de inicio importada no cae lunes — revisar a mano.");
+      let inicioEfectivo, fin;
+      if(rango){
+        // Rango explícito en el archivo — se usa tal cual, no se recalcula por feriado (el dato real
+        // ya dice cuándo arranca y termina de verdad, aunque no sea lunes ni dure exactamente 15 días).
+        inicioEfectivo=rango.inicioISO; fin=rango.finISO;
+      }else{
+        const finExcel=ci.fin>=0?excelFechaAISO(r[ci.fin]):"";
+        const calc=calcularPeriodo(inicioISO);
+        inicioEfectivo=esLun?calc.inicioEfectivo:inicioISO;
+        fin=finExcel || (esLun?calc.fin:addDias(inicioISO,14));
+      }
       const periodo={
         id:uid(), personaId:persona.id,
-        inicioSolicitado:inicioISO, inicioEfectivo:esLun?calc.inicioEfectivo:inicioISO,
-        fin: finExcel || (esLun?calc.fin:addDias(inicioISO,14)),
+        inicioSolicitado:inicioISO, inicioEfectivo, fin,
         origen:"excel", estado: esLun?"ok":"revisar",
         diasEntitlement, diasPendientes: pte.dias,
         notas: notasFinal,
@@ -854,8 +918,8 @@ $("#fileVacaciones").onchange=async function(ev){
       state.periodos.push(periodo);
       cargados++; if(!esLun) revisar++;
     });
-    registrar("import_vacaciones",`${file.name}: ${cargados} períodos cargados (${revisar} a revisar, ${pendientesAsignar} personas nuevas sin sucursal/fuerza)`);
-    toast(`Importado: ${cargados} períodos` + (revisar?` · ${revisar} a revisar (no arrancan lunes)`:"") + (pendientesAsignar?` · ${pendientesAsignar} personas sin sucursal/fuerza`:""));
+    registrar("import_vacaciones",`${file.name}: ${cargados} períodos cargados (${revisar} a revisar, ${pendientesAsignar} personas nuevas sin sucursal/fuerza, ${sinFecha} sin fecha reconocible)`);
+    toast(`Importado: ${cargados} períodos` + (revisar?` · ${revisar} a revisar (no arrancan lunes)`:"") + (pendientesAsignar?` · ${pendientesAsignar} personas sin sucursal/fuerza`:"") + (sinFecha?` · ${sinFecha} sin fecha reconocible`:""));
     renderAll();
   }catch(err){ console.error(err); toast("No pude leer "+file.name+": "+err.message,true); }
   ev.target.value="";
