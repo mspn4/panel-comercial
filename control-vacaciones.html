@@ -506,12 +506,42 @@ function siguienteHabil(iso){
   while(esFeriado(d)||diaSemana(d)===0) d=addDias(d,1);
   return d;
 }
-// A partir del lunes elegido, calcula {inicioEfectivo, fin, corrido}
-function calcularPeriodo(lunesISO){
+// A partir del lunes elegido, calcula {inicioEfectivo, fin, corrido}. `dias` = cantidad de días
+// corridos del período (span inclusivo inicioEfectivo..fin) — default 15 para no cambiar el
+// comportamiento de ningún llamador existente (import, etc.) que no pase este argumento nuevo.
+// El modal de vacación sí lo pasa, calculado según antigüedad real (ver diasLCT() más abajo).
+function calcularPeriodo(lunesISO,dias){
+  dias=dias||15;
   const efectivo=siguienteHabil(lunesISO);
-  return { inicioSolicitado:lunesISO, inicioEfectivo:efectivo, fin:addDias(efectivo,14), corrido:efectivo!==lunesISO };
+  return { inicioSolicitado:lunesISO, inicioEfectivo:efectivo, fin:addDias(efectivo,dias-1), corrido:efectivo!==lunesISO };
 }
 function solapan(aIni,aFin,bIni,bFin){ return aIni<=bFin && bIni<=aFin; }
+
+/* ───────── Vacaciones según la LCT (Ley 20.744, arts. 150-157 — la reforma de la Ley 27.802,
+   vigente desde marzo 2026, NO tocó esta escala ni la forma de calcular los días) ─────────
+   Antigüedad medida al 31/12 del año de referencia (acá: el año de la fecha de inicio elegida,
+   simplificación razonable — la ley no especifica si es el año en que se toman o el anterior).
+   Si no se conoce la fecha de ingreso de la persona (campo roster.ingreso, se completa solo al
+   sincronizar/importar la nómina o a mano en el modal "Nómina"), se sigue usando el default de
+   15 días corridos que ya tenía el panel — no se inventa una antigüedad. */
+function antiguedadEnDias(ingresoISO,anioRef){
+  if(!ingresoISO) return null;
+  const dias=(new Date(anioRef,11,31)-dDe(ingresoISO))/86400000;
+  return dias>=0?Math.floor(dias):null;
+}
+function diasLCT(ingresoISO,anioRef){
+  const dias=antiguedadEnDias(ingresoISO,anioRef);
+  if(dias==null) return null;
+  const anios=dias/365.25;
+  // Menos de 6 meses: proporcional "1 día por cada 20 días trabajados" — se aproxima con días
+  // corridos de antigüedad (la ley cuenta días efectivamente trabajados, no corridos; sin el
+  // calendario de días hábiles de cada persona no se puede calcular exacto).
+  if(anios<0.5) return Math.max(1,Math.floor(dias/20));
+  if(anios<5) return 14;
+  if(anios<=10) return 21;
+  if(anios<=20) return 28;
+  return 35;
+}
 const MESES=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
 /* ═══════════════════════════ Estado ═══════════════════════════ */
@@ -609,13 +639,17 @@ function aplicarRecsNomina(recs){
     const sucursal=resolverAlias(rec.areaName||rec.areaKey,SUCURSAL_ALIAS,SUCURSALES)||rec.areaName||"";
     const fuerza=FUERZAS.includes(rec.cat)?rec.cat:(resolverAlias(rec.cat,FUERZA_ALIAS,FUERZAS)||rec.cat||"");
     const activo=rec.activo!==false;
+    // rec.ingreso viene de nomina-produccion.html como texto "dd/mm/yyyy" (su propio excelDate()) —
+    // se usa para calcular antigüedad real y sugerir los días de vacaciones según la LCT (ver diasLCT).
+    const ingreso=excelFechaAISO(rec.ingreso)||"";
     let p = (legajo && state.roster.find(x=>x.legajo===legajo)) || buscarPersonaPorNombre(nombre);
     if(p){
       const cambio = p.nombre!==nombre||p.sucursal!==sucursal||p.fuerza!==fuerza||p.legajo!==legajo||p.activo!==activo;
       p.nombre=nombre; p.sucursal=sucursal; p.fuerza=fuerza; p.legajo=legajo; p.activo=activo;
+      if(ingreso) p.ingreso=ingreso; // si no vino en este sync, no borramos un ingreso ya cargado a mano
       if(cambio) actualizados++;
     }else{
-      state.roster.push({id:uid(),legajo,nombre,sucursal,fuerza,activo});
+      state.roster.push({id:uid(),legajo,nombre,sucursal,fuerza,activo,ingreso});
       nuevos++;
     }
   });
@@ -847,6 +881,7 @@ $("#fileNomina").onchange=async function(ev){
       nombreSolo:findCol(headers,["Nombres","Nombre/s"]),
       sucursal:findCol(headers,["Sucursal","Sede","Area","Área"]),
       fuerza:findCol(headers,["Fuerza de venta","Fuerza Venta","Fuerza","Categoria","Categoría","Tarea","Puesto"]),
+      ingreso:findCol(headers,["Fecha Ingreso","Ingreso","Fecha de Ingreso","Fecha Alta","Alta","Fecha de Alta"]),
     };
     // Si hay columna de apellido, siempre armamos el nombre apellido+nombre por separado — más
     // confiable que confiar en una sola columna "Nombre": vimos un archivo real donde la columna
@@ -876,15 +911,17 @@ $("#fileNomina").onchange=async function(ev){
       const sucursal=ci.sucursal>=0?(resolverAlias(r[ci.sucursal],SUCURSAL_ALIAS,SUCURSALES)||String(r[ci.sucursal]||"").trim()):"";
       const fuerzaCelda=ci.fuerza>=0?String(r[ci.fuerza]||"").trim():"";
       const fuerza=resolverAlias(fuerzaCelda,FUERZA_ALIAS,FUERZAS)||fuerzaCelda||resolverAlias(tareaSuelta,FUERZA_ALIAS,FUERZAS)||tareaSuelta;
+      const ingreso=ci.ingreso>=0?excelFechaAISO(r[ci.ingreso]):"";
       let p=buscarPersonaPorNombre(nombre);
       if(p){
         if(sucursal) p.sucursal=sucursal;
         if(fuerza) p.fuerza=fuerza;
         if(legajo) p.legajo=legajo;
+        if(ingreso) p.ingreso=ingreso;
         p.activo=true;
         actualizados++;
       }else{
-        state.roster.push({id:uid(),legajo,nombre,sucursal,fuerza,activo:true});
+        state.roster.push({id:uid(),legajo,nombre,sucursal,fuerza,activo:true,ingreso});
         nuevos++;
       }
     });
@@ -1504,19 +1541,43 @@ function abrirEdicionPeriodo(id){
   abrirModal(formularioPeriodoHtml(p));
   wireFormularioPeriodo();
 }
+// Cuántos días corridos sugerir para el período de esta persona (LCT según antigüedad real si se
+// conoce su fecha de ingreso — roster.ingreso — si no, el default de 15 que ya tenía el panel).
+function diasSugeridosPara(personaId,iso){
+  const per=personaById(personaId);
+  if(!per||!per.ingreso||!iso) return 15;
+  const d=diasLCT(per.ingreso,+iso.slice(0,4));
+  return d!=null?d:15;
+}
+function textoSugerenciaFin(personaId,iso){
+  const per=personaById(personaId);
+  if(!per||!per.ingreso) return "Sugerido: 15 días corridos (antigüedad desconocida — cargá la fecha de ingreso en \"Nómina\" para un cálculo exacto según la LCT).";
+  const dias=diasSugeridosPara(personaId,iso);
+  return `Sugerido: ${dias} días corridos según antigüedad (ingresó el ${ddmmyyyy(per.ingreso)}) — LCT arts. 150-157. Cambiala si el período real es distinto.`;
+}
 function wireFormularioPeriodo(){
   const idExistente=$("#fId").value;
   const pExistente=idExistente?state.periodos.find(x=>x.id===idExistente):null;
-  // Mientras el usuario no haya tocado "Fecha de fin" a mano, cambiar el inicio recalcula el fin
-  // sugerido (15 días corridos) — apenas la toca, dejamos de pisarla para no perder el ajuste manual.
+  // Mientras el usuario no haya tocado "Fecha de fin" a mano, cambiar el inicio o la persona
+  // recalcula el fin sugerido (según la LCT, ver diasSugeridosPara) — apenas la toca, dejamos de
+  // pisarla para no perder el ajuste manual.
   let finTocado=!!(pExistente&&pExistente.finAjustado);
+  function actualizarHintFin(){
+    $("#fFinHint").textContent=textoSugerenciaFin($("#fPersona").value,$("#fInicio").value);
+  }
+  // Solo pisa el VALOR de #fFin en respuesta a un cambio real de inicio/persona — al abrir el modal
+  // para editar, #fFin ya muestra el p.fin real guardado y no hay que recalcularlo por las dudas
+  // (podría no coincidir con una sugerencia fresca, ej. un período importado con rango explícito).
+  function sugerirFinSiCorresponde(){
+    actualizarHintFin();
+    const iso=$("#fInicio").value, personaId=$("#fPersona").value;
+    if(!finTocado&&iso&&esLunes(iso)) $("#fFin").value=calcularPeriodo(iso,diasSugeridosPara(personaId,iso)).fin;
+  }
   $("#fFin").addEventListener("input",()=>{ finTocado=true; });
-  $("#fInicio").addEventListener("input",()=>{
-    actualizarHintFecha();
-    const iso=$("#fInicio").value;
-    if(!finTocado&&iso&&esLunes(iso)) $("#fFin").value=calcularPeriodo(iso).fin;
-  });
+  $("#fInicio").addEventListener("input",()=>{ actualizarHintFecha(); sugerirFinSiCorresponde(); });
+  $("#fPersona").addEventListener("change",sugerirFinSiCorresponde);
   actualizarHintFecha();
+  actualizarHintFin();
   const del=$("#fEliminar");
   if(del) del.addEventListener("click",()=>{
     const id=$("#fId").value; const p=state.periodos.find(x=>x.id===id);
@@ -1534,7 +1595,7 @@ function wireFormularioPeriodo(){
     const notas=$("#fNotas").value.trim();
     if(!personaId){ toast("Elegí una persona",true); return; }
     if(!iso || !esLunes(iso)){ toast("La fecha de inicio tiene que ser un lunes",true); return; }
-    const calc=calcularPeriodo(iso);
+    const calc=calcularPeriodo(iso,diasSugeridosPara(personaId,iso));
     const fin=finInput||calc.fin;
     if(fin<calc.inicioEfectivo){ toast("La fecha de fin no puede ser anterior al inicio",true); return; }
     const finAjustado=fin!==calc.fin;
@@ -1590,11 +1651,14 @@ function abrirNomina(){
 
   function filaPersona(p){
     const nPer=periodosDePersona(p.id);
+    const dLCT=p.ingreso?diasLCT(p.ingreso,new Date().getFullYear()):null;
     return `<tr data-id="${esc(p.id)}">
       <td>${esc(p.nombre)}${nPer?` <span style="color:var(--muted-2);font-size:11px">(${nPer} período${nPer===1?"":"s"})</span>`:""}</td>
       <td><select data-campo="sucursal"><option value="">—</option>${SUCURSALES.map(s=>`<option ${p.sucursal===s?"selected":""}>${esc(s)}</option>`).join("")}</select></td>
       <td><select data-campo="fuerza"><option value="">—</option>${FUERZAS.map(f=>`<option ${p.fuerza===f?"selected":""}>${esc(f)}</option>`).join("")}</select></td>
       <td>${esc(p.legajo||"")}</td>
+      <td><input type="date" data-campo="ingreso" value="${esc(p.ingreso||"")}" style="font-size:12px;padding:4px 6px" title="Fecha de ingreso — se usa para sugerir los días de vacaciones según la LCT">
+        ${dLCT!=null?`<div style="font-size:10.5px;color:var(--muted-2);margin-top:2px">${dLCT} días/año</div>`:""}</td>
       <td><label style="display:flex;align-items:center;gap:5px;font-size:12px"><input type="checkbox" data-campo="activo" ${p.activo!==false?"checked":""}> activo</label></td>
       <td style="white-space:nowrap">
         <button class="iconbtn" data-borrar-vac title="Borrar las vacaciones cargadas de esta persona" ${nPer?"":"disabled"}>🧹</button>
@@ -1610,7 +1674,7 @@ function abrirNomina(){
         <span class="ln"></span>
         ${nPeriodos?`<button class="btn" data-borrar-vac-suc="${esc(key)}" style="background:var(--err-tint);color:var(--err);padding:4px 10px;font-size:11px;font-weight:600;text-transform:none;letter-spacing:0">🗑️ Vacaciones (${nPeriodos})</button>`:""}
       </div>
-      <table class="simple"><thead><tr><th>Nombre</th><th>Sucursal</th><th>Fuerza de venta</th><th>Legajo</th><th>Estado</th><th></th></tr></thead>
+      <table class="simple"><thead><tr><th>Nombre</th><th>Sucursal</th><th>Fuerza de venta</th><th>Legajo</th><th>Ingreso</th><th>Estado</th><th></th></tr></thead>
       <tbody>${personas.map(filaPersona).join("")}</tbody></table>`;
   }
   const gruposHtml=SUCURSALES.map(s=>grupoHtml(s,s,bySuc[s])).join("")+grupoHtml("Sin sucursal asignada","__sin__",bySuc.__sin__);
@@ -1627,7 +1691,7 @@ function abrirNomina(){
       </div>
     </div>
     <div class="modal-actions"><button class="btn btn-primary" data-close>Cerrar</button></div>`, true);
-  $("#modal").querySelectorAll("select,input[type=checkbox]").forEach(el=>el.addEventListener("change",e=>{
+  $("#modal").querySelectorAll("select,input[type=checkbox],input[type=date]").forEach(el=>el.addEventListener("change",e=>{
     const tr=e.target.closest("tr"); const per=personaById(tr.dataset.id); if(!per) return;
     const campo=e.target.dataset.campo;
     const valorAntes=per[campo];
