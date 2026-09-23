@@ -272,6 +272,11 @@ html[data-theme="dark"] .notice.err{color:#FF8A8D}
 .tl-bar:hover{filter:brightness(1.08)}
 .tl-bar.conflict{outline:2px solid var(--err);outline-offset:1px;box-shadow:0 0 0 1px var(--err),0 1px 3px rgba(0,0,0,.3)}
 .tl-bar.revisar{background:repeating-linear-gradient(45deg,var(--warn),var(--warn) 6px,#B8850C 6px,#B8850C 12px)}
+.tl-bar-txt{overflow:hidden}
+.tl-bar-flag{flex:none;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
+  border-radius:50%;background:rgba(0,0,0,.32);font-size:9.5px;margin-right:4px;cursor:pointer}
+.tl-bar-flag.err{background:var(--err);box-shadow:0 0 0 2px rgba(255,255,255,.55);animation:tlFlagPulse 1.6s ease-in-out infinite}
+@keyframes tlFlagPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
 .tl-today{position:absolute;top:26px;bottom:0;width:2px;background:var(--orange);z-index:2}
 .tl-empty{padding:16px;color:var(--muted-2);font-size:13px;font-style:italic}
 
@@ -484,7 +489,7 @@ const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;
 const norm=s=>(s==null?"":String(s)).trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")
   .replace(/[./\\]/g," ").replace(/\s+/g," ").trim();
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
-function toast(msg,isErr){ const t=$("#toast"); t.textContent=msg; t.className="toast show"+(isErr?" err":""); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),3200); }
+function toast(msg,isErr,duracionMs){ const t=$("#toast"); t.textContent=msg; t.className="toast show"+(isErr?" err":""); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),duracionMs||3200); }
 
 /* ───────── Motor de fechas ─────────
    Regla de negocio: los períodos duran 15 días corridos y solo pueden ARRANCAR
@@ -1198,19 +1203,41 @@ function periodoVisibleEnAnio(p,anioIni){
   const {ini,fin}=rangoTemporada(anioIni);
   return solapan(p.inicioEfectivo,p.fin,ini,fin);
 }
+// Ancho de referencia de .tl en CSS (min-width:1900px) — necesario para convertir un ancho mínimo en
+// píxeles (lo que necesita el texto del período para no cortarse) a porcentaje del contenedor.
+const TL_ANCHO_PX=1900;
 function barraHtml(p,anioIni,conflictos,colorOverride){
   const {ini:tIni,fin:tFin}=rangoTemporada(anioIni);
   const ini=p.inicioEfectivo<tIni?tIni:p.inicioEfectivo;
   const fin=p.fin>tFin?tFin:p.fin;
   const left=offsetPct(ini,anioIni), right=offsetPct(addDias(fin,1),anioIni);
-  const width=Math.max(right-left,0.4);
+  const widthReal=Math.max(right-left,0.4);
   const per=personaById(p.personaId);
   const color=colorOverride||FUERZA_COLOR[per?per.fuerza:""]||FUERZA_COLOR._DEFAULT;
   const conf=conflictos[p.id];
   const cls="tl-bar"+(conf?" conflict":"")+(p.estado==="revisar"?" revisar":"");
   const entitlement = p.diasEntitlement!=null ? ` · ${p.diasEntitlement} días/año${p.diasPendientes!=null?` (${p.diasPendientes} pendientes)`:""}` : "";
-  const titulo=`${ddmmyyyy(p.inicioEfectivo)} → ${ddmmyyyy(p.fin)}`+(p.corrido?" (corrido por feriado)":"")+(p.finAjustado?" (fin ajustado a mano)":"")+entitlement+(p.notas?" · "+p.notas:"")+(conf?" · ⚠ "+conf.map(c=>c.detalle).join(" / "):"");
-  return `<div class="${cls}" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${color}" data-id="${p.id}" title="${esc(titulo)}">${esc(titulo)}</div>`;
+  // El texto VISIBLE adentro de la barra es solo el rango de fechas — antes se metía ahí todo lo que
+  // hoy es el tooltip (corrido/entitlement/notas/conflicto), y con una barra angosta (período corto)
+  // quedaba cortado a la mitad de una palabra (ej. "...· 21", reportado por el usuario). El resto
+  // sigue disponible completo en el `title` (hover nativo) y ahora también en el ícono de abajo.
+  const textoVisible=`${ddmmyyyy(p.inicioEfectivo)} → ${ddmmyyyy(p.fin)}`;
+  const titulo=textoVisible+(p.corrido?" (corrido por feriado)":"")+(p.finAjustado?" (fin ajustado a mano)":"")+entitlement+(p.notas?" · "+p.notas:"")+(conf?" · ⚠ "+conf.map(c=>c.detalle).join(" / "):"");
+  // Ícono de atención: conflicto (⚠, prioridad) o notas/observación (📝) — antes esa info solo estaba
+  // en el hover nativo del `title`, fácil de no ver. Con hover O CLICK (toast) muestra el texto
+  // completo — data-flag lleva el texto porque el click necesita JS, no alcanza con el title nativo.
+  const textoConflicto=conf?conf.map(c=>c.detalle).join(" / "):"";
+  const hayIcono=!!(conf||p.notas);
+  const icono = conf?`<span class="tl-bar-flag err" data-flag="⚠ ${esc(textoConflicto)}" title="⚠ ${esc(textoConflicto)}">⚠</span>`
+    : (p.notas?`<span class="tl-bar-flag" data-flag="📝 ${esc(p.notas)}" title="${esc(p.notas)}">📝</span>`:"");
+  // El ancho real (proporcional a los días) puede ser más chico que lo que el texto (+ ícono, si hay)
+  // necesita para no cortarse — se estira al mínimo justo (nunca se achica) para que el período
+  // siempre se lea completo. Estimado por cantidad de caracteres (no se puede medir el DOM real desde
+  // un string) — 6.8px/char cubre de sobra la fuente de 10.5px/700 que usa .tl-bar, + padding (14px,
+  // ver CSS) + el ícono (19px: 15 de ancho + 4 de margen) cuando corresponde.
+  const anchoTextoPx=textoVisible.length*6.8+14+(hayIcono?19:0);
+  const width=Math.max(widthReal,anchoTextoPx/TL_ANCHO_PX*100);
+  return `<div class="${cls}" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${color}" data-id="${p.id}" title="${esc(titulo)}">${icono}<span class="tl-bar-txt">${esc(textoVisible)}</span></div>`;
 }
 
 function accKey(prefix,name){ return prefix+"|"+name; }
@@ -1318,6 +1345,9 @@ function renderVista(){
     acc.classList.toggle("open");
   }));
   $$(".tl-bar").forEach(b=>b.addEventListener("click",()=>abrirEdicionPeriodo(b.dataset.id)));
+  // Click en el ícono de atención (⚠/📝) muestra el texto completo en un toast, sin abrir el modal de
+  // edición del período (stopPropagation — el ícono está adentro de la barra, que también es clickeable).
+  $$(".tl-bar-flag").forEach(f=>f.addEventListener("click",e=>{ e.stopPropagation(); toast(f.dataset.flag,f.classList.contains("err"),6500); }));
   renderLegend();
   $$(".tl-months span").forEach(sp=>sp.addEventListener("click",e=>{
     e.stopPropagation(); // no abrir/cerrar el acordeón al clickear el mes
