@@ -215,6 +215,7 @@ html[data-theme="dark"] .notice.err{color:#FF8A8D}
 .tl-months{position:relative;height:26px;background:var(--page);border-bottom:1px solid var(--border);margin-left:200px}
 .tl-months span{position:absolute;top:0;height:100%;display:flex;align-items:center;padding-left:5px;
   font-size:10.5px;font-weight:700;color:var(--muted);border-left:1px solid var(--border);white-space:nowrap}
+.tl-months span:hover{background:var(--blue-tint);color:var(--blue)}
 .tl-gridlines{position:absolute;top:26px;bottom:0;left:200px;right:0;pointer-events:none}
 .tl-gridlines i{position:absolute;top:0;bottom:0;width:1px;background:var(--border)}
 .tl-row{display:flex;align-items:center;min-height:38px;border-bottom:1px solid var(--border);position:relative}
@@ -272,6 +273,25 @@ table.simple tr:hover td{background:var(--blue-tint)}
 .iconbtn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;padding:3px 6px;border-radius:6px}
 .iconbtn:hover{background:var(--page);color:var(--text)}
 .empty{padding:24px;text-align:center;color:var(--muted-2);font-style:italic}
+
+/* Modal: detalle de mes (calendario + lista de personas con color) */
+.dm-wrap{display:flex;gap:18px;flex-wrap:wrap}
+.dm-cal{flex:1 1 280px;min-width:260px}
+.dm-caldow{display:grid;grid-template-columns:repeat(7,1fr);font-size:11px;font-weight:700;color:var(--muted);text-align:center;margin-bottom:5px}
+.dm-calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dm-day{border:1px solid var(--border);border-radius:8px;min-height:52px;padding:4px 5px}
+.dm-day.dm-empty{border-color:transparent}
+.dm-day.dm-hoy{border-color:var(--orange);box-shadow:0 0 0 1px var(--orange) inset}
+.dm-daynum{font-size:11px;font-weight:700;color:var(--muted)}
+.dm-dots{display:flex;flex-wrap:wrap;gap:2px;margin-top:4px}
+.dm-dots i{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none}
+.dm-lista{flex:1 1 240px;min-width:230px;max-height:400px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px}
+.dm-persona{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:var(--page);font-size:12.5px;cursor:pointer;transition:opacity .15s}
+.dm-persona.off{opacity:.4}
+.dm-persona input{cursor:pointer;flex:none}
+.dm-persona .dm-nm{font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dm-persona .dm-suc{color:var(--muted);font-size:11px;white-space:nowrap}
+.dm-persona .dm-rango{color:var(--muted-2);font-size:11px;white-space:nowrap}
 
 footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;
@@ -377,6 +397,9 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   <select id="filtroSucursal" class="sel" title="Filtrar por sucursal (vista por fuerza de venta)" style="display:none">
     <option value="">Todas las sucursales</option>
   </select>
+  <select id="irASucursal" class="sel" title="Abrir directo una sucursal, sin desplegar las demás a mano" style="display:none">
+    <option value="">Ir a sucursal…</option>
+  </select>
   <select id="anioSel" class="sel" title="Año del calendario"></select>
   <div class="search">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
@@ -453,6 +476,7 @@ const state = {
   log:[],          // {ts,usuario,accion,detalle}
   vista:"sucursal", filtroSucursal:"", anio:new Date().getFullYear(), query:"",
   abiertos:{},     // key de acordeón -> bool
+  _gruposActuales:{}, // key de acordeón -> {personas,nombreGrupo} del último render (ver abrirDetalleMes)
 };
 const HOY=isoDe(new Date());
 
@@ -858,6 +882,7 @@ $("#fileVacaciones").onchange=async function(ev){
     const anioArchivoM=file.name.match(/(20\d{2})/);
     const anioArchivo=anioArchivoM?+anioArchivoM[1]:state.anio;
     let cargados=0, revisar=0, pendientesAsignar=0, sinFecha=0;
+    const aniosImportados=[]; // para saltar solo el calendario al año donde cayó la mayoría de estos períodos
     rows.slice(1).forEach(r=>{
       let tareaSuelta=""; // "tarea" recuperada de una celda de nombre pegada, si hace falta (ver separarNombreDeTarea)
       let nombre;
@@ -917,9 +942,25 @@ $("#fileVacaciones").onchange=async function(ev){
       };
       state.periodos.push(periodo);
       cargados++; if(!esLun) revisar++;
+      aniosImportados.push(+inicioEfectivo.slice(0,4));
     });
+    // El calendario solo muestra el año elegido en #anioSel (ver periodoVisibleEnAnio) — si el archivo
+    // importado cae mayormente en otro año (ej. "VACACIONES ... 2027.xlsx" con la temporada dic-nov
+    // arrancando en enero de 2027), los períodos quedaban cargados pero invisibles hasta que alguien
+    // cambiara el selector a mano, sin ningún aviso de que eso hiciera falta. Ahora salta solo al año
+    // donde cayó la mayoría de los períodos recién importados.
+    let avisoAnio="";
+    if(aniosImportados.length){
+      const conteo={}; aniosImportados.forEach(a=>conteo[a]=(conteo[a]||0)+1);
+      const anioPredom=+Object.keys(conteo).sort((a,b)=>conteo[b]-conteo[a])[0];
+      if(anioPredom!==state.anio){
+        state.anio=anioPredom;
+        pintarSelectorAnio();
+        avisoAnio=` · calendario cambiado a ${anioPredom} (la mayoría de estos períodos caen ahí)`;
+      }
+    }
     registrar("import_vacaciones",`${file.name}: ${cargados} períodos cargados (${revisar} a revisar, ${pendientesAsignar} personas nuevas sin sucursal/fuerza, ${sinFecha} sin fecha reconocible)`);
-    toast(`Importado: ${cargados} períodos` + (revisar?` · ${revisar} a revisar (no arrancan lunes)`:"") + (pendientesAsignar?` · ${pendientesAsignar} personas sin sucursal/fuerza`:"") + (sinFecha?` · ${sinFecha} sin fecha reconocible`:""));
+    toast(`Importado: ${cargados} períodos` + (revisar?` · ${revisar} a revisar (no arrancan lunes)`:"") + (pendientesAsignar?` · ${pendientesAsignar} personas sin sucursal/fuerza`:"") + (sinFecha?` · ${sinFecha} sin fecha reconocible`:"") + avisoAnio);
     renderAll();
   }catch(err){ console.error(err); toast("No pude leer "+file.name+": "+err.message,true); }
   ev.target.value="";
@@ -990,12 +1031,12 @@ function offsetPct(iso,anio){
   dias=Math.max(0,Math.min(total,dias));
   return dias/total*100;
 }
-function timelineHeaderHtml(anio){
+function timelineHeaderHtml(anio,key){
   const total=diasDelAnio(anio);
   let acc=0, spans=[];
   for(let m=0;m<12;m++){
     const dim=new Date(anio,m+1,0).getDate();
-    spans.push(`<span style="left:${(acc/total*100).toFixed(3)}%;width:${(dim/total*100).toFixed(3)}%">${MESES[m]}</span>`);
+    spans.push(`<span data-mes="${m}" data-acckey="${esc(key)}" style="left:${(acc/total*100).toFixed(3)}%;width:${(dim/total*100).toFixed(3)}%;cursor:pointer" title="Ver el desglose de ${MESES[m]}">${MESES[m]}</span>`);
     acc+=dim;
   }
   return spans.join("");
@@ -1032,6 +1073,9 @@ function barraHtml(p,anio,conflictos){
 function accKey(prefix,name){ return prefix+"|"+name; }
 function renderTimelineGrupo(prefix, nombreGrupo, personas, anio, conflictos){
   const key=accKey(prefix,nombreGrupo);
+  // Guardado para que el click en un mes (ver abrirDetalleMes) sepa de qué grupo de personas se trata
+  // sin tener que volver a recorrer roster/vista — se resetea entero al arrancar cada renderVista().
+  state._gruposActuales[key]={personas,nombreGrupo};
   const abierto=state.abiertos[key]!==false; // abierto por defecto
   const periodosGrupo=[];
   personas.forEach(per=>state.periodos.forEach(p=>{ if(p.personaId===per.id) periodosGrupo.push(p); }));
@@ -1057,7 +1101,7 @@ function renderTimelineGrupo(prefix, nombreGrupo, personas, anio, conflictos){
     </button>
     <div class="acc-body">
       <div class="tl-scroll"><div class="tl">
-        <div class="tl-months">${timelineHeaderHtml(anio)}</div>
+        <div class="tl-months">${timelineHeaderHtml(anio,key)}</div>
         <div class="tl-gridlines">${timelineGridlinesHtml(anio)}</div>
         ${personas.length?filas:'<div class="tl-empty">Nadie cargado en este grupo todavía.</div>'}
         ${anio===new Date().getFullYear()?`<div class="tl-today" style="left:${offsetPct(HOY,anio).toFixed(3)}%"></div>`:""}
@@ -1067,6 +1111,7 @@ function renderTimelineGrupo(prefix, nombreGrupo, personas, anio, conflictos){
 }
 
 function renderVista(){
+  state._gruposActuales={};
   const conflictos=calcularConflictos();
   const q=norm(state.query);
   const rosterActivo=state.roster.filter(p=>p.activo!==false && (!q||norm(p.nombre).includes(q)));
@@ -1074,6 +1119,7 @@ function renderVista(){
 
   if(state.vista==="sucursal"){
     $("#filtroSucursal").style.display="none";
+    $("#irASucursal").style.display="";
     const html=SUCURSALES.map(suc=>{
       const personas=rosterActivo.filter(p=>p.sucursal===suc).sort((a,b)=>a.nombre.localeCompare(b.nombre));
       if(!personas.length && q) return "";
@@ -1085,6 +1131,7 @@ function renderVista(){
     // Gerente de Área + Líder Comercial de cada sucursal, uno al lado del otro — se cubren entre
     // sus vacaciones, así que acá importa verlos juntos y no mezclados con el resto del personal.
     $("#filtroSucursal").style.display="none";
+    $("#irASucursal").style.display="";
     const ordenRol={"Gerente de Área":0,"Líder Comercial":1};
     const html=SUCURSALES.map(suc=>{
       const personas=rosterActivo.filter(p=>p.sucursal===suc && p.fuerza in ordenRol)
@@ -1095,6 +1142,7 @@ function renderVista(){
     view.innerHTML=html;
   }else{
     $("#filtroSucursal").style.display="";
+    $("#irASucursal").style.display="none";
     const filtro=state.filtroSucursal;
     const html=FUERZAS.map(f=>{
       let personas=rosterActivo.filter(p=>p.fuerza===f);
@@ -1111,6 +1159,90 @@ function renderVista(){
     acc.classList.toggle("open");
   }));
   $$(".tl-bar").forEach(b=>b.addEventListener("click",()=>abrirEdicionPeriodo(b.dataset.id)));
+  $$(".tl-months span").forEach(sp=>sp.addEventListener("click",e=>{
+    e.stopPropagation(); // no abrir/cerrar el acordeón al clickear el mes
+    abrirDetalleMes(sp.dataset.acckey,+sp.dataset.mes);
+  }));
+}
+
+/* ═══════════════════════════ Modal: detalle de un mes (día por día) ═══════════════════════════
+   Pedido del usuario: clickeando un mes del timeline, ver los días de ese mes y quién tiene vacaciones
+   ahí (con su fecha real de inicio/fin, aunque el período empiece o termine en otro mes), pudiendo
+   elegir una o varias personas y marcarlas en el calendario cada una con su propio color. */
+const DM_PALETA=["#0075DE","#DD5B00","#1AAE39","#8E44AD","#D7484B","#B7950B","#16A085","#6C3483","#5C6B7E","#C0392B","#3396F0","#E67E22"];
+function abrirDetalleMes(key,mes){
+  const grupo=state._gruposActuales[key]; if(!grupo) return;
+  const anio=state.anio;
+  const inicioMes=`${anio}-${pad2(mes+1)}-01`;
+  const dim=new Date(anio,mes+1,0).getDate();
+  const finMes=`${anio}-${pad2(mes+1)}-${pad2(dim)}`;
+  // Un período puede haber arrancado o terminar en otro mes (ej. cruza fin de mes/año) — se lista igual
+  // acá si SOLAPA este mes, mostrando su rango real completo (no recortado al mes).
+  const filas=[];
+  grupo.personas.forEach(per=>state.periodos.forEach(p=>{
+    if(p.personaId===per.id && solapan(p.inicioEfectivo,p.fin,inicioMes,finMes)) filas.push({per,p});
+  }));
+  filas.sort((a,b)=>a.p.inicioEfectivo.localeCompare(b.p.inicioEfectivo));
+  filas.forEach((f,i)=>{ f.color=DM_PALETA[i%DM_PALETA.length]; });
+  const seleccionados=new Set(filas.map(f=>f.p.id)); // todas marcadas de entrada, se puede desmarcar
+
+  function pintarCalendario(){
+    const offsetLunes=(dDe(inicioMes).getDay()+6)%7; // semana arranca lunes, igual que el resto del panel
+    const celdas=[];
+    for(let i=0;i<offsetLunes;i++) celdas.push('<div class="dm-day dm-empty"></div>');
+    for(let d=1;d<=dim;d++){
+      const iso=`${anio}-${pad2(mes+1)}-${pad2(d)}`;
+      const activos=filas.filter(f=>seleccionados.has(f.p.id) && f.p.inicioEfectivo<=iso && iso<=f.p.fin);
+      const dots=activos.map(f=>`<i style="background:${f.color}" title="${esc(f.per.nombre)}"></i>`).join("");
+      celdas.push(`<div class="dm-day${iso===HOY?" dm-hoy":""}"><div class="dm-daynum">${d}</div><div class="dm-dots">${dots}</div></div>`);
+    }
+    $("#dmCalGrid").innerHTML=celdas.join("");
+  }
+  function filaListaHtml(f){
+    return `<label class="dm-persona" style="border-left:4px solid ${f.color}">
+      <input type="checkbox" data-pid="${esc(f.p.id)}" checked>
+      <span class="dm-nm">${esc(f.per.nombre)}</span>
+      <span class="dm-suc">${esc(key.startsWith("suc|")||key.startsWith("cob|")?(f.per.fuerza||""):(f.per.sucursal||""))}</span>
+      <span class="dm-rango">${ddmmyyyy(f.p.inicioEfectivo)} → ${ddmmyyyy(f.p.fin)}</span>
+    </label>`;
+  }
+
+  abrirModal(`
+    <div class="modal-head"><h2>${MESES[mes]} ${anio} · ${esc(grupo.nombreGrupo)}</h2><button class="x" data-close>&times;</button></div>
+    <div class="modal-body">
+      ${filas.length?`
+      <div class="dm-wrap">
+        <div class="dm-cal">
+          <div class="dm-caldow"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+          <div class="dm-calgrid" id="dmCalGrid"></div>
+        </div>
+        <div class="dm-lista" id="dmLista">${filas.map(filaListaHtml).join("")}</div>
+      </div>`:`<div class="empty">Nadie de ${esc(grupo.nombreGrupo)} tiene vacaciones cargadas en ${MESES[mes]} de ${anio}.</div>`}
+    </div>
+    <div class="modal-actions">
+      ${filas.length?`<button class="btn" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong)" id="dmTodos">Marcar todos</button>
+      <button class="btn" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong)" id="dmNinguno">Desmarcar todos</button>`:""}
+      <button class="btn btn-primary" data-close>Cerrar</button>
+    </div>`, true);
+
+  if(!filas.length) return;
+  pintarCalendario();
+  $("#dmLista").querySelectorAll("input[type=checkbox]").forEach(cb=>cb.addEventListener("change",e=>{
+    const pid=e.target.dataset.pid;
+    if(e.target.checked) seleccionados.add(pid); else seleccionados.delete(pid);
+    e.target.closest(".dm-persona").classList.toggle("off",!e.target.checked);
+    pintarCalendario();
+  }));
+  $("#dmTodos").addEventListener("click",()=>{
+    filas.forEach(f=>seleccionados.add(f.p.id));
+    $("#dmLista").querySelectorAll("input[type=checkbox]").forEach(cb=>{ cb.checked=true; cb.closest(".dm-persona").classList.remove("off"); });
+    pintarCalendario();
+  });
+  $("#dmNinguno").addEventListener("click",()=>{
+    seleccionados.clear();
+    $("#dmLista").querySelectorAll("input[type=checkbox]").forEach(cb=>{ cb.checked=false; cb.closest(".dm-persona").classList.add("off"); });
+    pintarCalendario();
+  });
 }
 
 function renderResumen(){
@@ -1160,10 +1292,26 @@ $$(".tab").forEach(t=>t.addEventListener("click",()=>{
 }));
 $("#search").addEventListener("input",e=>{ state.query=e.target.value; renderVista(); });
 $("#filtroSucursal").addEventListener("change",e=>{ state.filtroSucursal=e.target.value; renderVista(); });
+$("#irASucursal").innerHTML += SUCURSALES.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("")+`<option value="Sin sucursal asignada">Sin sucursal asignada</option>`;
+// "Por sucursal"/"Gerente + Líder" muestran un acordeón por cada una de las 11 sucursales — para ver
+// una puntual había que ir colapsando el resto a mano, una por una. Este selector cierra todas las
+// demás y abre + hace scroll directo a la elegida (mismo state.abiertos que ya usa el click manual).
+$("#irASucursal").addEventListener("change",e=>{
+  const suc=e.target.value; if(!suc) return;
+  const prefix=state.vista==="cobertura"?"cob":"suc";
+  [...SUCURSALES,"Sin sucursal asignada"].forEach(s=>{ state.abiertos[accKey(prefix,s)]=(s===suc); });
+  renderVista();
+  const acc=$(`.acc[data-acckey="${accKey(prefix,suc)}"]`);
+  if(acc) acc.scrollIntoView({behavior:"smooth",block:"start"});
+  e.target.value="";
+});
 function pintarSelectorAnio(){
   const sel=$("#anioSel"); const actual=new Date().getFullYear();
-  const anios=[actual-1,actual,actual+1,actual+2];
-  sel.innerHTML=anios.map(a=>`<option value="${a}" ${a===state.anio?"selected":""}>${a}</option>`).join("");
+  // El año predominante de un import (ver fileVacaciones.onchange) puede caer fuera del rango
+  // "normal" actual-1..actual+2 (ej. un archivo cargado con mucha anticipación) — se agrega a mano
+  // para que el selector siempre pueda mostrar el año que se acaba de importar.
+  const anios=new Set([actual-1,actual,actual+1,actual+2,state.anio]);
+  sel.innerHTML=[...anios].sort((a,b)=>a-b).map(a=>`<option value="${a}" ${a===state.anio?"selected":""}>${a}</option>`).join("");
 }
 $("#anioSel").addEventListener("change",e=>{ state.anio=+e.target.value; renderVista(); });
 $("#filtroSucursal").innerHTML += SUCURSALES.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
