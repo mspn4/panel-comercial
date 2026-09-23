@@ -444,7 +444,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   <select id="irASucursal" class="sel" title="Abrir directo una sucursal, sin desplegar las demás a mano" style="display:none">
     <option value="">Ir a sucursal…</option>
   </select>
-  <select id="anioSel" class="sel" title="Año del calendario"></select>
+  <select id="anioSel" class="sel" title="Temporada de vacaciones (1° de octubre al 30 de abril siguiente)"></select>
   <label id="chkOcultarStaffWrap" style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap" title="Puestos de staff = los que NO vienen de la nómina real (Administrativo, Depósito, Maestranza, etc.) — solo aparecen al importar un plano de vacaciones de RRHH">
     <input type="checkbox" id="chkOcultarStaff"> Ocultar staff (no producción)
   </label>
@@ -544,6 +544,34 @@ function diasLCT(ingresoISO,anioRef){
 }
 const MESES=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
+/* ───────── Temporada de vacaciones (1° de octubre al 30 de abril siguiente) ─────────
+   Ventana que fija la LCT tras la reforma 27.802/2026 para conceder vacaciones sin necesitar
+   acuerdo de ambas partes. El calendario del panel mostraba antes el año calendario completo
+   (ene-dic) — pedido del usuario: mostrar la temporada real (la inmensa mayoría de los períodos
+   reales caen ahí, no en mayo-septiembre). Se identifica por su año de ARRANQUE: "temporada 2026"
+   = 01/10/2026 al 30/04/2027 — por eso sigue guardándose en `state.anio` (mismo campo de siempre,
+   solo cambió qué representa: año de arranque de temporada, no año calendario). */
+function rangoTemporada(anioIni){ return { ini:anioIni+"-10-01", fin:(anioIni+1)+"-04-30" }; }
+function diasDeTemporada(anioIni){ const t=rangoTemporada(anioIni); return (dDe(t.fin)-dDe(t.ini))/86400000+1; }
+// Oct/nov/dic caen en la temporada que arranca ESE año calendario; ene-abr en la que arrancó el
+// año anterior. May-sep (fuera de la ventana legal, no debería haber períodos reales ahí) cae en
+// la temporada más próxima que ya pasó.
+function temporadaDe(iso){ const m=+iso.slice(5,7); const y=+iso.slice(0,4); return m>=10?y:y-1; }
+// Para elegir qué temporada mostrar por DEFECTO (selector al abrir, no la clasificación de una fecha
+// puntual de arriba): en mayo-septiembre (fuera de la ventana legal, entre una temporada y la
+// siguiente) conviene mostrar la que ARRANCA en octubre de este año — es la que se está planificando
+// — en vez de la que ya terminó en abril.
+function temporadaHoy(){
+  const iso=isoDe(new Date()); const m=+iso.slice(5,7), y=+iso.slice(0,4);
+  if(m>=10) return y;
+  if(m<=4) return y-1;
+  return y;
+}
+// Los 7 meses de una temporada, en orden, con el año calendario real de cada uno (oct/nov/dic del
+// año de arranque, ene-abr del año siguiente) — todo lo que dibuja el timeline (header, gridlines,
+// detalle de mes) recorre esta misma lista para no duplicar el mapeo en cada función.
+function mesesDeTemporada(anioIni){ return [9,10,11,0,1,2,3].map(m=>({m,y:m>=9?anioIni:anioIni+1})); }
+
 /* ═══════════════════════════ Estado ═══════════════════════════ */
 const state = {
   roster:[],       // {id,legajo,nombre,sucursal,fuerza,activo}
@@ -551,7 +579,7 @@ const state = {
   feriados:FERIADOS_SEED.slice(),
   reglas:{ defaultMax:1, maxPorFuerza:{}, excluyentes:[] }, // maxPorFuerza key: "Sucursal|Fuerza" -> N
   log:[],          // {ts,usuario,accion,detalle}
-  vista:"sucursal", coberturaModo:"porSucursal", filtroSucursal:"", anio:new Date().getFullYear(), query:"", ocultarStaff:false,
+  vista:"sucursal", coberturaModo:"porSucursal", filtroSucursal:"", anio:temporadaHoy(), query:"", ocultarStaff:false,
   abiertos:{},     // key de acordeón -> bool
   _gruposActuales:{}, // key de acordeón -> {personas,nombreGrupo} del último render (ver abrirDetalleMes)
 };
@@ -964,7 +992,11 @@ $("#fileVacaciones").onchange=async function(ev){
     // sale del nombre del archivo (ej. "VACACIONES LA RIOJA 2027.xlsx" → 2027), si no encuentra
     // uno de 4 dígitos ahí cae al año seleccionado en el calendario.
     const anioArchivoM=file.name.match(/(20\d{2})/);
-    const anioArchivo=anioArchivoM?+anioArchivoM[1]:state.anio;
+    // Fallback si el archivo no trae un año de 4 dígitos en el nombre: state.anio es el año de
+    // ARRANQUE de la temporada elegida (ej. 2026 = temporada oct/2026-abr/2027) — la mayoría de los
+    // meses de esa temporada (ene-abr) caen en el año calendario SIGUIENTE, que es justo lo que
+    // anioArchivo representa en el resto de este importador (ver inferirAnioRango).
+    const anioArchivo=anioArchivoM?+anioArchivoM[1]:state.anio+1;
     let cargados=0, revisar=0, pendientesAsignar=0, sinFecha=0;
     const aniosImportados=[]; // para saltar solo el calendario al año donde cayó la mayoría de estos períodos
     rows.slice(1).forEach(r=>{
@@ -1026,13 +1058,12 @@ $("#fileVacaciones").onchange=async function(ev){
       };
       state.periodos.push(periodo);
       cargados++; if(!esLun) revisar++;
-      aniosImportados.push(+inicioEfectivo.slice(0,4));
+      aniosImportados.push(temporadaDe(inicioEfectivo));
     });
-    // El calendario solo muestra el año elegido en #anioSel (ver periodoVisibleEnAnio) — si el archivo
-    // importado cae mayormente en otro año (ej. "VACACIONES ... 2027.xlsx" con la temporada dic-nov
-    // arrancando en enero de 2027), los períodos quedaban cargados pero invisibles hasta que alguien
-    // cambiara el selector a mano, sin ningún aviso de que eso hiciera falta. Ahora salta solo al año
-    // donde cayó la mayoría de los períodos recién importados.
+    // El calendario solo muestra la temporada elegida en #anioSel (ver periodoVisibleEnAnio) — si el
+    // archivo importado cae mayormente en otra temporada, los períodos quedaban cargados pero
+    // invisibles hasta que alguien cambiara el selector a mano, sin ningún aviso de que eso hiciera
+    // falta. Ahora salta solo a la temporada donde cayó la mayoría de los períodos recién importados.
     let avisoAnio="";
     if(aniosImportados.length){
       const conteo={}; aniosImportados.forEach(a=>conteo[a]=(conteo[a]||0)+1);
@@ -1040,7 +1071,7 @@ $("#fileVacaciones").onchange=async function(ev){
       if(anioPredom!==state.anio){
         state.anio=anioPredom;
         pintarSelectorAnio();
-        avisoAnio=` · calendario cambiado a ${anioPredom} (la mayoría de estos períodos caen ahí)`;
+        avisoAnio=` · temporada cambiada a ${anioPredom}/${String(anioPredom+1).slice(2)} (la mayoría de estos períodos caen ahí)`;
       }
     }
     registrar("import_vacaciones",`${file.name}: ${cargados} períodos cargados (${revisar} a revisar, ${pendientesAsignar} personas nuevas sin sucursal/fuerza, ${sinFecha} sin fecha reconocible)`);
@@ -1134,44 +1165,44 @@ function calcularConflictos(){
   return conflicto;
 }
 
-/* ═══════════════════════════ Timeline (Gantt) ═══════════════════════════ */
-function diasDelAnio(anio){ return (new Date(anio,11,31)-new Date(anio,0,1))/86400000+1; }
-function offsetPct(iso,anio){
-  const d=dDe(iso); const inicioAnio=new Date(anio,0,1);
-  const total=diasDelAnio(anio);
-  let dias=(d-inicioAnio)/86400000;
+/* ═══════════════════════════ Timeline (Gantt) — eje de tiempo = una temporada (oct→abr) ═══════════════════════════ */
+function offsetPct(iso,anioIni){
+  const {ini}=rangoTemporada(anioIni);
+  const d=dDe(iso); const inicioTemp=dDe(ini);
+  const total=diasDeTemporada(anioIni);
+  let dias=(d-inicioTemp)/86400000;
   dias=Math.max(0,Math.min(total,dias));
   return dias/total*100;
 }
-function timelineHeaderHtml(anio,key){
-  const total=diasDelAnio(anio);
+function timelineHeaderHtml(anioIni,key){
+  const total=diasDeTemporada(anioIni);
   let acc=0, spans=[];
-  for(let m=0;m<12;m++){
-    const dim=new Date(anio,m+1,0).getDate();
-    spans.push(`<span data-mes="${m}" data-acckey="${esc(key)}" style="left:${(acc/total*100).toFixed(3)}%;width:${(dim/total*100).toFixed(3)}%;cursor:pointer" title="Ver el desglose de ${MESES[m]}">${MESES[m]}</span>`);
+  mesesDeTemporada(anioIni).forEach(({m,y})=>{
+    const dim=new Date(y,m+1,0).getDate();
+    const label=`${MESES[m]} ${String(y).slice(2)}`;
+    spans.push(`<span data-mes="${m}" data-anio="${y}" data-acckey="${esc(key)}" style="left:${(acc/total*100).toFixed(3)}%;width:${(dim/total*100).toFixed(3)}%;cursor:pointer" title="Ver el desglose de ${MESES[m]} ${y}">${label}</span>`);
     acc+=dim;
-  }
+  });
   return spans.join("");
 }
-function timelineGridlinesHtml(anio){
-  const total=diasDelAnio(anio);
+function timelineGridlinesHtml(anioIni){
+  const total=diasDeTemporada(anioIni);
   let acc=0, out=[];
-  for(let m=0;m<12;m++){
+  mesesDeTemporada(anioIni).forEach(({m,y})=>{
     out.push(`<i style="left:${(acc/total*100).toFixed(3)}%"></i>`);
-    acc+=new Date(anio,m+1,0).getDate();
-  }
+    acc+=new Date(y,m+1,0).getDate();
+  });
   return out.join("");
 }
-function periodoVisibleEnAnio(p,anio){
-  const ini=anio+"-01-01", fin=anio+"-12-31";
+function periodoVisibleEnAnio(p,anioIni){
+  const {ini,fin}=rangoTemporada(anioIni);
   return solapan(p.inicioEfectivo,p.fin,ini,fin);
 }
-function barraHtml(p,anio,conflictos,colorOverride){
-  const total=diasDelAnio(anio);
-  const anioIni=anio+"-01-01", anioFin=anio+"-12-31";
-  const ini=p.inicioEfectivo<anioIni?anioIni:p.inicioEfectivo;
-  const fin=p.fin>anioFin?anioFin:p.fin;
-  const left=offsetPct(ini,anio), right=offsetPct(addDias(fin,1),anio);
+function barraHtml(p,anioIni,conflictos,colorOverride){
+  const {ini:tIni,fin:tFin}=rangoTemporada(anioIni);
+  const ini=p.inicioEfectivo<tIni?tIni:p.inicioEfectivo;
+  const fin=p.fin>tFin?tFin:p.fin;
+  const left=offsetPct(ini,anioIni), right=offsetPct(addDias(fin,1),anioIni);
   const width=Math.max(right-left,0.4);
   const per=personaById(p.personaId);
   const color=colorOverride||FUERZA_COLOR[per?per.fuerza:""]||FUERZA_COLOR._DEFAULT;
@@ -1217,7 +1248,7 @@ function renderTimelineGrupo(prefix, nombreGrupo, personas, anio, conflictos, co
         <div class="tl-months">${timelineHeaderHtml(anio,key)}</div>
         <div class="tl-gridlines">${timelineGridlinesHtml(anio)}</div>
         ${personas.length?filas:'<div class="tl-empty">Nadie cargado en este grupo todavía.</div>'}
-        ${anio===new Date().getFullYear()?`<div class="tl-today" style="left:${offsetPct(HOY,anio).toFixed(3)}%"></div>`:""}
+        ${temporadaDe(HOY)===anio?`<div class="tl-today" style="left:${offsetPct(HOY,anio).toFixed(3)}%"></div>`:""}
       </div></div>
     </div>
   </div>`;
@@ -1290,7 +1321,7 @@ function renderVista(){
   renderLegend();
   $$(".tl-months span").forEach(sp=>sp.addEventListener("click",e=>{
     e.stopPropagation(); // no abrir/cerrar el acordeón al clickear el mes
-    abrirDetalleMes(sp.dataset.acckey,+sp.dataset.mes);
+    abrirDetalleMes(sp.dataset.acckey,+sp.dataset.mes,+sp.dataset.anio);
   }));
 }
 
@@ -1299,9 +1330,8 @@ function renderVista(){
    ahí (con su fecha real de inicio/fin, aunque el período empiece o termine en otro mes), pudiendo
    elegir una o varias personas y marcarlas en el calendario cada una con su propio color. */
 const DM_PALETA=["#0075DE","#DD5B00","#1AAE39","#8E44AD","#D7484B","#B7950B","#16A085","#6C3483","#5C6B7E","#C0392B","#3396F0","#E67E22"];
-function abrirDetalleMes(key,mes){
+function abrirDetalleMes(key,mes,anio){
   const grupo=state._gruposActuales[key]; if(!grupo) return;
-  const anio=state.anio;
   const inicioMes=`${anio}-${pad2(mes+1)}-01`;
   const dim=new Date(anio,mes+1,0).getDate();
   const finMes=`${anio}-${pad2(mes+1)}-${pad2(dim)}`;
@@ -1456,12 +1486,12 @@ $("#irASucursal").addEventListener("change",e=>{
   e.target.value="";
 });
 function pintarSelectorAnio(){
-  const sel=$("#anioSel"); const actual=new Date().getFullYear();
-  // El año predominante de un import (ver fileVacaciones.onchange) puede caer fuera del rango
+  const sel=$("#anioSel"); const actual=temporadaHoy();
+  // La temporada predominante de un import (ver fileVacaciones.onchange) puede caer fuera del rango
   // "normal" actual-1..actual+2 (ej. un archivo cargado con mucha anticipación) — se agrega a mano
-  // para que el selector siempre pueda mostrar el año que se acaba de importar.
+  // para que el selector siempre pueda mostrar la temporada que se acaba de importar.
   const anios=new Set([actual-1,actual,actual+1,actual+2,state.anio]);
-  sel.innerHTML=[...anios].sort((a,b)=>a-b).map(a=>`<option value="${a}" ${a===state.anio?"selected":""}>${a}</option>`).join("");
+  sel.innerHTML=[...anios].sort((a,b)=>a-b).map(a=>`<option value="${a}" ${a===state.anio?"selected":""}>Temporada ${a}/${String(a+1).slice(2)}</option>`).join("");
 }
 $("#anioSel").addEventListener("change",e=>{ state.anio=+e.target.value; renderVista(); });
 $("#filtroSucursal").innerHTML += SUCURSALES.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
