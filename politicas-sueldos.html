@@ -196,6 +196,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
 
   <nav class="toc">
     <a href="#l3767">Lista 3767</a>
+    <a href="#outlet-pdo">Outlet / PDO</a>
     <a href="#l101-1018">Lista 101 y 1018</a>
     <a href="#l1000">Lista 1000</a>
     <a href="#l6001">Listas 6001 / 6002</a>
@@ -215,8 +216,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
     <p class="lead">Comisión variable según el % de descuento aplicado sobre precio de lista.</p>
 
     <p class="rule"><b>Productos nuevos:</b> comisión máxima del <span class="hl">3,8%</span>, aplicando la escala según el descuento que corresponda. Si supera el objetivo, <span class="hl">+1%</span> adicional de comisión.</p>
-    <p class="rule"><b>Productos Outlet:</b> comisión según estado del producto (Estado A: 5%, B: 6%, C: 7%, D: 8%, E/F/G: 9%), aplicando también la escala por descuento. Si supera el objetivo, <span class="hl">+1%</span> adicional (ej: Estado A 5% + 1% = 6%).</p>
-    <p class="rule"><b>Productos PDO:</b> comisión única fija del <span class="hl">4%</span>, sin importar el descuento (no hay escala). Si supera el objetivo, <span class="hl">+1%</span> adicional de comisión.</p>
+    <p class="rule"><b>Productos Outlet y PDO:</b> tienen su propia escala por letra, no la de esta tabla. Ver <a href="#outlet-pdo">escala vigente septiembre 2026</a> más abajo.</p>
 
     <div class="tbl-scroll">
       <table>
@@ -229,6 +229,30 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
         </tr></thead>
         <tbody id="tbl3767"></tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- OUTLET / PDO -->
+  <section class="panel" id="outlet-pdo">
+    <h2>Nueva escala de comisiones: Productos Outlet-PDO <span class="tag">Vigencia septiembre 2026</span></h2>
+    <p class="lead">Escala propia por letra, independiente de la escala por descuento de Lista 3767.</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr>
+          <th>Letra</th>
+          <th class="num">Comisión base</th>
+          <th class="num">Si supera el objetivo</th>
+        </tr></thead>
+        <tbody id="tblOutletPdo"></tbody>
+      </table>
+    </div>
+
+    <div class="mini-grid" style="margin-top:16px">
+      <div class="mini" style="border-left:3px solid var(--orange);grid-column:1/-1">
+        <div class="l" style="text-transform:none;font-weight:700;color:var(--orange);margin-bottom:4px">⚠ Importante</div>
+        <div class="l" style="font-size:12.5px;line-height:1.5">Si sobre estos productos se aplican <b>descuentos autorizados</b>, la comisión sufrirá una <b>reducción proporcional al descuento</b>.</div>
+      </div>
     </div>
   </section>
 
@@ -318,6 +342,19 @@ const L3767=[
 ];
 $('#tbl3767').innerHTML=L3767.map(r=>fila(
   td(r[0],'letra')+td(r[1])+td(r[2],'num vendedor')+td(r[3],'num free')+td(r[4],'num lider')+td(r[5],'num gerente')
+)).join('');
+
+/* Outlet-PDO: [letra, base, +1% objetivo] */
+const OUTLET_PDO=[
+  ['P','4%','5%'],
+  ['A','5%','6%'],
+  ['B','6%','7%'],
+  ['C','7%','8%'],
+  ['D','8%','9%'],
+  ['E F G','9%','10%'],
+];
+$('#tblOutletPdo').innerHTML=OUTLET_PDO.map(r=>fila(
+  td(r[0],'letra')+td(r[1],'num vendedor')+td(r[2],'num free')
 )).join('');
 
 /* Lista 101: [letra, rango, vendedor(fijo), lider, gerente] */
