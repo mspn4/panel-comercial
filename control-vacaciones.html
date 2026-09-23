@@ -400,6 +400,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   <button class="btn btn-ghost" id="btnReglas" title="Configurar reglas de solapamiento">⚙️ Reglas</button>
   <button class="btn btn-ghost" id="btnFeriados" title="Editar el listado de feriados">📅 Feriados</button>
   <button class="btn btn-ghost" id="btnHistorial" title="Ver historial de cambios">🕓 Historial</button>
+  <button class="btn btn-ghost" id="btnBorrarTodasVac" style="background:var(--err-tint);color:var(--err)" title="Borra TODOS los períodos de vacaciones cargados (de cualquier sucursal). La nómina no se toca.">🗑️ Borrar todas las vacaciones</button>
   <button class="btn btn-primary" id="btnNuevoPeriodo" title="Cargar una vacación a mano">+ Vacación</button>
   <button class="btn btn-theme" id="btnTheme" title="Modo oscuro">🌙</button>
 </div>
@@ -1491,6 +1492,15 @@ function wireFormularioPeriodo(){
   });
 }
 $("#btnNuevoPeriodo").addEventListener("click",abrirNuevoPeriodo);
+$("#btnBorrarTodasVac").addEventListener("click",()=>{
+  const n=state.periodos.length;
+  if(!n){ toast("No hay vacaciones cargadas"); return; }
+  if(!confirm(`¿Borrar los ${n} período${n===1?"":"s"} de vacaciones cargados (de todas las sucursales)? La nómina no se toca. Esta acción no se puede deshacer.`)) return;
+  state.periodos=[];
+  registrar("borrar_todas_vacaciones",`${n} período${n===1?"":"s"} borrado${n===1?"":"s"}`);
+  renderAll();
+  toast(`${n} período${n===1?"":"s"} de vacaciones borrado${n===1?"":"s"}`);
+});
 
 /* ═══════════════════════════ Modal: Nómina (ver/editar roster) ═══════════════════════════ */
 // Clave de agrupamiento por sucursal para el modal de Nómina — "__sin__" junta a quien no tiene
