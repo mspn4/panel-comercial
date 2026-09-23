@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Políticas de Sueldos · Fuerza de Venta · M&amp;A</title>
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Paleta: design-system/panel-comercial/MASTER.md (Notion), mismo criterio que el resto de los htmls standalone del repo */
+:root{
+  --blue:#0075DE; --blue2:#3396F0; --blue-soft:#E8F2FC;
+  --orange:#DD5B00; --orange-soft:#FBE7D9;
+  --green:#1AAE39; --green-soft:#E6F7EA;
+  --red:#D7484B; --red-soft:#FBEAEA;
+  --slate:#615D59; --ink:#000000; --line:#E6E6E6;
+  --bg:#F6F5F4; --card:#FFFFFF;
+  --row-alt:#FAFAF9; --row-hover:#F8FAFD;
+  --shadow:0 1px 3px rgba(0,0,0,.04),0 6px 24px rgba(0,0,0,.05);
+}
+html[data-theme="dark"]{
+  --blue:#3396F0; --blue2:#62AEF0; --blue-soft:rgba(51,150,240,.16);
+  --orange:#FF7A26; --orange-soft:rgba(255,122,38,.18);
+  --green:#2ECC58; --green-soft:rgba(46,204,88,.16);
+  --red:#FF6B6E; --red-soft:rgba(255,107,110,.14);
+  --slate:#9B968F; --ink:#EDECE9; --line:#3A3A3A;
+  --bg:#191919; --card:#242424;
+  --row-alt:#202020; --row-hover:#2A2A2A;
+  --shadow:0 1px 3px rgba(0,0,0,.3),0 6px 24px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px 56px}
+
+header{background:linear-gradient(135deg,var(--blue) 0%,var(--blue2) 100%);color:#fff;
+  padding:22px 0 26px;border-bottom:4px solid var(--orange)}
+.head-in{max-width:1180px;margin:0 auto;padding:0 16px;display:flex;align-items:center;
+  justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px}
+.brand-logo-img{height:50px;width:auto;flex:0 0 auto;display:none}
+.brand-logo-light{display:block}
+html[data-theme="dark"] .brand-logo-light{display:none}
+html[data-theme="dark"] .brand-logo-dark{display:block}
+.head-title h1{font-size:20px;font-weight:700;letter-spacing:-.2px}
+.head-title p{font-size:13px;opacity:.82;margin-top:2px}
+.head-meta{font-size:12px;opacity:.78;text-align:right}
+.head-meta b{display:block;font-size:13px;opacity:1}
+
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin:-18px 0 22px;position:relative;z-index:2}
+.toc a{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:8px 15px;
+  font-size:12.5px;font-weight:600;color:var(--ink);text-decoration:none;box-shadow:var(--shadow);transition:.12s}
+.toc a:hover{border-color:var(--blue2);color:var(--blue)}
+
+.panel{background:var(--card);border-radius:14px;padding:20px 22px;box-shadow:var(--shadow);
+  border:1px solid var(--line);margin-bottom:18px;scroll-margin-top:18px}
+.panel h2{font-size:16.5px;font-weight:700;letter-spacing:-.2px;display:flex;align-items:center;gap:9px}
+.panel h2 .tag{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  background:var(--blue-soft);color:var(--blue);padding:3px 9px;border-radius:6px}
+.panel .lead{font-size:12.5px;color:var(--slate);margin-top:4px;margin-bottom:14px}
+.panel p.rule{font-size:13.5px;line-height:1.6;margin-bottom:10px}
+.panel p.rule:last-of-type{margin-bottom:16px}
+.panel p.rule b{color:var(--ink);font-weight:700}
+.hl{background:var(--orange-soft);color:var(--orange);font-weight:700;padding:1px 5px;border-radius:5px}
+
+.tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+thead th{background:var(--bg);color:var(--slate);font-size:10.5px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.3px;text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+thead th.num{text-align:center}
+tbody td{padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody td.num{text-align:center;font-variant-numeric:tabular-nums}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:nth-child(even){background:var(--row-alt)}
+tbody tr:hover{background:var(--row-hover)}
+td.letra{font-weight:700}
+td.vendedor{color:var(--blue);font-weight:600}
+td.free{color:var(--blue2);font-weight:700}
+td.lider{color:var(--orange);font-weight:600}
+td.gerente{color:var(--green);font-weight:600}
+.rowgroup-b{border-top:2px solid var(--line)}
+
+.roles-legend{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 16px;font-size:11.5px;color:var(--slate)}
+.roles-legend span{display:inline-flex;align-items:center;gap:6px}
+.roles-legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.roles-legend i.b{background:var(--blue)} .roles-legend i.b2{background:var(--blue2)}
+.roles-legend i.o{background:var(--orange)} .roles-legend i.g{background:var(--green)}
+
+.mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:14px 0 4px}
+.mini{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.mini .v{font-size:19px;font-weight:800;letter-spacing:-.5px}
+.mini .l{font-size:11px;color:var(--slate);margin-top:3px;font-weight:600}
+.mini.b .v{color:var(--blue)} .mini.o .v{color:var(--orange)} .mini.g .v{color:var(--green)}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:820px){.two-col{grid-template-columns:1fr}}
+
+footer{text-align:center;color:var(--slate);font-size:12px;margin-top:24px;line-height:1.6}
+</style>
+<style>
+#panelAuthOverlay{display:none;visibility:visible;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#F6F5F4;font-family:'Inter',system-ui,-apple-system,sans-serif;padding:20px;box-sizing:border-box}
+html[data-theme="dark"] #panelAuthOverlay{background:#191919}
+html.panel-locked body{visibility:hidden}
+html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
+#panelAuthOverlay .pa-card{width:100%;max-width:360px;background:#fff;border:1px solid #E6E6E6;border-radius:12px;padding:36px 32px;box-shadow:0 20px 50px rgba(0,0,0,.12);box-sizing:border-box}
+html[data-theme="dark"] #panelAuthOverlay .pa-card{background:#242424;border-color:#3A3A3A;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+#panelAuthOverlay .pa-brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+#panelAuthOverlay .pa-ma{font-weight:600;font-size:13px;letter-spacing:.5px;background:#DD5B00;color:#fff;padding:4px 8px;border-radius:5px;flex:none}
+html[data-theme="dark"] #panelAuthOverlay .pa-ma{background:#FF7A26}
+#panelAuthOverlay .pa-ttl b{display:block;font-weight:700;font-size:15px;color:#000;letter-spacing:-.2px}
+html[data-theme="dark"] #panelAuthOverlay .pa-ttl b{color:#EDECE9}
+#panelAuthOverlay .pa-ttl span{display:block;font-size:10px;color:#615D59;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+html[data-theme="dark"] #panelAuthOverlay .pa-ttl span{color:#9B968F}
+#panelAuthOverlay h2{font-size:16px;font-weight:700;color:#000;margin:0 0 5px}
+html[data-theme="dark"] #panelAuthOverlay h2{color:#EDECE9}
+#panelAuthOverlay p.pa-sub{font-size:12.5px;color:#615D59;margin:0 0 22px;line-height:1.4}
+html[data-theme="dark"] #panelAuthOverlay p.pa-sub{color:#9B968F}
+#panelAuthOverlay label{display:block;font-size:11px;font-weight:600;color:#615D59;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px}
+html[data-theme="dark"] #panelAuthOverlay label{color:#9B968F}
+#panelAuthOverlay input{width:100%;box-sizing:border-box;padding:9px 11px;font-size:14px;font-family:inherit;border:1px solid #E6E6E6;border-radius:6px;background:#fff;color:#000;margin-bottom:16px;outline:none}
+html[data-theme="dark"] #panelAuthOverlay input{background:#191919;border-color:#3A3A3A;color:#EDECE9}
+#panelAuthOverlay input:focus{border-color:#0075DE}
+html[data-theme="dark"] #panelAuthOverlay input:focus{border-color:#3396F0}
+#panelAuthOverlay button{width:100%;padding:10px;font-size:14px;font-weight:600;font-family:inherit;color:#fff;background:#0075DE;border:none;border-radius:6px;cursor:pointer;margin-top:2px}
+html[data-theme="dark"] #panelAuthOverlay button{background:#3396F0}
+#panelAuthOverlay button:hover{background:#005BAB}
+html[data-theme="dark"] #panelAuthOverlay button:hover{background:#62AEF0}
+#panelAuthOverlay .pa-error{font-size:12.5px;color:#D7484B;margin:-8px 0 14px;min-height:16px}
+html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
+#panelAuthOverlay .pa-card.pa-shake{animation:pa-shake .4s}
+@keyframes pa-shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
+</style>
+</head>
+<body>
+<div id="panelAuthOverlay">
+  <div class="pa-card">
+    <div class="pa-brand">
+      <span class="pa-ma">M&amp;A</span>
+      <div class="pa-ttl"><b>Acceso</b><span>Departamento Comercial</span></div>
+    </div>
+    <h2>Ingresá tus credenciales</h2>
+    <p class="pa-sub">Panel interno de uso exclusivo del equipo.</p>
+    <form id="panelAuthForm" autocomplete="off">
+      <label for="paUser">Usuario</label>
+      <input type="text" id="paUser" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+      <label for="paPass">Contraseña</label>
+      <input type="password" id="paPass" autocomplete="current-password" required>
+      <div class="pa-error" id="paError"></div>
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  if (localStorage.getItem('panelAuthOK') === '1') return;
+  document.documentElement.classList.add('panel-locked');
+  document.getElementById('panelAuthForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var u = document.getElementById('paUser').value.trim();
+    var p = document.getElementById('paPass').value;
+    if (u === 'wsenieva' && p === '379604191919abcde!') {
+      localStorage.setItem('panelAuthOK', '1');
+      document.documentElement.classList.remove('panel-locked');
+    } else {
+      document.getElementById('paError').textContent = 'Usuario o contraseña incorrectos.';
+      var card = document.querySelector('#panelAuthOverlay .pa-card');
+      card.classList.remove('pa-shake');
+      void card.offsetWidth;
+      card.classList.add('pa-shake');
+      document.getElementById('paPass').value = '';
+      document.getElementById('paPass').focus();
+    }
+  });
+})();
+</script>
+<header>
+  <div class="head-in">
+    <a href="index.html" class="brand" style="text-decoration:none;color:inherit" title="Volver al Centro de Control">
+      <img src="assets/logo.png" alt="M&amp;A" class="brand-logo-img brand-logo-light">
+      <img src="assets/logo-blanco.png" alt="M&amp;A" class="brand-logo-img brand-logo-dark">
+      <div class="head-title">
+        <h1>Políticas de Sueldos: Fuerza de Venta</h1>
+        <p>Comisiones por lista de precios · Departamento Comercial M&amp;A</p>
+      </div>
+    </a>
+    <div class="head-meta">
+      <b>Septiembre 2026</b>
+      Resumen de políticas vigente
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc">
+    <a href="#l3767">Lista 3767</a>
+    <a href="#l101-1018">Lista 101 y 1018</a>
+    <a href="#l1000">Lista 1000</a>
+    <a href="#l6001">Listas 6001 / 6002</a>
+    <a href="#penalidades">Penalidades Gerentes/Líderes</a>
+  </nav>
+
+  <div class="roles-legend">
+    <span><i class="b"></i> Comisión Vendedor</span>
+    <span><i class="b2"></i> Vendedor + 1% supera objetivo</span>
+    <span><i class="o"></i> Líder Comercial</span>
+    <span><i class="g"></i> Gerente</span>
+  </div>
+
+  <!-- LISTA 3767 -->
+  <section class="panel" id="l3767">
+    <h2>Lista 3767 <span class="tag">Escala por descuento</span></h2>
+    <p class="lead">Comisión variable según el % de descuento aplicado sobre precio de lista.</p>
+
+    <p class="rule"><b>Productos nuevos:</b> comisión máxima del <span class="hl">3,8%</span>, aplicando la escala según el descuento que corresponda. Si supera el objetivo, <span class="hl">+1%</span> adicional de comisión.</p>
+    <p class="rule"><b>Productos Outlet:</b> comisión según estado del producto (Estado A: 5%, B: 6%, C: 7%, D: 8%, E/F/G: 9%), aplicando también la escala por descuento. Si supera el objetivo, <span class="hl">+1%</span> adicional (ej: Estado A 5% + 1% = 6%).</p>
+    <p class="rule"><b>Productos PDO:</b> comisión única fija del <span class="hl">4%</span>, sin importar el descuento (no hay escala). Si supera el objetivo, <span class="hl">+1%</span> adicional de comisión.</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr>
+          <th>Descuento s/PL</th>
+          <th class="num">Comisión Vendedor</th>
+          <th class="num">Vendedor Free (+1% objetivo)</th>
+          <th class="num">Líder Comercial</th>
+          <th class="num">Gerente</th>
+        </tr></thead>
+        <tbody id="tbl3767"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- LISTA 101 Y 1018 -->
+  <section class="panel" id="l101-1018">
+    <h2>Lista 1018 y 101 <span class="tag">Comisión fija al vendedor</span></h2>
+    <p class="lead">Ambas listas pagan una comisión fija al vendedor; Líder y Gerente se liquidan por escala.</p>
+
+    <p class="rule">La comisión <b>única fija es del 10%</b> para el vendedor, supere o no el objetivo, sin importar el descuento: no hay escala para el vendedor en ninguna de las dos listas.</p>
+    <p class="rule">Para Líderes y Gerentes: la <b>Lista 1018</b> se liquida ídem a la escala de la <b>Lista 1000</b> (valores fijos, sin tramos); la <b>Lista 101</b> se liquida ídem a la escala de la <b>Lista 3767</b> (tramos por descuento).</p>
+
+    <div class="two-col">
+      <div>
+        <h3 style="font-size:13px;font-weight:700;margin-bottom:8px">Lista 101</h3>
+        <div class="tbl-scroll">
+          <table>
+            <thead><tr><th>Descuento s/PL</th><th class="num">Comisión Vendedor</th><th class="num">Líder</th><th class="num">Gerente</th></tr></thead>
+            <tbody id="tbl101"></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:13px;font-weight:700;margin-bottom:8px">Lista 1018</h3>
+        <div class="tbl-scroll">
+          <table>
+            <thead><tr><th>Descuento s/PL</th><th class="num">Comisión</th><th class="num">Líder</th><th class="num">Gerente</th></tr></thead>
+            <tbody id="tbl1018"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LISTA 1000 -->
+  <section class="panel" id="l1000">
+    <h2>Lista 1000 <span class="tag">Sin objetivo</span></h2>
+    <p class="rule">Se abona una comisión del <b>3% máxima</b> al vendedor. No se tiene en cuenta el objetivo de venta, es decir, no se cobra el "supera objetivo". Se aplica la escala en base al descuento que corresponda.</p>
+  </section>
+
+  <!-- LISTAS 6001/6002 -->
+  <section class="panel" id="l6001">
+    <h2>Listas 6001 / 6002 <span class="tag">Ventas distribuidor</span></h2>
+    <p class="rule">El vendedor <b>no tiene premio</b> por superar el objetivo en ventas a distribuidor.</p>
+    <div class="mini-grid">
+      <div class="mini b"><div class="v">1,5%</div><div class="l">Vendedor</div></div>
+      <div class="mini o"><div class="v">1%</div><div class="l">Líder</div></div>
+      <div class="mini g"><div class="v">0,5%</div><div class="l">Gerente</div></div>
+    </div>
+  </section>
+
+  <!-- PENALIDADES -->
+  <section class="panel" id="penalidades">
+    <h2>Penalidades: Ventas personales de Gerentes/Líderes</h2>
+    <p class="rule">Tanto Gerentes como Líderes Comerciales y de Redes tienen un <b>piso de ventas personales de $12.000.000</b> para poder comisionar sobre las ventas de sus equipos.</p>
+    <p class="rule">En ambos casos, para las liquidaciones de Gerentes y Líderes, las personas de producción que <b>no vendan por encima de $8.000.000</b> no suman a la comisión de venta de equipo de esas liquidaciones: solo suman los vendedores que superen ese monto.</p>
+  </section>
+
+  <footer>
+    Resumen de referencia interno · Departamento Comercial M&amp;A Equipamientos Comerciales<br>
+    Ante cualquier duda sobre un caso puntual, consultar con Gerencia Comercial.
+  </footer>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const fila=(cells,cls)=>`<tr class="${cls||''}">${cells}</tr>`;
+const td=(v,cls)=>`<td class="${cls||''}">${v}</td>`;
+
+/* Lista 3767: [letra, rango, vendedor, free, lider, gerente] */
+const L3767=[
+  ['B','0% - 1%','3,800%','4,800%','1,880%','0,530%'],
+  ['C','1,01% - 2%','3,600%','4,600%','1,880%','0,530%'],
+  ['D','2,01% - 3%','3,400%','4,400%','1,880%','0,530%'],
+  ['E','3,01% - 4%','3,200%','4,200%','1,880%','0,530%'],
+  ['F','4,01% - 5%','3,000%','4,000%','1,880%','0,530%'],
+  ['G','5,01 - 6%','2,800%','3,800%','1,250%','0,3500%'],
+  ['H','6,01% - 7%','2,600%','3,600%','1,250%','0,3500%'],
+  ['I','7,01% - 8%','2,400%','3,400%','1,250%','0,3500%'],
+  ['J','8,01% - 9%','2,200%','3,200%','1,250%','0,3500%'],
+  ['K','9,01% - 10%','2,000%','3,000%','1,250%','0,3500%'],
+  ['A evaluar','Mayor a 10%','1,000%','2,000%','0,675%','0,1880%'],
+  ['M','11,1% - 12%','0,800%','1,800%','0,450%','0,1250%'],
+  ['N','12,01 - 13%','0,600%','1,600%','0,225%','0,0625%'],
+  ['O','13,01 - 14%','0,400%','1,400%','0,113%','0,0310%'],
+  ['P','14,01% - 15%','0,200%','1,200%','0,056%','0,0160%'],
+  ['Q','Mayor a 15%','0,000%','1,000%','0,000%','0,0000%'],
+];
+$('#tbl3767').innerHTML=L3767.map(r=>fila(
+  td(r[0],'letra')+td(r[1])+td(r[2],'num vendedor')+td(r[3],'num free')+td(r[4],'num lider')+td(r[5],'num gerente')
+)).join('');
+
+/* Lista 101: [letra, rango, vendedor(fijo), lider, gerente] */
+const L101=[
+  ['B','0% - 1%','10,000%','1,880%','0,530%'],
+  ['C','1,01% - 2%','10,000%','1,880%','0,530%'],
+  ['D','2,01% - 3%','10,000%','1,880%','0,530%'],
+  ['E','3,01% - 4%','10,000%','1,880%','0,530%'],
+  ['F','4,01% - 5%','10,000%','1,880%','0,530%'],
+  ['G','5,01 - 6%','10,000%','1,250%','0,3500%'],
+  ['H','6,01% - 7%','10,000%','1,250%','0,3500%'],
+  ['I','7,01% - 8%','10,000%','1,250%','0,3500%'],
+  ['J','8,01% - 9%','10,000%','1,250%','0,3500%'],
+  ['K','9,01% - 10%','10,000%','1,250%','0,3500%'],
+  ['A evaluar','Mayor a 10%','10,000%','0,675%','0,1880%'],
+  ['M','11,1% - 12%','10,000%','0,450%','0,1250%'],
+  ['N','12,01 - 13%','10,000%','0,225%','0,0625%'],
+  ['O','13,01 - 14%','10,000%','0,113%','0,0310%'],
+  ['P','14,01% - 15%','10,000%','0,056%','0,0160%'],
+  ['Q','Mayor a 15%','10,000%','0,000%','0,0000%'],
+];
+$('#tbl101').innerHTML=L101.map(r=>fila(
+  td(r[0],'letra')+td(r[1])+td(r[2],'num vendedor')+td(r[3],'num lider')+td(r[4],'num gerente')
+)).join('');
+
+/* Lista 1018: [letra, rango, comision, lider, gerente] */
+const L1018=[
+  ['A','0%','10,00%','0,500%','0,400%'],
+  ['B','0,01% - 1%','10,00%','0,500%','0,400%'],
+  ['C','1,01% - 2%','10,00%','0,500%','0,400%'],
+  ['D','2,01% - 3%','10,00%','0,500%','0,400%'],
+  ['E','3,01% - 4%','10,00%','0,500%','0,400%'],
+  ['F','4,01% - 5%','10,00%','0,500%','0,400%'],
+  ['A evaluar','Mayor a 5%','10,00%','0,500%','0,400%'],
+];
+$('#tbl1018').innerHTML=L1018.map(r=>fila(
+  td(r[0],'letra')+td(r[1])+td(r[2],'num vendedor')+td(r[3],'num lider')+td(r[4],'num gerente')
+)).join('');
+
+/* ---------- Tema claro/oscuro, sincronizado con el Centro de Control (localStorage compartido) ---------- */
+function aplicarTema(t){ document.documentElement.setAttribute('data-theme', t); }
+aplicarTema(localStorage.getItem('panelTheme')==='dark' ? 'dark' : 'light');
+window.addEventListener('storage', e=>{ if(e.key==='panelTheme'){ aplicarTema(e.newValue==='dark' ? 'dark' : 'light'); } });
+</script>
+</body>
+</html>
