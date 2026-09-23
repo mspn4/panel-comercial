@@ -1141,7 +1141,7 @@ function barraHtml(p,anio,conflictos,colorOverride){
   const conf=conflictos[p.id];
   const cls="tl-bar"+(conf?" conflict":"")+(p.estado==="revisar"?" revisar":"");
   const entitlement = p.diasEntitlement!=null ? ` · ${p.diasEntitlement} días/año${p.diasPendientes!=null?` (${p.diasPendientes} pendientes)`:""}` : "";
-  const titulo=`${ddmmyyyy(p.inicioEfectivo)} → ${ddmmyyyy(p.fin)}`+(p.corrido?" (corrido por feriado)":"")+entitlement+(p.notas?" · "+p.notas:"")+(conf?" · ⚠ "+conf.map(c=>c.detalle).join(" / "):"");
+  const titulo=`${ddmmyyyy(p.inicioEfectivo)} → ${ddmmyyyy(p.fin)}`+(p.corrido?" (corrido por feriado)":"")+(p.finAjustado?" (fin ajustado a mano)":"")+entitlement+(p.notas?" · "+p.notas:"")+(conf?" · ⚠ "+conf.map(c=>c.detalle).join(" / "):"");
   return `<div class="${cls}" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${color}" data-id="${p.id}" title="${esc(titulo)}">${esc(titulo)}</div>`;
 }
 
@@ -1466,8 +1466,9 @@ function formularioPeriodoHtml(p){
         <input type="date" id="fInicio" value="${lunes}">
         <div class="hint" id="fInicioHint"></div>
       </div>
-      <div class="field"><label>Duración</label>
-        <input type="text" value="15 días corridos" disabled>
+      <div class="field"><label>Fecha de fin</label>
+        <input type="date" id="fFin" value="${p?p.fin:""}">
+        <div class="hint" id="fFinHint">Se calcula sola (15 días corridos) — cambiala acá si el período real termina otro día.</div>
       </div>
     </div>
     <div class="field"><label>Notas (opcional)</label><textarea id="fNotas">${esc(p?p.notas:"")}</textarea></div>
@@ -1487,10 +1488,10 @@ function actualizarHintFecha(){
   const calc=calcularPeriodo(iso);
   if(calc.corrido){
     hint.className="hint err";
-    hint.textContent=`${ddmmyyyy(iso)} es feriado (${nombreFeriado(iso)||"día no laborable"}) → arranca el ${ddmmyyyy(calc.inicioEfectivo)}, termina el ${ddmmyyyy(calc.fin)}.`;
+    hint.textContent=`${ddmmyyyy(iso)} es feriado (${nombreFeriado(iso)||"día no laborable"}) → arranca el ${ddmmyyyy(calc.inicioEfectivo)}.`;
   }else{
     hint.className="hint ok";
-    hint.textContent=`Termina el ${ddmmyyyy(calc.fin)}.`;
+    hint.textContent=`Arranca el ${ddmmyyyy(calc.inicioEfectivo)}.`;
   }
 }
 function abrirNuevoPeriodo(){
@@ -1504,7 +1505,17 @@ function abrirEdicionPeriodo(id){
   wireFormularioPeriodo();
 }
 function wireFormularioPeriodo(){
-  $("#fInicio").addEventListener("input",actualizarHintFecha);
+  const idExistente=$("#fId").value;
+  const pExistente=idExistente?state.periodos.find(x=>x.id===idExistente):null;
+  // Mientras el usuario no haya tocado "Fecha de fin" a mano, cambiar el inicio recalcula el fin
+  // sugerido (15 días corridos) — apenas la toca, dejamos de pisarla para no perder el ajuste manual.
+  let finTocado=!!(pExistente&&pExistente.finAjustado);
+  $("#fFin").addEventListener("input",()=>{ finTocado=true; });
+  $("#fInicio").addEventListener("input",()=>{
+    actualizarHintFecha();
+    const iso=$("#fInicio").value;
+    if(!finTocado&&iso&&esLunes(iso)) $("#fFin").value=calcularPeriodo(iso).fin;
+  });
   actualizarHintFecha();
   const del=$("#fEliminar");
   if(del) del.addEventListener("click",()=>{
@@ -1519,21 +1530,26 @@ function wireFormularioPeriodo(){
     const id=$("#fId").value;
     const personaId=$("#fPersona").value;
     const iso=$("#fInicio").value;
+    const finInput=$("#fFin").value;
     const notas=$("#fNotas").value.trim();
     if(!personaId){ toast("Elegí una persona",true); return; }
     if(!iso || !esLunes(iso)){ toast("La fecha de inicio tiene que ser un lunes",true); return; }
     const calc=calcularPeriodo(iso);
+    const fin=finInput||calc.fin;
+    if(fin<calc.inicioEfectivo){ toast("La fecha de fin no puede ser anterior al inicio",true); return; }
+    const finAjustado=fin!==calc.fin;
     if(id){
       const p=state.periodos.find(x=>x.id===id);
       const cambios=[];
       if(p.personaId!==personaId) cambios.push("persona");
-      if(p.inicioSolicitado!==iso) cambios.push("fecha");
-      p.personaId=personaId; p.inicioSolicitado=iso; p.inicioEfectivo=calc.inicioEfectivo; p.fin=calc.fin; p.corrido=calc.corrido;
+      if(p.inicioSolicitado!==iso) cambios.push("fecha de inicio");
+      if(p.fin!==fin) cambios.push("fecha de fin");
+      p.personaId=personaId; p.inicioSolicitado=iso; p.inicioEfectivo=calc.inicioEfectivo; p.fin=fin; p.corrido=calc.corrido; p.finAjustado=finAjustado;
       p.estado="ok"; p.notas=notas; p.actualizadoEn=new Date().toISOString(); p.actualizadoPor=usuarioActual();
       registrar("editar_periodo",`${personaNombre(personaId)}: ${ddmmyyyy(p.inicioEfectivo)} → ${ddmmyyyy(p.fin)}${cambios.length?" ("+cambios.join(", ")+" modificado/s)":""}`);
       toast("Período actualizado");
     }else{
-      const nuevo={id:uid(),personaId,inicioSolicitado:iso,inicioEfectivo:calc.inicioEfectivo,fin:calc.fin,corrido:calc.corrido,
+      const nuevo={id:uid(),personaId,inicioSolicitado:iso,inicioEfectivo:calc.inicioEfectivo,fin,corrido:calc.corrido,finAjustado,
         origen:"manual",estado:"ok",notas,creadoEn:new Date().toISOString(),creadoPor:usuarioActual(),actualizadoEn:null,actualizadoPor:null};
       state.periodos.push(nuevo);
       registrar("nuevo_periodo",`${personaNombre(personaId)}: ${ddmmyyyy(nuevo.inicioEfectivo)} → ${ddmmyyyy(nuevo.fin)}`);
