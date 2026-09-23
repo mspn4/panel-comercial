@@ -40,6 +40,11 @@ const SUCURSAL_ALIAS = {
   "cordoba":"Córdoba","la rioja":"La Rioja",
   "crm":"CRM",
 };
+// Un color por sucursal (no por fuerza) — lo usa la vista "Gerente + Líder" > "Todo agrupado" para que
+// el Gerente y el Líder Comercial de la MISMA sucursal se vean del mismo color entre sí, aunque sus
+// filas queden separadas en la lista (a diferencia de FUERZA_COLOR, que distingue rol, no sucursal).
+const SUCURSAL_COLOR_PALETA=["#0075DE","#DD5B00","#1AAE39","#8E44AD","#D7484B","#B7950B","#16A085","#6C3483","#5C6B7E","#C0392B","#3396F0","#E67E22"];
+function colorDeSucursal(suc){ const i=SUCURSALES.indexOf(suc); return SUCURSAL_COLOR_PALETA[(i<0?0:i)%SUCURSAL_COLOR_PALETA.length]; }
 
 // Fuerza/puesto — categorías de fuerza de venta (nomina-produccion.html, CAT_ORDER) + roles de staff que
 // también piden vacaciones (visto en los planos combinados nómina+vacaciones de RRHH, ej. Catamarca/Concepción).
@@ -394,6 +399,10 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
     <button class="tab" data-vista="fuerza">Por fuerza de venta</button>
     <button class="tab" data-vista="cobertura" title="Gerente y Líder Comercial de cada sucursal juntos, para ver si se cubren entre sus vacaciones">🤝 Gerente + Líder</button>
   </div>
+  <div class="tabs" id="coberturaSubtabs" style="display:none">
+    <button class="tab active" data-modo="porSucursal" title="Un bloque por sucursal, con su Gerente y su Líder Comercial adentro">Por sucursal</button>
+    <button class="tab" data-modo="agrupado" title="Un solo bloque con todos los Gerentes y Líderes de todas las sucursales — mismo color para el Gerente y el Líder de la misma sucursal">Todo agrupado</button>
+  </div>
   <select id="filtroSucursal" class="sel" title="Filtrar por sucursal (vista por fuerza de venta)" style="display:none">
     <option value="">Todas las sucursales</option>
   </select>
@@ -474,7 +483,7 @@ const state = {
   feriados:FERIADOS_SEED.slice(),
   reglas:{ defaultMax:1, maxPorFuerza:{}, excluyentes:[] }, // maxPorFuerza key: "Sucursal|Fuerza" -> N
   log:[],          // {ts,usuario,accion,detalle}
-  vista:"sucursal", filtroSucursal:"", anio:new Date().getFullYear(), query:"",
+  vista:"sucursal", coberturaModo:"porSucursal", filtroSucursal:"", anio:new Date().getFullYear(), query:"",
   abiertos:{},     // key de acordeón -> bool
   _gruposActuales:{}, // key de acordeón -> {personas,nombreGrupo} del último render (ver abrirDetalleMes)
 };
@@ -1054,7 +1063,7 @@ function periodoVisibleEnAnio(p,anio){
   const ini=anio+"-01-01", fin=anio+"-12-31";
   return solapan(p.inicioEfectivo,p.fin,ini,fin);
 }
-function barraHtml(p,anio,conflictos){
+function barraHtml(p,anio,conflictos,colorOverride){
   const total=diasDelAnio(anio);
   const anioIni=anio+"-01-01", anioFin=anio+"-12-31";
   const ini=p.inicioEfectivo<anioIni?anioIni:p.inicioEfectivo;
@@ -1062,7 +1071,7 @@ function barraHtml(p,anio,conflictos){
   const left=offsetPct(ini,anio), right=offsetPct(addDias(fin,1),anio);
   const width=Math.max(right-left,0.4);
   const per=personaById(p.personaId);
-  const color=FUERZA_COLOR[per?per.fuerza:""]||FUERZA_COLOR._DEFAULT;
+  const color=colorOverride||FUERZA_COLOR[per?per.fuerza:""]||FUERZA_COLOR._DEFAULT;
   const conf=conflictos[p.id];
   const cls="tl-bar"+(conf?" conflict":"")+(p.estado==="revisar"?" revisar":"");
   const entitlement = p.diasEntitlement!=null ? ` · ${p.diasEntitlement} días/año${p.diasPendientes!=null?` (${p.diasPendientes} pendientes)`:""}` : "";
@@ -1071,7 +1080,7 @@ function barraHtml(p,anio,conflictos){
 }
 
 function accKey(prefix,name){ return prefix+"|"+name; }
-function renderTimelineGrupo(prefix, nombreGrupo, personas, anio, conflictos){
+function renderTimelineGrupo(prefix, nombreGrupo, personas, anio, conflictos, colorFn){
   const key=accKey(prefix,nombreGrupo);
   // Guardado para que el click en un mes (ver abrirDetalleMes) sepa de qué grupo de personas se trata
   // sin tener que volver a recorrer roster/vista — se resetea entero al arrancar cada renderVista().
@@ -1084,7 +1093,8 @@ function renderTimelineGrupo(prefix, nombreGrupo, personas, anio, conflictos){
 
   const filas = personas.map(per=>{
     const propios=state.periodos.filter(p=>p.personaId===per.id && periodoVisibleEnAnio(p,anio));
-    const barras=propios.map(p=>barraHtml(p,anio,conflictos)).join("");
+    const colorPer=colorFn?colorFn(per):null;
+    const barras=propios.map(p=>barraHtml(p,anio,conflictos,colorPer)).join("");
     return `<div class="tl-row" data-persona="${esc(per.id)}">
       <div class="tl-label"><div class="nm">${esc(per.nombre)}</div><div class="rl">${esc(prefix==="suc"?per.fuerza:per.sucursal)||"—"}</div></div>
       <div class="tl-track">${barras}</div>
@@ -1120,6 +1130,7 @@ function renderVista(){
   if(state.vista==="sucursal"){
     $("#filtroSucursal").style.display="none";
     $("#irASucursal").style.display="";
+    $("#coberturaSubtabs").style.display="none";
     const html=SUCURSALES.map(suc=>{
       const personas=rosterActivo.filter(p=>p.sucursal===suc).sort((a,b)=>a.nombre.localeCompare(b.nombre));
       if(!personas.length && q) return "";
@@ -1130,19 +1141,30 @@ function renderVista(){
   }else if(state.vista==="cobertura"){
     // Gerente de Área + Líder Comercial de cada sucursal, uno al lado del otro — se cubren entre
     // sus vacaciones, así que acá importa verlos juntos y no mezclados con el resto del personal.
+    // Dos sub-vistas (coberturaModo, botones #coberturaSubtabs): "porSucursal" (un bloque por sucursal,
+    // como antes) o "agrupado" (un solo bloque con todos, mismo color para el par Gerente+Líder de una
+    // misma sucursal — mismo patrón visual que "Por fuerza de venta" pero sin separar por rol).
     $("#filtroSucursal").style.display="none";
-    $("#irASucursal").style.display="";
+    $("#irASucursal").style.display=state.coberturaModo==="porSucursal"?"":"none";
+    $("#coberturaSubtabs").style.display="";
     const ordenRol={"Gerente de Área":0,"Líder Comercial":1};
-    const html=SUCURSALES.map(suc=>{
-      const personas=rosterActivo.filter(p=>p.sucursal===suc && p.fuerza in ordenRol)
-        .sort((a,b)=>ordenRol[a.fuerza]-ordenRol[b.fuerza]||a.nombre.localeCompare(b.nombre));
-      if(!personas.length && q) return "";
-      return renderTimelineGrupo("cob",suc,personas,state.anio,conflictos);
-    }).join("");
-    view.innerHTML=html;
+    if(state.coberturaModo==="agrupado"){
+      const personas=rosterActivo.filter(p=>p.fuerza in ordenRol)
+        .sort((a,b)=>a.sucursal.localeCompare(b.sucursal)||ordenRol[a.fuerza]-ordenRol[b.fuerza]||a.nombre.localeCompare(b.nombre));
+      view.innerHTML=renderTimelineGrupo("cobAll","Gerentes y Líderes — todas las sucursales",personas,state.anio,conflictos,per=>colorDeSucursal(per.sucursal));
+    }else{
+      const html=SUCURSALES.map(suc=>{
+        const personas=rosterActivo.filter(p=>p.sucursal===suc && p.fuerza in ordenRol)
+          .sort((a,b)=>ordenRol[a.fuerza]-ordenRol[b.fuerza]||a.nombre.localeCompare(b.nombre));
+        if(!personas.length && q) return "";
+        return renderTimelineGrupo("cob",suc,personas,state.anio,conflictos);
+      }).join("");
+      view.innerHTML=html;
+    }
   }else{
     $("#filtroSucursal").style.display="";
     $("#irASucursal").style.display="none";
+    $("#coberturaSubtabs").style.display="none";
     const filtro=state.filtroSucursal;
     const html=FUERZAS.map(f=>{
       let personas=rosterActivo.filter(p=>p.fuerza===f);
@@ -1159,6 +1181,7 @@ function renderVista(){
     acc.classList.toggle("open");
   }));
   $$(".tl-bar").forEach(b=>b.addEventListener("click",()=>abrirEdicionPeriodo(b.dataset.id)));
+  renderLegend();
   $$(".tl-months span").forEach(sp=>sp.addEventListener("click",e=>{
     e.stopPropagation(); // no abrir/cerrar el acordeón al clickear el mes
     abrirDetalleMes(sp.dataset.acckey,+sp.dataset.mes);
@@ -1257,7 +1280,17 @@ function renderResumen(){
     <div class="sum-card ${Object.keys(conflictos).length?"err":""}"><div class="sv">${Object.keys(conflictos).length}</div><div class="sl">Períodos en conflicto</div></div>
     <div class="sum-card ${revisar.length?"warn":""}"><div class="sv">${revisar.length}</div><div class="sl">A revisar (no arranca lunes)</div></div>
     <div class="sum-card ${sinAsignar.length?"warn":""}"><div class="sv">${sinAsignar.length}</div><div class="sl">Sin sucursal/fuerza</div></div>`;
-  $("#legend").innerHTML = FUERZAS.map(f=>`<span><i style="background:${FUERZA_COLOR[f]}"></i>${esc(f)}</span>`).join("")
+  renderLegend();
+}
+// Separada de renderResumen porque depende de vista/coberturaModo (cambia solo, ver renderVista) —
+// si viviera adentro de renderResumen quedaría desactualizada al cambiar de sub-vista sin pasar por ahí.
+function renderLegend(){
+  // En "Gerente + Líder > Todo agrupado" las barras se colorean por sucursal (ver colorDeSucursal),
+  // no por fuerza — la leyenda tiene que reflejar eso o los colores no dirían nada.
+  const leyendaBase = (state.vista==="cobertura"&&state.coberturaModo==="agrupado")
+    ? SUCURSALES.map(s=>`<span><i style="background:${colorDeSucursal(s)}"></i>${esc(s)}</span>`).join("")
+    : FUERZAS.map(f=>`<span><i style="background:${FUERZA_COLOR[f]}"></i>${esc(f)}</span>`).join("");
+  $("#legend").innerHTML = leyendaBase
     + `<span><i style="background:var(--warn);background-image:repeating-linear-gradient(45deg,var(--warn),var(--warn) 3px,#B8850C 3px,#B8850C 6px)"></i>A revisar</span>
        <span><i style="border:2px solid var(--err);background:transparent"></i>Conflicto</span>`;
 }
@@ -1286,10 +1319,19 @@ function renderPendientes(){
 function renderAll(){ renderResumen(); renderPendientes(); renderVista(); guardarEstado(); }
 
 /* ═══════════════════════════ Controles superiores ═══════════════════════════ */
-$$(".tab").forEach(t=>t.addEventListener("click",()=>{
-  $$(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
-  state.vista=t.dataset.vista; renderVista();
-}));
+// ".tab" ahora también lo usan los sub-botones de #coberturaSubtabs (Por sucursal/Todo agrupado)
+// dentro de "Gerente + Líder" — cada grupo de tabs se activa/desactiva solo entre sus hermanos
+// (data-vista para las pestañas principales, data-modo para las de cobertura), para no pisarse.
+$$(".tabs > .tab").forEach(t=>{
+  if(t.dataset.vista) t.addEventListener("click",()=>{
+    $$(".tabs > .tab").forEach(x=>{ if(x.dataset.vista) x.classList.remove("active"); }); t.classList.add("active");
+    state.vista=t.dataset.vista; renderVista();
+  });
+  if(t.dataset.modo) t.addEventListener("click",()=>{
+    $$("#coberturaSubtabs .tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
+    state.coberturaModo=t.dataset.modo; renderVista();
+  });
+});
 $("#search").addEventListener("input",e=>{ state.query=e.target.value; renderVista(); });
 $("#filtroSucursal").addEventListener("change",e=>{ state.filtroSucursal=e.target.value; renderVista(); });
 $("#irASucursal").innerHTML += SUCURSALES.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("")+`<option value="Sin sucursal asignada">Sin sucursal asignada</option>`;
