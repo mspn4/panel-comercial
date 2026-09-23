@@ -33,6 +33,11 @@ const SUCURSALES = [
 const SUCURSAL_ALIAS = {
   "jujuy":"Jujuy", "salta":"Salta", "catamarca":"Catamarca",
   "norte centro":"Norte Centro (Metán)","norte centro metan":"Norte Centro (Metán)","metan":"Norte Centro (Metán)","n centro":"Norte Centro (Metán)",
+  // "norte centr" (sin la "o" final) es el valor real y textual que trae la columna "area" del plano
+  // de RRHH (empleados_produccion_22sept.xlsx) — no es un typo de acá, así viene la data de origen
+  // (mismo valor que ya reconocía nomina-produccion.html en su AREA_PRETTY, pero acá faltaba el alias).
+  // Sin esto, esa gente quedaba fuera de SUCURSALES y aparecía como "sin sucursal asignada".
+  "norte centr":"Norte Centro (Metán)",
   "tuc capital":"Tucumán Capital","tucuman capital":"Tucumán Capital","tucuman":"Tucumán Capital","tuc cap":"Tucumán Capital",
   "tuc interior":"Tucumán Interior (Concepción)","tucuman interior":"Tucumán Interior (Concepción)","concepcion":"Tucumán Interior (Concepción)","tuc int":"Tucumán Interior (Concepción)",
   "santiago":"Santiago del Estero","santiago del estero":"Santiago del Estero",
@@ -51,6 +56,12 @@ function colorDeSucursal(suc){ const i=SUCURSALES.indexOf(suc); return SUCURSAL_
 const FUERZAS = ["Gerente de Área","Líder Comercial","Vendedor Senior","Vendedor Junior","Vendedor Cobrador",
   "Vendedor de Showroom","Vendedor Redes","Vendedor Redes Jr","Líder Redes","Líder CRM","Vendedor CRM",
   "Administrativo de Área","Encargado de Depósito","Líder Operativo","Maestranza","Oficial de Crédito","Supervisor","Maestro Especial"];
+// "Producción" = las categorías que existen en la nómina real (nomina-produccion.html CAT_ORDER, mismo
+// set que trae el excel/backup de nómina). El resto de FUERZAS (arriba) son roles de staff que solo
+// aparecen al importar un plano de vacaciones de RRHH (nunca vienen de la nómina) — se pueden ocultar
+// con el toggle "Ocultar staff" del panel para ver solo fuerza de venta.
+const FUERZAS_PRODUCCION = new Set(["Gerente de Área","Líder Comercial","Vendedor Senior","Vendedor Junior","Vendedor Cobrador",
+  "Vendedor de Showroom","Vendedor Redes","Vendedor Redes Jr","Líder Redes","Líder CRM","Vendedor CRM"]);
 const FUERZA_ALIAS = {
   "gerente":"Gerente de Área","gerente de area":"Gerente de Área",
   "lider comercial":"Líder Comercial",
@@ -410,6 +421,9 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
     <option value="">Ir a sucursal…</option>
   </select>
   <select id="anioSel" class="sel" title="Año del calendario"></select>
+  <label id="chkOcultarStaffWrap" style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap" title="Puestos de staff = los que NO vienen de la nómina real (Administrativo, Depósito, Maestranza, etc.) — solo aparecen al importar un plano de vacaciones de RRHH">
+    <input type="checkbox" id="chkOcultarStaff"> Ocultar staff (no producción)
+  </label>
   <div class="search">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
     <input type="text" id="search" placeholder="Buscar persona…" autocomplete="off">
@@ -483,7 +497,7 @@ const state = {
   feriados:FERIADOS_SEED.slice(),
   reglas:{ defaultMax:1, maxPorFuerza:{}, excluyentes:[] }, // maxPorFuerza key: "Sucursal|Fuerza" -> N
   log:[],          // {ts,usuario,accion,detalle}
-  vista:"sucursal", coberturaModo:"porSucursal", filtroSucursal:"", anio:new Date().getFullYear(), query:"",
+  vista:"sucursal", coberturaModo:"porSucursal", filtroSucursal:"", anio:new Date().getFullYear(), query:"", ocultarStaff:false,
   abiertos:{},     // key de acordeón -> bool
   _gruposActuales:{}, // key de acordeón -> {personas,nombreGrupo} del último render (ver abrirDetalleMes)
 };
@@ -1124,9 +1138,11 @@ function renderVista(){
   state._gruposActuales={};
   const conflictos=calcularConflictos();
   const q=norm(state.query);
-  const rosterActivo=state.roster.filter(p=>p.activo!==false && (!q||norm(p.nombre).includes(q)));
+  const rosterActivo=state.roster.filter(p=>p.activo!==false && (!q||norm(p.nombre).includes(q))
+    && (!state.ocultarStaff || FUERZAS_PRODUCCION.has(p.fuerza)));
   const view=$("#view");
 
+  $("#chkOcultarStaffWrap").style.display=state.vista==="cobertura"?"none":"flex";
   if(state.vista==="sucursal"){
     $("#filtroSucursal").style.display="none";
     $("#irASucursal").style.display="";
@@ -1166,7 +1182,8 @@ function renderVista(){
     $("#irASucursal").style.display="none";
     $("#coberturaSubtabs").style.display="none";
     const filtro=state.filtroSucursal;
-    const html=FUERZAS.map(f=>{
+    const listaFuerzas=state.ocultarStaff?FUERZAS.filter(f=>FUERZAS_PRODUCCION.has(f)):FUERZAS;
+    const html=listaFuerzas.map(f=>{
       let personas=rosterActivo.filter(p=>p.fuerza===f);
       if(filtro) personas=personas.filter(p=>p.sucursal===filtro);
       personas.sort((a,b)=>a.sucursal.localeCompare(b.sucursal)||a.nombre.localeCompare(b.nombre));
@@ -1287,9 +1304,10 @@ function renderResumen(){
 function renderLegend(){
   // En "Gerente + Líder > Todo agrupado" las barras se colorean por sucursal (ver colorDeSucursal),
   // no por fuerza — la leyenda tiene que reflejar eso o los colores no dirían nada.
+  const fuerzasLegend=state.ocultarStaff?FUERZAS.filter(f=>FUERZAS_PRODUCCION.has(f)):FUERZAS;
   const leyendaBase = (state.vista==="cobertura"&&state.coberturaModo==="agrupado")
     ? SUCURSALES.map(s=>`<span><i style="background:${colorDeSucursal(s)}"></i>${esc(s)}</span>`).join("")
-    : FUERZAS.map(f=>`<span><i style="background:${FUERZA_COLOR[f]}"></i>${esc(f)}</span>`).join("");
+    : fuerzasLegend.map(f=>`<span><i style="background:${FUERZA_COLOR[f]}"></i>${esc(f)}</span>`).join("");
   $("#legend").innerHTML = leyendaBase
     + `<span><i style="background:var(--warn);background-image:repeating-linear-gradient(45deg,var(--warn),var(--warn) 3px,#B8850C 3px,#B8850C 6px)"></i>A revisar</span>
        <span><i style="border:2px solid var(--err);background:transparent"></i>Conflicto</span>`;
@@ -1334,6 +1352,7 @@ $$(".tabs > .tab").forEach(t=>{
 });
 $("#search").addEventListener("input",e=>{ state.query=e.target.value; renderVista(); });
 $("#filtroSucursal").addEventListener("change",e=>{ state.filtroSucursal=e.target.value; renderVista(); });
+$("#chkOcultarStaff").addEventListener("change",e=>{ state.ocultarStaff=e.target.checked; renderVista(); });
 $("#irASucursal").innerHTML += SUCURSALES.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("")+`<option value="Sin sucursal asignada">Sin sucursal asignada</option>`;
 // "Por sucursal"/"Gerente + Líder" muestran un acordeón por cada una de las 11 sucursales — para ver
 // una puntual había que ir colapsando el resto a mano, una por una. Este selector cierra todas las
