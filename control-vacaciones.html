@@ -62,6 +62,29 @@ const FUERZAS = ["Gerente de Área","Líder Comercial","Vendedor Senior","Vended
 // con el toggle "Ocultar staff" del panel para ver solo fuerza de venta.
 const FUERZAS_PRODUCCION = new Set(["Gerente de Área","Líder Comercial","Vendedor Senior","Vendedor Junior","Vendedor Cobrador",
   "Vendedor de Showroom","Vendedor Redes","Vendedor Redes Jr","Líder Redes","Líder CRM","Vendedor CRM"]);
+
+// ═══ Reglas fijas de la empresa (comunicadas por Sebastian, no editables desde el panel) ═══
+// Se muestran de solo lectura en el modal "Reglas" y las aplica calcularConflictos() sin que haga
+// falta configurar nada — a diferencia de "Máximo por defecto"/excepciones, que sí son ajustables ahí.
+// 1) Gerente de Área, Líder Comercial y Líder Operativo de una misma sucursal: uno por período (nunca
+//    coinciden entre sí, aunque sean de fuerzas distintas — el máximo "por fuerza" de más arriba no
+//    alcanza a cubrir esto porque compara puestos iguales, no un grupo de puestos distintos).
+const GRUPO_GERENCIAL_EXCLUSIVO = ["Gerente de Área","Líder Comercial","Líder Operativo"];
+// 2) Staff de área (Administrativo/Depósito/Crédito/Supervisor/Maestranza) de una misma sucursal: uno
+//    por período — EXCEPTO Tucumán Capital y Salta, que tienen más de dos personas en cada puesto y
+//    ahí alcanza con que cada puesto rote por separado (ya cubierto por el máximo normal de 1 por
+//    fuerza). Los puestos de Administrativo de Área y Oficial de Crédito fueron definidos junto a las
+//    jefaturas departamentales para poder cubrirse entre sucursales — no se deben reasignar a mano.
+const GRUPO_STAFF_AREA = ["Administrativo de Área","Encargado de Depósito","Oficial de Crédito","Supervisor","Maestranza"];
+const SUCURSALES_STAFF_SIN_AGRUPAR = new Set(["Tucumán Capital","Salta"]);
+// 3) Vendedor de Showroom: uno por período EN TODA LA EMPRESA (no por sucursal — a diferencia de todo
+//    lo demás, este puesto se coordina de forma centralizada entre las 11 sucursales).
+// 4) Vendedor Senior + Vendedor Junior + Vendedor Cobrador (terreno) de una misma sucursal: se cubren
+//    entre ellos, uno por período.
+const GRUPO_TERRENO_COBRADOR = ["Vendedor Senior","Vendedor Junior","Vendedor Cobrador"];
+// 5) Vendedor Redes: sin regla fija — a criterio del gerente y del departamento comercial.
+// * Quien tenga ≤14 días de vacaciones al año (dato "diasEntitlement", viene de un plano de RRHH
+//   importado) no puede fraccionar ese período en varias veces — tiene que salir de una sola vez.
 const FUERZA_ALIAS = {
   "gerente":"Gerente de Área","gerente de area":"Gerente de Área",
   "lider comercial":"Líder Comercial",
@@ -1004,8 +1027,23 @@ function calcularConflictos(){
     const arr=conflicto[id]=conflicto[id]||[];
     if(!arr.some(c=>c.tipo===tipo&&c.detalle===detalle)) arr.push({tipo,detalle});
   };
+  // Sweep-line genérico: marca en conflicto a todos los períodos que en algún momento superan `max`
+  // simultáneos dentro de la lista `periodos` dada — lo reusan tanto el máximo configurable por
+  // sucursal+fuerza como las reglas fijas de grupos combinados (gerencial/staff/showroom/terreno).
+  function sweepMax(periodos,max,tipo,detalle){
+    if(!periodos.length||!max||max<1) return;
+    const eventos=[];
+    periodos.forEach(p=>{ eventos.push([p.inicioEfectivo,1,p]); eventos.push([addDias(p.fin,1),-1,p]); });
+    eventos.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
+    let activos=new Set();
+    eventos.forEach(([,delta,p])=>{
+      if(delta===1) activos.add(p);
+      if(activos.size>max) activos.forEach(pp=>marcar(pp.id,tipo,detalle));
+      if(delta===-1) activos.delete(p);
+    });
+  }
 
-  // 1) máximo simultáneo por sucursal+fuerza
+  // 1) máximo simultáneo por sucursal+fuerza (configurable en el modal "Reglas")
   const grupos={};
   state.periodos.forEach(p=>{
     const per=personaById(p.personaId); if(!per) return;
@@ -1015,18 +1053,31 @@ function calcularConflictos(){
   Object.entries(grupos).forEach(([key,arr])=>{
     const [sucursal,fuerza]=key.split("|");
     const max=maxPermitido(sucursal,fuerza);
-    if(!max || max<1) return;
-    const eventos=[];
-    arr.forEach(p=>{ eventos.push([p.inicioEfectivo,1,p]); eventos.push([addDias(p.fin,1),-1,p]); });
-    eventos.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
-    let activos=new Set();
-    eventos.forEach(([,delta,p])=>{
-      if(delta===1) activos.add(p);
-      if(activos.size>max){
-        activos.forEach(pp=>marcar(pp.id,"max_fuerza",`Más de ${max} de "${fuerza}" en ${sucursal} coinciden en fechas`));
-      }
-      if(delta===-1) activos.delete(p);
-    });
+    sweepMax(arr,max,"max_fuerza",`Más de ${max} de "${fuerza}" en ${sucursal} coinciden en fechas`);
+  });
+
+  // 1b) reglas fijas de la empresa (ver constantes GRUPO_* más arriba, no configurables desde el panel)
+  SUCURSALES.forEach(suc=>{
+    const deLaSucursal=fza=>state.periodos.filter(p=>{ const pe=personaById(p.personaId); return pe&&pe.sucursal===suc&&fza.includes(pe.fuerza); });
+    sweepMax(deLaSucursal(GRUPO_GERENCIAL_EXCLUSIVO),1,"grupo_gerencial",
+      `${suc}: Gerente de Área, Líder Comercial y Líder Operativo tienen que salir de vacaciones de uno en uno`);
+    if(!SUCURSALES_STAFF_SIN_AGRUPAR.has(suc)){
+      sweepMax(deLaSucursal(GRUPO_STAFF_AREA),1,"grupo_staff",
+        `${suc}: el staff de área (administrativo/depósito/crédito/supervisor/maestranza) tiene que salir de uno en uno`);
+    }
+    sweepMax(deLaSucursal(GRUPO_TERRENO_COBRADOR),1,"grupo_terreno",
+      `${suc}: vendedores de terreno y cobradores se cubren entre ellos, uno por período`);
+  });
+  sweepMax(state.periodos.filter(p=>{ const pe=personaById(p.personaId); return pe&&pe.fuerza==="Vendedor de Showroom"; }),1,"showroom_global",
+    `Vendedor de Showroom: solo puede haber uno de vacaciones a la vez en toda la empresa`);
+
+  // 1c) no fraccionar el período si el entitlement anual es ≤14 días (dato importado de un plano de RRHH)
+  const periodosPorPersona={};
+  state.periodos.forEach(p=>{ (periodosPorPersona[p.personaId]=periodosPorPersona[p.personaId]||[]).push(p); });
+  Object.values(periodosPorPersona).forEach(arr=>{
+    if(arr.length<2) return;
+    if(!arr.some(p=>p.diasEntitlement!=null&&p.diasEntitlement<=14)) return;
+    arr.forEach(p=>marcar(p.id,"fraccionado",`Tiene ≤14 días de vacaciones al año — no puede fraccionar el período en varias veces`));
   });
 
   // 2) pares/grupos excluyentes explícitos
@@ -1628,6 +1679,17 @@ function abrirReglas(){
   abrirModal(`
     <div class="modal-head"><h2>Reglas de solapamiento</h2><button class="x" data-close>&times;</button></div>
     <div class="modal-body">
+      <div class="notice" style="margin-bottom:18px">📋 <div>
+        <b>Reglas fijas de la empresa</b> (se aplican solas, no se editan desde acá):
+        <ul style="margin:6px 0 0;padding-left:18px;line-height:1.6">
+          <li>Gerente de Área, Líder Comercial y Líder Operativo de una misma sucursal: uno por período.</li>
+          <li>Staff de área (Administrativo/Depósito/Crédito/Supervisor/Maestranza) de una misma sucursal: uno por período — excepto Tucumán Capital y Salta, donde cada puesto rota por separado.</li>
+          <li>Vendedor de Showroom: uno por período en toda la empresa (no por sucursal).</li>
+          <li>Vendedores de terreno (Senior/Junior) y Cobradores de una misma sucursal: se cubren entre ellos, uno por período.</li>
+          <li>Vendedor Redes: sin regla fija, a criterio del gerente y del departamento comercial.</li>
+          <li>Quien tenga ≤14 días de vacaciones al año no puede fraccionar el período en varias veces.</li>
+        </ul>
+      </div></div>
       <div class="field">
         <label>Máximo por defecto de personas de la misma fuerza de venta, de la misma sucursal, de vacaciones a la vez</label>
         <input type="number" id="rDefault" min="0" value="${state.reglas.defaultMax}" style="width:100px">
