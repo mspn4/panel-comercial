@@ -276,6 +276,7 @@ html[data-theme="dark"] .notice.err{color:#FF8A8D}
 .tl-bar-flag{flex:none;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
   border-radius:50%;background:rgba(0,0,0,.32);font-size:9.5px;margin-right:4px;cursor:pointer}
 .tl-bar-flag.err{background:var(--err);box-shadow:0 0 0 2px rgba(255,255,255,.55);animation:tlFlagPulse 1.6s ease-in-out infinite}
+.tl-bar-flag.warn{background:var(--warn);box-shadow:0 0 0 2px rgba(255,255,255,.55)}
 @keyframes tlFlagPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
 .tl-today{position:absolute;top:26px;bottom:0;width:2px;background:var(--orange);z-index:2}
 .tl-empty{padding:16px;color:var(--muted-2);font-size:13px;font-style:italic}
@@ -546,6 +547,28 @@ function diasLCT(ingresoISO,anioRef){
   if(anios<=10) return 21;
   if(anios<=20) return 28;
   return 35;
+}
+/* ───────── Detección de "fin mal contado" (pedido del usuario, 2026-09-24) ─────────
+   Ej. real: sale el 04/01, el plano dice que termina el 18/01 — debería terminar el 17/01 y
+   reincorporarse el 18/01. El 18/01 es el día de REINTEGRO (vuelve a trabajar), no un día de
+   vacaciones — contarlo como parte del período le suma un día de más a la cantidad de días
+   corridos reales. Se detecta comparando cuántos días le corresponden de verdad a esa persona
+   (diasEntitlement importado, o si no diasLCT según su antigüedad) contra el span guardado
+   (inicioEfectivo..fin) — si no se sabe cuántos días le corresponden, no se puede afirmar nada,
+   así que no se marca nada (evita falsos positivos). No se corrige solo — ver btnCorregirFin. */
+function diasCorrespondientesPeriodo(p){
+  if(p.diasEntitlement!=null) return p.diasEntitlement;
+  const per=personaById(p.personaId);
+  if(per&&per.ingreso) return diasLCT(per.ingreso,+p.inicioEfectivo.slice(0,4));
+  return null;
+}
+function finEsperado(p){
+  const dias=diasCorrespondientesPeriodo(p);
+  return dias!=null?addDias(p.inicioEfectivo,dias-1):null;
+}
+function finDesajustado(p){
+  const esperado=finEsperado(p);
+  return esperado!=null&&esperado!==p.fin;
 }
 const MESES=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
@@ -1217,25 +1240,33 @@ function barraHtml(p,anioIni,conflictos,colorOverride){
   const conf=conflictos[p.id];
   const cls="tl-bar"+(conf?" conflict":"")+(p.estado==="revisar"?" revisar":"");
   const entitlement = p.diasEntitlement!=null ? ` · ${p.diasEntitlement} días/año${p.diasPendientes!=null?` (${p.diasPendientes} pendientes)`:""}` : "";
+  const reintegro=` · Reintegro: ${ddmmyyyy(addDias(p.fin,1))}`;
   // El texto VISIBLE adentro de la barra es solo el rango de fechas — antes se metía ahí todo lo que
   // hoy es el tooltip (corrido/entitlement/notas/conflicto), y con una barra angosta (período corto)
   // quedaba cortado a la mitad de una palabra (ej. "...· 21", reportado por el usuario). El resto
-  // sigue disponible completo en el `title` (hover nativo) y ahora también en el ícono de abajo.
+  // sigue disponible completo en el `title` (hover nativo) y ahora también en los íconos de abajo.
   const textoVisible=`${ddmmyyyy(p.inicioEfectivo)} → ${ddmmyyyy(p.fin)}`;
-  const titulo=textoVisible+(p.corrido?" (corrido por feriado)":"")+(p.finAjustado?" (fin ajustado a mano)":"")+entitlement+(p.notas?" · "+p.notas:"")+(conf?" · ⚠ "+conf.map(c=>c.detalle).join(" / "):"");
-  // Ícono de atención: conflicto (⚠, prioridad) o notas/observación (📝) — antes esa info solo estaba
-  // en el hover nativo del `title`, fácil de no ver. Con hover O CLICK (toast) muestra el texto
-  // completo — data-flag lleva el texto porque el click necesita JS, no alcanza con el title nativo.
-  const textoConflicto=conf?conf.map(c=>c.detalle).join(" / "):"";
-  const hayIcono=!!(conf||p.notas);
-  const icono = conf?`<span class="tl-bar-flag err" data-flag="⚠ ${esc(textoConflicto)}" title="⚠ ${esc(textoConflicto)}">⚠</span>`
-    : (p.notas?`<span class="tl-bar-flag" data-flag="📝 ${esc(p.notas)}" title="${esc(p.notas)}">📝</span>`:"");
-  // El ancho real (proporcional a los días) puede ser más chico que lo que el texto (+ ícono, si hay)
-  // necesita para no cortarse — se estira al mínimo justo (nunca se achica) para que el período
+  const titulo=textoVisible+(p.corrido?" (corrido por feriado)":"")+(p.finAjustado?" (fin ajustado a mano)":"")+entitlement+reintegro+(p.notas?" · "+p.notas:"")+(conf?" · ⚠ "+conf.map(c=>c.detalle).join(" / "):"");
+  // Íconos de atención — pueden coexistir (ej. un período puede estar en conflicto Y tener el fin
+  // mal contado a la vez). Antes esta info solo estaba en el hover nativo del `title`, fácil de no
+  // ver. Con hover O CLICK (toast) se ve el texto completo — data-flag lleva el texto porque el
+  // click necesita JS, no alcanza con el title nativo.
+  const iconos=[];
+  if(conf) iconos.push(`<span class="tl-bar-flag err" data-flag="⚠ ${esc(conf.map(c=>c.detalle).join(" / "))}" title="Conflicto — click para ver">⚠</span>`);
+  const finEsp=finEsperado(p);
+  if(finEsp&&finEsp!==p.fin){
+    const dias=diasCorrespondientesPeriodo(p);
+    const detalleFin=`Debería terminar el ${ddmmyyyy(finEsp)} y reincorporarse el ${ddmmyyyy(addDias(finEsp,1))} (le corresponden ${dias} días corridos) — actualmente termina el ${ddmmyyyy(p.fin)}, reincorporo ${ddmmyyyy(addDias(p.fin,1))}.`;
+    iconos.push(`<span class="tl-bar-flag warn" data-flag="📅 ${esc(detalleFin)}" data-corregir="${p.id}" data-fin-correcto="${finEsp}" title="El fin no coincide con los días que le corresponden — click para corregir">📅</span>`);
+  }
+  if(p.notas) iconos.push(`<span class="tl-bar-flag" data-flag="📝 ${esc(p.notas)}" title="Observación — click para ver">📝</span>`);
+  const icono=iconos.join("");
+  // El ancho real (proporcional a los días) puede ser más chico que lo que el texto (+ íconos, si
+  // hay) necesita para no cortarse — se estira al mínimo justo (nunca se achica) para que el período
   // siempre se lea completo. Estimado por cantidad de caracteres (no se puede medir el DOM real desde
   // un string) — 6.8px/char cubre de sobra la fuente de 10.5px/700 que usa .tl-bar, + padding (14px,
-  // ver CSS) + el ícono (19px: 15 de ancho + 4 de margen) cuando corresponde.
-  const anchoTextoPx=textoVisible.length*6.8+14+(hayIcono?19:0);
+  // ver CSS) + cada ícono (19px: 15 de ancho + 4 de margen).
+  const anchoTextoPx=textoVisible.length*6.8+14+iconos.length*19;
   const width=Math.max(widthReal,anchoTextoPx/TL_ANCHO_PX*100);
   return `<div class="${cls}" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${color}" data-id="${p.id}" title="${esc(titulo)}">${icono}<span class="tl-bar-txt">${esc(textoVisible)}</span></div>`;
 }
@@ -1347,7 +1378,11 @@ function renderVista(){
   $$(".tl-bar").forEach(b=>b.addEventListener("click",()=>abrirEdicionPeriodo(b.dataset.id)));
   // Click en el ícono de atención (⚠/📝) muestra el texto completo en un toast, sin abrir el modal de
   // edición del período (stopPropagation — el ícono está adentro de la barra, que también es clickeable).
-  $$(".tl-bar-flag").forEach(f=>f.addEventListener("click",e=>{ e.stopPropagation(); toast(f.dataset.flag,f.classList.contains("err"),6500); }));
+  $$(".tl-bar-flag").forEach(f=>f.addEventListener("click",e=>{
+    e.stopPropagation();
+    if(f.dataset.corregir) corregirFinPeriodo(f.dataset.corregir,f.dataset.finCorrecto);
+    else toast(f.dataset.flag,f.classList.contains("err"),6500);
+  }));
   renderLegend();
   $$(".tl-months span").forEach(sp=>sp.addEventListener("click",e=>{
     e.stopPropagation(); // no abrir/cerrar el acordeón al clickear el mes
@@ -1388,11 +1423,13 @@ function abrirDetalleMes(key,mes,anio){
     $("#dmCalGrid").innerHTML=celdas.join("");
   }
   function filaListaHtml(f){
+    const desajustado=finDesajustado(f.p);
     return `<label class="dm-persona" style="border-left:4px solid ${f.color}">
       <input type="checkbox" data-pid="${esc(f.p.id)}" checked>
       <span class="dm-nm">${esc(f.per.nombre)}</span>
       <span class="dm-suc">${esc(key.startsWith("suc|")||key.startsWith("cob|")?(f.per.fuerza||""):(f.per.sucursal||""))}</span>
-      <span class="dm-rango">${ddmmyyyy(f.p.inicioEfectivo)} → ${ddmmyyyy(f.p.fin)}</span>
+      <span class="dm-rango" title="Reintegro: ${ddmmyyyy(addDias(f.p.fin,1))}">${ddmmyyyy(f.p.inicioEfectivo)} → ${ddmmyyyy(f.p.fin)} <span style="color:var(--muted-2)">(reintegro ${ddmmyyyy(addDias(f.p.fin,1))})</span></span>
+      ${desajustado?`<span class="tl-bar-flag warn" data-flag="📅 Debería terminar el ${ddmmyyyy(finEsperado(f.p))} y reincorporarse el ${ddmmyyyy(addDias(finEsperado(f.p),1))} (le corresponden ${diasCorrespondientesPeriodo(f.p)} días) — actualmente termina el ${ddmmyyyy(f.p.fin)}." data-corregir="${f.p.id}" data-fin-correcto="${finEsperado(f.p)}" title="El fin no coincide con los días que le corresponden — click para corregir" style="position:static;margin-left:6px">📅</span>`:""}
     </label>`;
   }
 
@@ -1416,6 +1453,10 @@ function abrirDetalleMes(key,mes,anio){
 
   if(!filas.length) return;
   pintarCalendario();
+  $("#dmLista").querySelectorAll(".tl-bar-flag[data-corregir]").forEach(f=>f.addEventListener("click",e=>{
+    e.stopPropagation(); e.preventDefault();
+    corregirFinPeriodo(f.dataset.corregir,f.dataset.finCorrecto);
+  }));
   $("#dmLista").querySelectorAll("input[type=checkbox]").forEach(cb=>cb.addEventListener("change",e=>{
     const pid=e.target.dataset.pid;
     if(e.target.checked) seleccionados.add(pid); else seleccionados.delete(pid);
@@ -1568,8 +1609,15 @@ function formularioPeriodoHtml(p){
         <div class="hint" id="fFinHint">Se calcula sola (15 días corridos) — cambiala acá si el período real termina otro día.</div>
       </div>
     </div>
+    <div class="field hint">Fecha de reintegro (vuelve a trabajar): <b id="fReintegro">—</b></div>
     <div class="field"><label>Notas (opcional)</label><textarea id="fNotas">${esc(p?p.notas:"")}</textarea></div>
     ${p&&p.diasEntitlement!=null?`<div class="field hint">Entitlement anual importado: <b>${p.diasEntitlement} días</b>${p.diasPendientes!=null?` · <b>${p.diasPendientes}</b> pendientes de tomar`:""}</div>`:""}
+    ${p&&finDesajustado(p)?`<div class="notice" id="finDesajustadoBox">📅 <div>
+        El fin actual (<b>${ddmmyyyy(p.fin)}</b>, reintegro ${ddmmyyyy(addDias(p.fin,1))}) no coincide con los
+        <b>${diasCorrespondientesPeriodo(p)} días</b> que le corresponden a esta persona — debería terminar el
+        <b>${ddmmyyyy(finEsperado(p))}</b> y reincorporarse el <b>${ddmmyyyy(addDias(finEsperado(p),1))}</b>.
+        <div style="margin-top:8px"><button type="button" class="btn" style="background:var(--warn-tint);color:var(--warn)" id="btnCorregirFinModal" data-fin-correcto="${finEsperado(p)}">📅 Corregir a ${ddmmyyyy(finEsperado(p))}</button></div>
+      </div></div>`:""}
     <input type="hidden" id="fId" value="${p?p.id:""}">
   </div>
   <div class="modal-actions">
@@ -1601,6 +1649,18 @@ function abrirEdicionPeriodo(id){
   abrirModal(formularioPeriodoHtml(p));
   wireFormularioPeriodo();
 }
+// Corrige a mano el fin de un período que quedó mal contado (ver finDesajustado más arriba) —
+// nunca se aplica solo, siempre pide confirmación explícita (pedido del usuario).
+function corregirFinPeriodo(id,finCorrecto){
+  const p=state.periodos.find(x=>x.id===id); if(!p) return;
+  const finAnterior=p.fin;
+  if(!confirm(`${personaNombre(p.personaId)}: el período figura ${ddmmyyyy(p.inicioEfectivo)} → ${ddmmyyyy(finAnterior)} (reintegro ${ddmmyyyy(addDias(finAnterior,1))}).\n\nSegún los días que le corresponden, debería terminar el ${ddmmyyyy(finCorrecto)} y reincorporarse el ${ddmmyyyy(addDias(finCorrecto,1))}.\n\n¿Corregir el fin a ${ddmmyyyy(finCorrecto)}?`)) return;
+  p.fin=finCorrecto; p.finAjustado=true; p.actualizadoEn=new Date().toISOString(); p.actualizadoPor=usuarioActual();
+  registrar("corregir_fin_periodo",`${personaNombre(p.personaId)}: fin ${ddmmyyyy(finAnterior)} → ${ddmmyyyy(finCorrecto)} (reintegro ${ddmmyyyy(addDias(finCorrecto,1))})`);
+  cerrarModal(); // por si se disparó desde el modal de detalle de mes — esa lista es HTML estático, no se refresca sola
+  renderAll();
+  toast(`Fin corregido: ${ddmmyyyy(finCorrecto)} · reintegro ${ddmmyyyy(addDias(finCorrecto,1))}`);
+}
 // Cuántos días corridos sugerir para el período de esta persona (LCT según antigüedad real si se
 // conoce su fecha de ingreso — roster.ingreso — si no, el default de 15 que ya tenía el panel).
 function diasSugeridosPara(personaId,iso){
@@ -1628,16 +1688,29 @@ function wireFormularioPeriodo(){
   // Solo pisa el VALOR de #fFin en respuesta a un cambio real de inicio/persona — al abrir el modal
   // para editar, #fFin ya muestra el p.fin real guardado y no hay que recalcularlo por las dudas
   // (podría no coincidir con una sugerencia fresca, ej. un período importado con rango explícito).
+  function actualizarReintegro(){
+    const fin=$("#fFin").value;
+    $("#fReintegro").textContent=fin?ddmmyyyy(addDias(fin,1)):"—";
+  }
   function sugerirFinSiCorresponde(){
     actualizarHintFin();
     const iso=$("#fInicio").value, personaId=$("#fPersona").value;
     if(!finTocado&&iso&&esLunes(iso)) $("#fFin").value=calcularPeriodo(iso,diasSugeridosPara(personaId,iso)).fin;
+    actualizarReintegro();
   }
-  $("#fFin").addEventListener("input",()=>{ finTocado=true; });
+  $("#fFin").addEventListener("input",()=>{ finTocado=true; actualizarReintegro(); });
   $("#fInicio").addEventListener("input",()=>{ actualizarHintFecha(); sugerirFinSiCorresponde(); });
   $("#fPersona").addEventListener("change",sugerirFinSiCorresponde);
   actualizarHintFecha();
   actualizarHintFin();
+  actualizarReintegro();
+  const btnCorregirModal=$("#btnCorregirFinModal");
+  if(btnCorregirModal) btnCorregirModal.addEventListener("click",()=>{
+    finTocado=true;
+    $("#fFin").value=btnCorregirModal.dataset.finCorrecto;
+    actualizarReintegro();
+    toast("Fin corregido en el formulario — falta guardar para que quede aplicado.");
+  });
   const del=$("#fEliminar");
   if(del) del.addEventListener("click",()=>{
     const id=$("#fId").value; const p=state.periodos.find(x=>x.id===id);
