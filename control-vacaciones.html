@@ -470,6 +470,9 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   <button class="btn btn-ghost" id="btnCargarNomina" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong)" title="Alternativa manual: cargar acá el excel/pdf de nómina (Legajo/Apellido/Nombre/Sucursal/Fuerza o Tarea). Si tenés 'Sincronizar nómina' configurado, no hace falta usar esto.">📥 Cargar nómina (Excel/PDF)</button>
   <input type="file" id="fileVacaciones" accept=".xlsx,.xls,.pdf" style="display:none">
   <button class="btn btn-ghost" id="btnCargarVacaciones" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong)" title="Cargar un excel o pdf de vacaciones (cualquier formato razonable)">📄 Cargar vacaciones (Excel/PDF)</button>
+  <button class="btn btn-ghost" id="btnDescargarRespaldo" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong)" title="Descarga un .json con la nómina, todos los períodos de vacaciones, feriados, reglas e historial — respaldo local, independiente del servidor">💾 Descargar respaldo</button>
+  <input type="file" id="fileRespaldo" accept=".json" style="display:none">
+  <button class="btn btn-ghost" id="btnCargarRespaldo" style="background:var(--page);color:var(--text);border:1px solid var(--border-strong)" title="Restaura un .json descargado con 'Descargar respaldo' — reemplaza lo que está cargado ahora">📂 Cargar respaldo</button>
 </div>
 
 <main>
@@ -758,6 +761,40 @@ async function cargarBackupNominaGithub(manual){
   }
 }
 $("#btnBackupNomina").addEventListener("click",()=>cargarBackupNominaGithub(true));
+
+/* ═══════════════════════════ Respaldo local (.json) — descargar/restaurar, independiente del servidor ═══════════════════════════ */
+function descargarRespaldo(){
+  const data={version:1,exportadoEn:new Date().toISOString(),roster:state.roster,periodos:state.periodos,feriados:state.feriados,reglas:state.reglas,log:state.log};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=`vacaciones-respaldo-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast(`Respaldo descargado: ${state.roster.length} personas, ${state.periodos.length} períodos`);
+}
+function cargarRespaldo(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    let d;
+    try{ d=JSON.parse(reader.result); }catch(e){ toast("El archivo no es un JSON válido",true); return; }
+    if(!d||!Array.isArray(d.roster)||!Array.isArray(d.periodos)){ toast("Ese archivo no tiene el formato de un respaldo de este panel",true); return; }
+    if(!confirm(`Este respaldo tiene ${d.roster.length} personas y ${d.periodos.length} períodos de vacaciones (exportado ${d.exportadoEn?ddmmyyyy(d.exportadoEn.slice(0,10)):"?"}).\n\nVa a REEMPLAZAR la nómina, las vacaciones, los feriados y las reglas que están cargados ahora. ¿Restaurar?`)) return;
+    state.roster=d.roster; state.periodos=d.periodos;
+    state.feriados=(d.feriados&&d.feriados.length)?d.feriados:FERIADOS_SEED.slice();
+    state.reglas=d.reglas||state.reglas; state.log=d.log||state.log;
+    registrar("restaurar_respaldo_local",`Restaurado desde archivo local (exportado ${d.exportadoEn?ddmmyyyy(d.exportadoEn.slice(0,10)):"?"}): ${d.roster.length} personas, ${d.periodos.length} períodos`);
+    renderAll();
+    toast("Respaldo restaurado");
+  };
+  reader.readAsText(file);
+}
+$("#btnDescargarRespaldo").addEventListener("click",descargarRespaldo);
+$("#btnCargarRespaldo").addEventListener("click",()=>$("#fileRespaldo").click());
+$("#fileRespaldo").addEventListener("change",e=>{
+  const f=e.target.files[0]; if(f) cargarRespaldo(f);
+  e.target.value="";
+});
 
 /* ═══════════════════════════ Import: lectura de archivo → filas crudas (excel o pdf) ═══════════════════════════
    Los planos reales de RRHH vienen a veces en .xlsx, a veces en .pdf (export de una tabla ancha, a veces
