@@ -306,6 +306,11 @@ html[data-theme="dark"] .notice.err{color:#FF8A8D}
 .field .hint.err{color:var(--err);font-weight:600}
 .field .hint.ok{color:var(--ok);font-weight:600}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.durbtns{display:flex;gap:8px;flex-wrap:wrap}
+.durbtn{font-family:inherit;font-size:12.5px;font-weight:700;border:1px solid var(--border-strong);
+  background:var(--surface);color:var(--text);padding:7px 14px;border-radius:999px;cursor:pointer;transition:.15s}
+.durbtn:hover{border-color:var(--blue)}
+.durbtn.active{background:var(--blue-tint);color:var(--blue);border-color:var(--blue)}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--blue-tint);color:var(--blue);
   border-radius:999px;padding:3px 10px 3px 4px;font-size:12px;font-weight:600;margin:2px 4px 2px 0}
 .chip .av{width:18px;height:18px;border-radius:50%;background:var(--blue);color:#fff;font-size:9px;display:grid;place-items:center;font-weight:700}
@@ -438,11 +443,11 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   <div class="tabs">
     <button class="tab active" data-vista="sucursal">Por sucursal</button>
     <button class="tab" data-vista="fuerza">Por fuerza de venta</button>
-    <button class="tab" data-vista="cobertura" title="Gerente y Líder Comercial de cada sucursal juntos, para ver si se cubren entre sus vacaciones">🤝 Gerente + Líder</button>
+    <button class="tab" data-vista="cobertura" title="Gerente, Líder Comercial y Líder Operativo de cada sucursal juntos, para ver si se cubren entre sus vacaciones">🤝 Gerente + Líder</button>
   </div>
   <div class="tabs" id="coberturaSubtabs" style="display:none">
-    <button class="tab active" data-modo="porSucursal" title="Un bloque por sucursal, con su Gerente y su Líder Comercial adentro">Por sucursal</button>
-    <button class="tab" data-modo="agrupado" title="Un solo bloque con todos los Gerentes y Líderes de todas las sucursales — mismo color para el Gerente y el Líder de la misma sucursal">Todo agrupado</button>
+    <button class="tab active" data-modo="porSucursal" title="Un bloque por sucursal, con su Gerente, Líder Comercial y Líder Operativo adentro">Por sucursal</button>
+    <button class="tab" data-modo="agrupado" title="Un solo bloque con todos los Gerentes, Líderes Comerciales y Líderes Operativos de todas las sucursales — mismo color para los de la misma sucursal">Todo agrupado</button>
   </div>
   <select id="filtroSucursal" class="sel" title="Filtrar por sucursal (vista por fuerza de venta)" style="display:none">
     <option value="">Todas las sucursales</option>
@@ -1341,7 +1346,7 @@ function renderVista(){
     $("#filtroSucursal").style.display="none";
     $("#irASucursal").style.display=state.coberturaModo==="porSucursal"?"":"none";
     $("#coberturaSubtabs").style.display="";
-    const ordenRol={"Gerente de Área":0,"Líder Comercial":1};
+    const ordenRol={"Gerente de Área":0,"Líder Comercial":1,"Líder Operativo":2};
     if(state.coberturaModo==="agrupado"){
       const personas=rosterActivo.filter(p=>p.fuerza in ordenRol)
         .sort((a,b)=>a.sucursal.localeCompare(b.sucursal)||ordenRol[a.fuerza]-ordenRol[b.fuerza]||a.nombre.localeCompare(b.nombre));
@@ -1609,6 +1614,14 @@ function formularioPeriodoHtml(p){
         <div class="hint" id="fFinHint">Se calcula sola (15 días corridos) — cambiala acá si el período real termina otro día.</div>
       </div>
     </div>
+    <div class="field"><label>Duración rápida</label>
+      <div class="durbtns" id="fDurBtns">
+        <button type="button" class="durbtn" data-dias="7">7 días</button>
+        <button type="button" class="durbtn" data-dias="14">14 días</button>
+        <button type="button" class="durbtn" data-dias="21">21 días</button>
+      </div>
+      <div class="hint">Elegí una duración para sumarla al inicio y autocompletar el fin — o seguí cargando la fecha de fin a mano, como hasta ahora.</div>
+    </div>
     <div class="field hint">Fecha de reintegro (vuelve a trabajar): <b id="fReintegro">—</b></div>
     <div class="field"><label>Notas (opcional)</label><textarea id="fNotas">${esc(p?p.notas:"")}</textarea></div>
     ${p&&p.diasEntitlement!=null?`<div class="field hint">Entitlement anual importado: <b>${p.diasEntitlement} días</b>${p.diasPendientes!=null?` · <b>${p.diasPendientes}</b> pendientes de tomar`:""}</div>`:""}
@@ -1698,9 +1711,18 @@ function wireFormularioPeriodo(){
     if(!finTocado&&iso&&esLunes(iso)) $("#fFin").value=calcularPeriodo(iso,diasSugeridosPara(personaId,iso)).fin;
     actualizarReintegro();
   }
-  $("#fFin").addEventListener("input",()=>{ finTocado=true; actualizarReintegro(); });
-  $("#fInicio").addEventListener("input",()=>{ actualizarHintFecha(); sugerirFinSiCorresponde(); });
+  const durBtns=$$("#fDurBtns .durbtn");
+  $("#fFin").addEventListener("input",()=>{ finTocado=true; durBtns.forEach(b=>b.classList.remove("active")); actualizarReintegro(); });
+  $("#fInicio").addEventListener("input",()=>{ actualizarHintFecha(); sugerirFinSiCorresponde(); durBtns.forEach(b=>b.classList.remove("active")); });
   $("#fPersona").addEventListener("change",sugerirFinSiCorresponde);
+  durBtns.forEach(b=>b.addEventListener("click",()=>{
+    const iso=$("#fInicio").value;
+    if(!iso||!esLunes(iso)){ toast("Elegí primero un lunes de inicio",true); return; }
+    finTocado=true;
+    $("#fFin").value=calcularPeriodo(iso,+b.dataset.dias).fin;
+    durBtns.forEach(x=>x.classList.toggle("active",x===b));
+    actualizarReintegro();
+  }));
   actualizarHintFecha();
   actualizarHintFin();
   actualizarReintegro();
