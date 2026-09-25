@@ -306,6 +306,8 @@ html[data-theme="dark"] .notice.err{color:#FF8A8D}
 .field .hint.err{color:var(--err);font-weight:600}
 .field .hint.ok{color:var(--ok);font-weight:600}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.reglachk{display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.5;cursor:pointer}
+.reglachk input{margin-top:3px;flex:none;cursor:pointer}
 .durbtns{display:flex;gap:8px;flex-wrap:wrap}
 .durbtn{font-family:inherit;font-size:12.5px;font-weight:700;border:1px solid var(--border-strong);
   background:var(--surface);color:var(--text);padding:7px 14px;border-radius:999px;cursor:pointer;transition:.15s}
@@ -608,12 +610,19 @@ function temporadaHoy(){
 // detalle de mes) recorre esta misma lista para no duplicar el mapeo en cada función.
 function mesesDeTemporada(anioIni){ return [9,10,11,0,1,2,3].map(m=>({m,y:m>=9?anioIni:anioIni+1})); }
 
+// Reglas fijas de la empresa (ver GRUPO_* y calcularConflictos) — cada una se puede prender/apagar
+// individual desde el modal "Reglas" (state.reglas.activas). Default: todas activas.
+const REGLAS_ACTIVAS_DEFAULT = { max_fuerza:true, grupo_gerencial:true, grupo_staff:true, grupo_terreno:true, showroom_global:true, fraccionado:true };
+// Completa `activas` con las claves que falten (compatibilidad con reglas guardadas antes de que
+// existiera este on/off, o con una regla nueva que se agregue el día de mañana) sin pisar lo ya elegido.
+function normalizarReglas(){ state.reglas.activas = { ...REGLAS_ACTIVAS_DEFAULT, ...(state.reglas.activas||{}) }; }
+
 /* ═══════════════════════════ Estado ═══════════════════════════ */
 const state = {
   roster:[],       // {id,legajo,nombre,sucursal,fuerza,activo}
   periodos:[],     // {id,personaId,inicioSolicitado,inicioEfectivo,fin,origen,estado,notas,creadoEn,creadoPor,actualizadoEn,actualizadoPor}
   feriados:FERIADOS_SEED.slice(),
-  reglas:{ defaultMax:1, maxPorFuerza:{}, excluyentes:[] }, // maxPorFuerza key: "Sucursal|Fuerza" -> N
+  reglas:{ defaultMax:1, maxPorFuerza:{}, excluyentes:[], activas:{...REGLAS_ACTIVAS_DEFAULT} }, // maxPorFuerza key: "Sucursal|Fuerza" -> N
   log:[],          // {ts,usuario,accion,detalle}
   vista:"sucursal", coberturaModo:"porSucursal", filtroSucursal:"", anio:temporadaHoy(), query:"", ocultarStaff:false,
   abiertos:{},     // key de acordeón -> bool
@@ -657,6 +666,7 @@ async function cargarEstado(){
       if(d && !d.error && d.roster){
         state.roster=d.roster||[]; state.periodos=d.periodos||[]; state.feriados=d.feriados&&d.feriados.length?d.feriados:FERIADOS_SEED.slice();
         state.reglas=d.reglas||state.reglas; state.log=d.log||[];
+        normalizarReglas();
         return;
       }
     }catch(e){ /* sigue con localStorage */ }
@@ -667,6 +677,7 @@ async function cargarEstado(){
       const d=JSON.parse(raw);
       state.roster=d.roster||[]; state.periodos=d.periodos||[]; state.feriados=(d.feriados&&d.feriados.length)?d.feriados:FERIADOS_SEED.slice();
       state.reglas=d.reglas||state.reglas; state.log=d.log||[];
+      normalizarReglas();
     }catch(e){}
   }
 }
@@ -783,6 +794,7 @@ function cargarRespaldo(file){
     state.roster=d.roster; state.periodos=d.periodos;
     state.feriados=(d.feriados&&d.feriados.length)?d.feriados:FERIADOS_SEED.slice();
     state.reglas=d.reglas||state.reglas; state.log=d.log||state.log;
+    normalizarReglas();
     registrar("restaurar_respaldo_local",`Restaurado desde archivo local (exportado ${d.exportadoEn?ddmmyyyy(d.exportadoEn.slice(0,10)):"?"}): ${d.roster.length} personas, ${d.periodos.length} períodos`);
     renderAll();
     toast("Respaldo restaurado");
@@ -1172,7 +1184,12 @@ function calcularConflictos(){
     if(!periodos.length||!max||max<1) return;
     const eventos=[];
     periodos.forEach(p=>{ eventos.push([p.inicioEfectivo,1,p]); eventos.push([addDias(p.fin,1),-1,p]); });
-    eventos.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
+    // En empate de fecha, procesar primero los que TERMINAN (-1) y recién después los que ARRANCAN
+    // (+1) — si no, un período que arranca el mismo día que termina el anterior (back to back, sin
+    // superposición real) se contaba un instante como si ambos estuvieran activos a la vez (falso
+    // conflicto, detectado con Arjona/Ruiz en Jujuy: uno arrancando el 25/01 justo el día después de
+    // que el otro terminaba el 24/01).
+    eventos.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:a[1]-b[1]);
     let activos=new Set();
     eventos.forEach(([,delta,p])=>{
       if(delta===1) activos.add(p);
@@ -1181,35 +1198,41 @@ function calcularConflictos(){
     });
   }
 
-  // 1) máximo simultáneo por sucursal+fuerza (configurable en el modal "Reglas")
-  const grupos={};
-  state.periodos.forEach(p=>{
-    const per=personaById(p.personaId); if(!per) return;
-    const key=per.sucursal+"|"+per.fuerza;
-    (grupos[key]=grupos[key]||[]).push(p);
-  });
-  Object.entries(grupos).forEach(([key,arr])=>{
-    const [sucursal,fuerza]=key.split("|");
-    const max=maxPermitido(sucursal,fuerza);
-    sweepMax(arr,max,"max_fuerza",`Más de ${max} de "${fuerza}" en ${sucursal} coinciden en fechas`);
-  });
+  const activas=state.reglas.activas||REGLAS_ACTIVAS_DEFAULT;
 
-  // 1b) reglas fijas de la empresa (ver constantes GRUPO_* más arriba, no configurables desde el panel)
+  // 1) máximo simultáneo por sucursal+fuerza (configurable en el modal "Reglas")
+  if(activas.max_fuerza){
+    const grupos={};
+    state.periodos.forEach(p=>{
+      const per=personaById(p.personaId); if(!per) return;
+      const key=per.sucursal+"|"+per.fuerza;
+      (grupos[key]=grupos[key]||[]).push(p);
+    });
+    Object.entries(grupos).forEach(([key,arr])=>{
+      const [sucursal,fuerza]=key.split("|");
+      const max=maxPermitido(sucursal,fuerza);
+      sweepMax(arr,max,"max_fuerza",`Más de ${max} de "${fuerza}" en ${sucursal} coinciden en fechas`);
+    });
+  }
+
+  // 1b) reglas fijas de la empresa (ver constantes GRUPO_* más arriba) — cada una se puede desactivar
+  // individualmente desde el modal "Reglas" (state.reglas.activas)
   SUCURSALES.forEach(suc=>{
     const deLaSucursal=fza=>state.periodos.filter(p=>{ const pe=personaById(p.personaId); return pe&&pe.sucursal===suc&&fza.includes(pe.fuerza); });
-    sweepMax(deLaSucursal(GRUPO_GERENCIAL_EXCLUSIVO),1,"grupo_gerencial",
+    if(activas.grupo_gerencial) sweepMax(deLaSucursal(GRUPO_GERENCIAL_EXCLUSIVO),1,"grupo_gerencial",
       `${suc}: Gerente de Área, Líder Comercial y Líder Operativo tienen que salir de vacaciones de uno en uno`);
-    if(!SUCURSALES_STAFF_SIN_AGRUPAR.has(suc)){
+    if(activas.grupo_staff && !SUCURSALES_STAFF_SIN_AGRUPAR.has(suc)){
       sweepMax(deLaSucursal(GRUPO_STAFF_AREA),1,"grupo_staff",
         `${suc}: el staff de área (administrativo/depósito/crédito/supervisor/maestranza) tiene que salir de uno en uno`);
     }
-    sweepMax(deLaSucursal(GRUPO_TERRENO_COBRADOR),1,"grupo_terreno",
+    if(activas.grupo_terreno) sweepMax(deLaSucursal(GRUPO_TERRENO_COBRADOR),1,"grupo_terreno",
       `${suc}: vendedores de terreno y cobradores se cubren entre ellos, uno por período`);
   });
-  sweepMax(state.periodos.filter(p=>{ const pe=personaById(p.personaId); return pe&&pe.fuerza==="Vendedor de Showroom"; }),1,"showroom_global",
+  if(activas.showroom_global) sweepMax(state.periodos.filter(p=>{ const pe=personaById(p.personaId); return pe&&pe.fuerza==="Vendedor de Showroom"; }),1,"showroom_global",
     `Vendedor de Showroom: solo puede haber uno de vacaciones a la vez en toda la empresa`);
 
   // 1c) no fraccionar el período si el entitlement anual es ≤14 días (dato importado de un plano de RRHH)
+  if(activas.fraccionado){
   const periodosPorPersona={};
   state.periodos.forEach(p=>{ (periodosPorPersona[p.personaId]=periodosPorPersona[p.personaId]||[]).push(p); });
   Object.values(periodosPorPersona).forEach(arr=>{
@@ -1217,6 +1240,7 @@ function calcularConflictos(){
     if(!arr.some(p=>p.diasEntitlement!=null&&p.diasEntitlement<=14)) return;
     arr.forEach(p=>marcar(p.id,"fraccionado",`Tiene ≤14 días de vacaciones al año — no puede fraccionar el período en varias veces`));
   });
+  }
 
   // 2) pares/grupos excluyentes explícitos
   (state.reglas.excluyentes||[]).forEach(grupo=>{
@@ -1938,6 +1962,18 @@ $("#btnNomina").addEventListener("click",abrirNomina);
 
 /* ═══════════════════════════ Modal: Reglas de solape ═══════════════════════════ */
 function abrirReglas(){
+  normalizarReglas();
+  const activas=state.reglas.activas;
+  const REGLAS_INFO=[
+    ["max_fuerza","Máximo simultáneo por sucursal/fuerza de venta (se configura abajo — desactivarla ignora ese máximo por completo)"],
+    ["grupo_gerencial","Gerente de Área, Líder Comercial y Líder Operativo de una misma sucursal: uno por período."],
+    ["grupo_staff","Staff de área (Administrativo/Depósito/Crédito/Supervisor/Maestranza) de una misma sucursal: uno por período — excepto Tucumán Capital y Salta, donde cada puesto rota por separado."],
+    ["grupo_terreno","Vendedores de terreno (Senior/Junior) y Cobradores de una misma sucursal: se cubren entre ellos, uno por período."],
+    ["showroom_global","Vendedor de Showroom: uno por período en toda la empresa (no por sucursal)."],
+    ["fraccionado","Quien tenga ≤14 días de vacaciones al año no puede fraccionar el período en varias veces."],
+  ];
+  const reglasFijasHtml=REGLAS_INFO.map(([k,txt])=>`
+    <label class="reglachk"><input type="checkbox" data-regla="${k}" ${activas[k]?"checked":""}> ${txt}</label>`).join("");
   const filasMax=SUCURSALES.map(suc=>FUERZAS.map(f=>{
     const key=suc+"|"+f; const v=state.reglas.maxPorFuerza[key];
     if(v==null) return "";
@@ -1952,15 +1988,9 @@ function abrirReglas(){
     <div class="modal-head"><h2>Reglas de solapamiento</h2><button class="x" data-close>&times;</button></div>
     <div class="modal-body">
       <div class="notice" style="margin-bottom:18px">📋 <div>
-        <b>Reglas fijas de la empresa</b> (se aplican solas, no se editan desde acá):
-        <ul style="margin:6px 0 0;padding-left:18px;line-height:1.6">
-          <li>Gerente de Área, Líder Comercial y Líder Operativo de una misma sucursal: uno por período.</li>
-          <li>Staff de área (Administrativo/Depósito/Crédito/Supervisor/Maestranza) de una misma sucursal: uno por período — excepto Tucumán Capital y Salta, donde cada puesto rota por separado.</li>
-          <li>Vendedor de Showroom: uno por período en toda la empresa (no por sucursal).</li>
-          <li>Vendedores de terreno (Senior/Junior) y Cobradores de una misma sucursal: se cubren entre ellos, uno por período.</li>
-          <li>Vendedor Redes: sin regla fija, a criterio del gerente y del departamento comercial.</li>
-          <li>Quien tenga ≤14 días de vacaciones al año no puede fraccionar el período en varias veces.</li>
-        </ul>
+        <b>Reglas fijas de la empresa</b> — destildá la que no querés que se aplique (queda guardado):
+        <div class="reglaslist" style="margin-top:10px;display:flex;flex-direction:column;gap:9px">${reglasFijasHtml}</div>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted-2)">Vendedor Redes: sin regla fija, a criterio del gerente y del departamento comercial (no aplica acá).</div>
       </div></div>
       <div class="field">
         <label>Máximo por defecto de personas de la misma fuerza de venta, de la misma sucursal, de vacaciones a la vez</label>
@@ -1989,6 +2019,12 @@ function abrirReglas(){
     </div>
     <div class="modal-actions"><button class="btn btn-primary" data-close>Cerrar</button></div>`, true);
 
+  $("#modal").querySelectorAll("[data-regla]").forEach(chk=>chk.addEventListener("change",e=>{
+    const k=e.target.dataset.regla;
+    state.reglas.activas[k]=e.target.checked;
+    registrar("editar_reglas",`Regla "${k}" ${e.target.checked?"activada":"desactivada"}`);
+    renderAll();
+  }));
   $("#rDefault").addEventListener("change",e=>{ state.reglas.defaultMax=+e.target.value||0; registrar("editar_reglas",`Máximo por defecto → ${state.reglas.defaultMax}`); renderAll(); });
   $("#rAgregarMax").addEventListener("click",()=>{
     const key=$("#rSuc").value+"|"+$("#rFza").value;
