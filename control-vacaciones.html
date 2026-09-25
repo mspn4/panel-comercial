@@ -55,7 +55,7 @@ function colorDeSucursal(suc){ const i=SUCURSALES.indexOf(suc); return SUCURSAL_
 // también piden vacaciones (visto en los planos combinados nómina+vacaciones de RRHH, ej. Catamarca/Concepción).
 const FUERZAS = ["Gerente de Área","Líder Comercial","Vendedor Senior","Vendedor Junior","Vendedor Cobrador",
   "Vendedor de Showroom","Vendedor Redes","Vendedor Redes Jr","Líder Redes","Líder CRM","Vendedor CRM",
-  "Administrativo de Área","Encargado de Depósito","Líder Operativo","Maestranza","Oficial de Crédito","Supervisor","Maestro Especial"];
+  "Administrativo de Área","Encargado de Depósito","Líder Operativo","Maestranza","Oficial de Crédito","Supervisor","Maestranza Especial"];
 // "Producción" = las categorías que existen en la nómina real (nomina-produccion.html CAT_ORDER, mismo
 // set que trae el excel/backup de nómina). El resto de FUERZAS (arriba) son roles de staff que solo
 // aparecen al importar un plano de vacaciones de RRHH (nunca vienen de la nómina) — se pueden ocultar
@@ -102,14 +102,24 @@ const FUERZA_ALIAS = {
   "maestranza":"Maestranza",
   "oficial de credito":"Oficial de Crédito",
   "supervisor":"Supervisor",
-  "maest especial":"Maestro Especial","maestro especial":"Maestro Especial",
+  "maest especial":"Maestranza Especial","maestro especial":"Maestranza Especial","maestranza especial":"Maestranza Especial",
+  // Variantes truncadas a ~10-11 caracteres, tal cual vienen en el plano combinado nómina+vacaciones
+  // de Norte Centro (Metán) — "vacaciones metan 2026.xlsx" (columna "tarea" recortada por el sistema
+  // de origen, mismo criterio que ya existía para "vendedor de show r"). Sin esto, gente que aparece
+  // por primera vez en un plano así (no estaba antes en la nómina) quedaba con el texto crudo sin
+  // resolver como fuerza (ej. "ADMINIST. D"), y no matcheaba ningún filtro por rol (ej. la vista
+  // "Gerente + Líder" no la encontraba aunque sí figurara en "Por sucursal", que no filtra por rol).
+  "gerente de":"Gerente de Área","lider comer":"Líder Comercial","lider opera":"Líder Operativo",
+  "administ d":"Administrativo de Área","encarg de":"Encargado de Depósito","maest espe":"Maestranza Especial",
+  "oficial de c":"Oficial de Crédito",
+  "vendedor c":"Vendedor Cobrador","vendedor j":"Vendedor Junior","vendedor s":"Vendedor Senior","vendedor r":"Vendedor Redes",
 };
 const FUERZA_COLOR = {
   "Gerente de Área":"#213183","Líder Comercial":"#5C6B7E","Vendedor Senior":"#0075DE","Vendedor Junior":"#3396F0",
   "Vendedor Cobrador":"#DD5B00","Vendedor de Showroom":"#1AAE39","Vendedor Redes":"#8E44AD","Vendedor Redes Jr":"#AF7AC5",
   "Líder Redes":"#6C3483","Líder CRM":"#B7950B","Vendedor CRM":"#D4AC0D",
   "Administrativo de Área":"#7F8C8D","Encargado de Depósito":"#A0522D","Líder Operativo":"#34495E","Maestranza":"#95A5A6",
-  "Oficial de Crédito":"#16A085","Supervisor":"#C0392B","Maestro Especial":"#8E7CC3","_DEFAULT":"#615D59"
+  "Oficial de Crédito":"#16A085","Supervisor":"#C0392B","Maestranza Especial":"#8E7CC3","_DEFAULT":"#615D59"
 };
 
 // Feriados nacionales 2026 (semilla) — los trasladables/por decreto cambian año a año,
