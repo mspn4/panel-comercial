@@ -288,6 +288,15 @@ html[data-theme="dark"] .notice.err{color:#FF8A8D}
   color:var(--warn);padding:2px 7px;border-radius:6px;cursor:pointer;margin-top:3px;white-space:nowrap}
 .tl-fix-btn:hover{filter:brightness(0.97)}
 html[data-theme="dark"] .tl-fix-btn{border-color:#7A551A}
+
+/* Modal "Corregir fin de vacaciones" — escala legal + manual, ver abrirCorregirFinModal */
+.cf-row{padding:2px 0}
+.cf-info{font-size:13px;margin-bottom:9px}
+.cf-manual{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--muted)}
+.cf-manual input{width:76px;border:1px solid var(--border-strong);border-radius:8px;padding:6px 8px;
+  font-family:inherit;font-size:13px;color:var(--text);background:var(--surface)}
+.cf-preview{font-size:12.5px;color:var(--muted);margin-top:9px;min-height:17px}
+.cf-preview b{color:var(--text)}
 .tl-track{position:relative;flex:1;height:32px;margin:3px 0}
 .tl-bar{position:absolute;top:2px;height:24px;border-radius:6px;color:#fff;font-size:10.5px;font-weight:600;
   display:flex;align-items:center;padding:0 7px;white-space:nowrap;overflow:hidden;cursor:pointer;
@@ -1137,7 +1146,7 @@ function calcularConflictos(){
   // Sweep-line genérico: marca en conflicto a todos los períodos que en algún momento superan `max`
   // simultáneos dentro de la lista `periodos` dada — lo reusan tanto el máximo configurable por
   // sucursal+fuerza como las reglas fijas de grupos combinados (gerencial/staff/showroom/terreno).
-  function sweepMax(periodos,max,tipo,detalle){
+  function sweepMax(periodos,max,tipo,detalleBase){
     if(!periodos.length||!max||max<1) return;
     const eventos=[];
     periodos.forEach(p=>{ eventos.push([p.inicioEfectivo,1,p]); eventos.push([addDias(p.fin,1),-1,p]); });
@@ -1150,7 +1159,14 @@ function calcularConflictos(){
     let activos=new Set();
     eventos.forEach(([,delta,p])=>{
       if(delta===1) activos.add(p);
-      if(activos.size>max) activos.forEach(pp=>marcar(pp.id,tipo,detalle));
+      // El mensaje antes solo decía LA REGLA ("tienen que salir de a uno") sin decir CON QUIÉN
+      // coincide — imposible de diagnosticar si el otro período está fuera de la pantalla actual
+      // (otro mes, scrolleado, u otra persona del grupo). Ahora nombra a los demás activos en ese
+      // instante con su rango de fechas, para poder ir directo a buscarlos.
+      if(activos.size>max) activos.forEach(pp=>{
+        const otros=[...activos].filter(o=>o!==pp).map(o=>`${personaNombre(o.personaId)} (${ddmmyyyy(o.inicioEfectivo)}→${ddmmyyyy(o.fin)})`).join(", ");
+        marcar(pp.id,tipo,`${detalleBase} — coincide con ${otros}`);
+      });
       if(delta===-1) activos.delete(p);
     });
   }
@@ -1204,7 +1220,12 @@ function calcularConflictos(){
   Object.values(periodosPorPersonaYTemporada).forEach(arr=>{
     if(arr.length<2) return;
     if(!arr.some(p=>p.diasEntitlement!=null&&p.diasEntitlement<=14)) return;
-    arr.forEach(p=>marcar(p.id,"fraccionado",`Tiene ≤14 días de vacaciones al año — no puede fraccionar el período en varias veces`));
+    // Mismo criterio que sweepMax: nombrar los OTROS períodos de esa misma temporada, con fechas, para
+    // poder encontrarlos aunque estén en otro mes fuera de la pantalla actual.
+    arr.forEach(p=>{
+      const otros=arr.filter(o=>o!==p).map(o=>`${ddmmyyyy(o.inicioEfectivo)}→${ddmmyyyy(o.fin)}`).join(", ");
+      marcar(p.id,"fraccionado",`Tiene ≤14 días de vacaciones al año — no puede fraccionar el período en varias veces — otro período suyo en esta temporada: ${otros}`);
+    });
   });
   }
 
@@ -1354,7 +1375,14 @@ function renderTimelineGrupo(prefix, nombreGrupo, personas, anio, conflictos, co
   const abierto=state.abiertos[key]!==false; // abierto por defecto
   const periodosGrupo=[];
   personas.forEach(per=>state.periodos.forEach(p=>{ if(p.personaId===per.id) periodosGrupo.push(p); }));
-  const enConflicto=periodosGrupo.filter(p=>conflictos[p.id]).length;
+  // El badge "N en conflicto" tiene que contar solo lo que se está mostrando en ESTA temporada — antes
+  // contaba TODOS los períodos de estas personas sin importar el año (bug real: un grupo podía mostrar
+  // "4 en conflicto" con solo 2 barras visibles en pantalla, contando conflictos de otras temporadas
+  // que ni siquiera se ven acá, confuso para diagnosticar). "activosHoy" sigue sin filtrar por temporada
+  // a propósito — es "¿quién está de vacaciones hoy mismo?", tiene sentido verlo aunque se esté mirando
+  // el calendario de otra temporada.
+  const periodosGrupoEnTemporada=periodosGrupo.filter(p=>periodoVisibleEnAnio(p,anio));
+  const enConflicto=periodosGrupoEnTemporada.filter(p=>conflictos[p.id]).length;
   const activosHoy=periodosGrupo.filter(p=>p.inicioEfectivo<=HOY&&HOY<=p.fin).length;
 
   const filas = personas.map(per=>{
@@ -1466,7 +1494,7 @@ function renderVista(){
   }));
   $$(".tl-fix-btn").forEach(b=>b.addEventListener("click",e=>{
     e.stopPropagation();
-    corregirFinesDePersona(b.dataset.fixPersona,state.anio);
+    abrirCorregirFinModal(b.dataset.fixPersona,state.anio);
   }));
   renderLegend();
   renderMesesOcultosBar();
@@ -1764,17 +1792,83 @@ function corregirFinPeriodo(id,finCorrecto){
   renderAll();
   toast(`Fin corregido: ${ddmmyyyy(finCorrecto)} · reintegro ${ddmmyyyy(addDias(finCorrecto,1))}`);
 }
-// Botón "📅 Corregir fin" del header de fila (ver renderTimelineGrupo) — recorre los períodos
-// desajustados de esa persona EN LA TEMPORADA que se está viendo (uno por uno, cada uno con su propio
-// confirm() vía corregirFinPeriodo, mismo resguardo de siempre) en vez de tener que encontrar y
-// clickear el ícono 📅 chico adentro de cada barra. Si la persona cancela un confirm() a mitad de
-// camino, simplemente no sigue con los siguientes (no hay "cancelar todo").
-function corregirFinesDePersona(personaId,anio){
+// Botón "📅 Corregir fin" del header de fila (ver renderTimelineGrupo) — antes aplicaba directo el
+// valor "correcto" según antigüedad (LCT), pero no todo el mundo se toma el período completo que le
+// corresponde (gente que fracciona a propósito, o que simplemente toma menos días) — forzar el
+// cálculo automático le pisaba una fecha real por una "teórica". Ahora abre un modal por persona con
+// UN bloque por cada período desajustado de esta temporada: escala legal (7/14/21/28/35, con el
+// sugerido por antigüedad preseleccionado si cae justo en esa escala) + un campo para cargar la
+// cantidad de días a mano — el que decide cuántos días fueron realmente es quien usa el panel, no el
+// cálculo. Solo se ofrece para períodos que YA están marcados como desajustados (finDesajustado) — a
+// alguien que se tomó menos días a propósito y cuyo período ya "cierra" bien no le aparece este botón.
+const CF_ESCALA_LEGAL=[7,14,21,28,35];
+function abrirCorregirFinModal(personaId,anio){
+  const per=personaById(personaId); if(!per) return;
   const pendientes=state.periodos.filter(p=>p.personaId===personaId && periodoVisibleEnAnio(p,anio) && finDesajustado(p));
   if(!pendientes.length) return;
-  pendientes.forEach(p=>{
-    const finEsp=finEsperado(p);
-    if(finEsp) corregirFinPeriodo(p.id,finEsp);
+  const filaHtml=p=>{
+    const actualDias=(dDe(p.fin)-dDe(p.inicioEfectivo))/86400000+1;
+    const sugerido=diasCorrespondientesPeriodo(p);
+    const enEscala=sugerido!=null&&CF_ESCALA_LEGAL.includes(sugerido);
+    return `<div class="cf-row" data-pid="${esc(p.id)}" data-inicio="${p.inicioEfectivo}">
+      <div class="cf-info">Período <b>${ddmmyyyy(p.inicioEfectivo)} → ${ddmmyyyy(p.fin)}</b> (${actualDias} días actuales)${sugerido!=null?` · sugerido por antigüedad: <b>${sugerido} días</b>`:" · sin antigüedad/entitlement conocido, elegí a mano"}</div>
+      <div class="durbtns cf-durbtns">
+        ${CF_ESCALA_LEGAL.map(d=>`<button type="button" class="durbtn${d===sugerido?" active":""}" data-dias="${d}">${d} días</button>`).join("")}
+      </div>
+      <div class="cf-manual">
+        <label for="cfManual_${esc(p.id)}">Manual:</label>
+        <input type="number" min="1" max="60" id="cfManual_${esc(p.id)}" class="cf-manual-input" placeholder="días" value="${!enEscala&&sugerido!=null?sugerido:""}">
+      </div>
+      <div class="cf-preview"></div>
+      <button type="button" class="btn btn-primary cf-aplicar" style="margin-top:8px">Aplicar</button>
+    </div>`;
+  };
+  abrirModal(`
+    <div class="modal-head"><h2>Corregir fin de vacaciones — ${esc(per.nombre)}</h2><button class="x" data-close>&times;</button></div>
+    <div class="modal-body">
+      <p style="font-size:12.5px;color:var(--muted);margin:0 0 14px">No todo el mundo se toma el período completo que le corresponde por antigüedad — elegí la cantidad real de días de cada período (escala de la ley, o cargá un número a mano) y confirmá uno por uno.</p>
+      ${pendientes.map(filaHtml).join("<hr style='border:none;border-top:1px solid var(--border);margin:16px 0'>")}
+    </div>
+  `);
+  $$(".cf-row").forEach(row=>{
+    const pid=row.dataset.pid;
+    const p=state.periodos.find(x=>x.id===pid); if(!p) return;
+    const preview=row.querySelector(".cf-preview");
+    const manualInput=row.querySelector(".cf-manual-input");
+    let diasElegido=null;
+    const actualizarPreview=()=>{
+      if(!diasElegido||diasElegido<1){ preview.textContent=""; return; }
+      const finNuevo=addDias(p.inicioEfectivo,diasElegido-1);
+      preview.innerHTML=`Nuevo fin: <b>${ddmmyyyy(finNuevo)}</b> · reintegro ${ddmmyyyy(addDias(finNuevo,1))}`;
+    };
+    row.querySelectorAll(".durbtn").forEach(b=>{
+      if(b.classList.contains("active")) diasElegido=+b.dataset.dias;
+      b.addEventListener("click",()=>{
+        row.querySelectorAll(".durbtn").forEach(x=>x.classList.remove("active"));
+        b.classList.add("active");
+        manualInput.value="";
+        diasElegido=+b.dataset.dias;
+        actualizarPreview();
+      });
+    });
+    if(manualInput.value) diasElegido=+manualInput.value;
+    manualInput.addEventListener("input",()=>{
+      row.querySelectorAll(".durbtn").forEach(x=>x.classList.remove("active"));
+      diasElegido=+manualInput.value||null;
+      actualizarPreview();
+    });
+    actualizarPreview();
+    row.querySelector(".cf-aplicar").addEventListener("click",()=>{
+      if(!diasElegido||diasElegido<1){ toast("Elegí una cantidad de días primero (escala o manual)",true); return; }
+      const finAnterior=p.fin;
+      const finNuevo=addDias(p.inicioEfectivo,diasElegido-1);
+      p.fin=finNuevo; p.finAjustado=true; p.actualizadoEn=new Date().toISOString(); p.actualizadoPor=usuarioActual();
+      registrar("corregir_fin_periodo",`${personaNombre(p.personaId)}: fin ${ddmmyyyy(finAnterior)} → ${ddmmyyyy(finNuevo)} (${diasElegido} días, elegido a mano)`);
+      row.remove(); // el modal (#modal) vive fuera de #view — renderAll() no lo toca, no hace falta reabrirlo
+      renderAll();
+      toast(`Fin corregido: ${ddmmyyyy(finNuevo)} · reintegro ${ddmmyyyy(addDias(finNuevo,1))}`);
+      if(!$$(".cf-row").length) cerrarModal();
+    });
   });
 }
 // Cuántos días corridos sugerir para el período de esta persona (LCT según antigüedad real si se
