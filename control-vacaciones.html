@@ -94,7 +94,7 @@ const FUERZA_ALIAS = {
   "showroom":"Vendedor de Showroom","vendedor de showroom":"Vendedor de Showroom","vendedor de show r":"Vendedor de Showroom",
   "vendedor redes":"Vendedor Redes","redes":"Vendedor Redes",
   "vendedor redes jr":"Vendedor Redes Jr",
-  "lider por redes":"Líder Redes","lider redes":"Líder Redes",
+  "lider por redes":"Líder Redes","lider redes":"Líder Redes","lider de redes":"Líder Redes","lider redes sociales":"Líder Redes","lider de r sociales":"Líder Redes",
   "lider crm":"Líder CRM","vendedor crm":"Vendedor CRM",
   "administ de area":"Administrativo de Área","admin de area":"Administrativo de Área","administrativo de area":"Administrativo de Área",
   "encarg deposito":"Encargado de Depósito","encargado deposito":"Encargado de Depósito","encarg de deposito":"Encargado de Depósito",
@@ -113,6 +113,7 @@ const FUERZA_ALIAS = {
   "administ d":"Administrativo de Área","encarg de":"Encargado de Depósito","maest espe":"Maestranza Especial",
   "oficial de c":"Oficial de Crédito",
   "vendedor c":"Vendedor Cobrador","vendedor j":"Vendedor Junior","vendedor s":"Vendedor Senior","vendedor r":"Vendedor Redes",
+  "lider por r":"Líder Redes","lider de r":"Líder Redes",
 };
 const FUERZA_COLOR = {
   "Gerente de Área":"#213183","Líder Comercial":"#5C6B7E","Vendedor Senior":"#0075DE","Vendedor Junior":"#3396F0",
@@ -283,6 +284,10 @@ html[data-theme="dark"] .notice.err{color:#FF8A8D}
   position:sticky;left:0;z-index:2;background:var(--surface);border-right:1px solid var(--border)}
 .tl-label .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tl-label .rl{font-size:10.5px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-fix-btn{font-family:inherit;font-size:10px;font-weight:700;border:1px solid #EBCF94;background:var(--warn-tint);
+  color:var(--warn);padding:2px 7px;border-radius:6px;cursor:pointer;margin-top:3px;white-space:nowrap}
+.tl-fix-btn:hover{filter:brightness(0.97)}
+html[data-theme="dark"] .tl-fix-btn{border-color:#7A551A}
 .tl-track{position:relative;flex:1;height:32px;margin:3px 0}
 .tl-bar{position:absolute;top:2px;height:24px;border-radius:6px;color:#fff;font-size:10.5px;font-weight:600;
   display:flex;align-items:center;padding:0 7px;white-space:nowrap;overflow:hidden;cursor:pointer;
@@ -1184,10 +1189,19 @@ function calcularConflictos(){
     `Vendedor de Showroom: solo puede haber uno de vacaciones a la vez en toda la empresa`);
 
   // 1c) no fraccionar el período si el entitlement anual es ≤14 días (dato importado de un plano de RRHH)
+  // — agrupado por persona Y POR TEMPORADA (antes se agrupaba solo por persona: alguien con un único
+  // período este año pero con OTRO período viejo de una temporada anterior ya cargada en el sistema
+  // quedaba marcado como "fraccionado" sin haber dividido nada — el derecho a días se otorga por
+  // temporada, no acumulado entre años, así que dos períodos de temporadas distintas no son un
+  // fraccionamiento real. Bug real encontrado con un caso del usuario (Nieva Ramón Ernesto, Salta:
+  // un único período de 14 días exactos en la temporada 2026/27 aparecía marcado como fraccionado).
   if(activas.fraccionado){
-  const periodosPorPersona={};
-  state.periodos.forEach(p=>{ (periodosPorPersona[p.personaId]=periodosPorPersona[p.personaId]||[]).push(p); });
-  Object.values(periodosPorPersona).forEach(arr=>{
+  const periodosPorPersonaYTemporada={};
+  state.periodos.forEach(p=>{
+    const key=p.personaId+"|"+temporadaDe(p.inicioEfectivo);
+    (periodosPorPersonaYTemporada[key]=periodosPorPersonaYTemporada[key]||[]).push(p);
+  });
+  Object.values(periodosPorPersonaYTemporada).forEach(arr=>{
     if(arr.length<2) return;
     if(!arr.some(p=>p.diasEntitlement!=null&&p.diasEntitlement<=14)) return;
     arr.forEach(p=>marcar(p.id,"fraccionado",`Tiene ≤14 días de vacaciones al año — no puede fraccionar el período en varias veces`));
@@ -1347,8 +1361,15 @@ function renderTimelineGrupo(prefix, nombreGrupo, personas, anio, conflictos, co
     const propios=state.periodos.filter(p=>p.personaId===per.id && periodoVisibleEnAnio(p,anio));
     const colorPer=colorFn?colorFn(per):null;
     const barras=propios.map(p=>barraHtml(p,anio,conflictos,colorPer)).join("");
+    // Botón de corrección de fin por colaborador — antes solo existía el ícono 📅 adentro de la barra
+    // (chico, hay que encontrarlo período por período). Pedido del usuario: al ser un error recurrente
+    // en los planos de RRHH, un botón fijo junto al nombre corrige de un click todos los períodos
+    // desajustados de esa persona en esta temporada (sigue pidiendo confirmación uno por uno, ver
+    // corregirFinPeriodo — no se salta ese resguardo).
+    const desajustados=propios.filter(p=>finDesajustado(p));
+    const btnFix=desajustados.length?`<button type="button" class="tl-fix-btn" data-fix-persona="${esc(per.id)}" title="${desajustados.length>1?`${desajustados.length} períodos con el fin mal contado — click para revisarlos y corregirlos`:"El fin de este período no coincide con los días que le corresponden — click para corregirlo"}">📅 Corregir fin${desajustados.length>1?` (${desajustados.length})`:""}</button>`:"";
     return `<div class="tl-row" data-persona="${esc(per.id)}">
-      <div class="tl-label"><div class="nm">${esc(per.nombre)}</div><div class="rl">${esc(prefix==="suc"?per.fuerza:per.sucursal)||"—"}</div></div>
+      <div class="tl-label"><div class="nm">${esc(per.nombre)}</div><div class="rl">${esc(prefix==="suc"?per.fuerza:per.sucursal)||"—"}</div>${btnFix}</div>
       <div class="tl-track">${barras}</div>
     </div>`;
   }).join("");
@@ -1401,7 +1422,7 @@ function renderVista(){
     $("#filtroSucursal").style.display="none";
     $("#irASucursal").style.display=state.coberturaModo==="porSucursal"?"":"none";
     $("#coberturaSubtabs").style.display="";
-    const ordenRol={"Gerente de Área":0,"Líder Comercial":1,"Líder Operativo":2};
+    const ordenRol={"Gerente de Área":0,"Líder Comercial":1,"Líder Operativo":2,"Líder Redes":3};
     if(state.coberturaModo==="agrupado"){
       const personas=rosterActivo.filter(p=>p.fuerza in ordenRol)
         .sort((a,b)=>a.sucursal.localeCompare(b.sucursal)||ordenRol[a.fuerza]-ordenRol[b.fuerza]||a.nombre.localeCompare(b.nombre));
@@ -1442,6 +1463,10 @@ function renderVista(){
     e.stopPropagation();
     if(f.dataset.corregir) corregirFinPeriodo(f.dataset.corregir,f.dataset.finCorrecto);
     else toast(f.dataset.flag,f.classList.contains("err"),6500);
+  }));
+  $$(".tl-fix-btn").forEach(b=>b.addEventListener("click",e=>{
+    e.stopPropagation();
+    corregirFinesDePersona(b.dataset.fixPersona,state.anio);
   }));
   renderLegend();
   renderMesesOcultosBar();
@@ -1738,6 +1763,19 @@ function corregirFinPeriodo(id,finCorrecto){
   cerrarModal(); // por si se disparó desde el modal de detalle de mes — esa lista es HTML estático, no se refresca sola
   renderAll();
   toast(`Fin corregido: ${ddmmyyyy(finCorrecto)} · reintegro ${ddmmyyyy(addDias(finCorrecto,1))}`);
+}
+// Botón "📅 Corregir fin" del header de fila (ver renderTimelineGrupo) — recorre los períodos
+// desajustados de esa persona EN LA TEMPORADA que se está viendo (uno por uno, cada uno con su propio
+// confirm() vía corregirFinPeriodo, mismo resguardo de siempre) en vez de tener que encontrar y
+// clickear el ícono 📅 chico adentro de cada barra. Si la persona cancela un confirm() a mitad de
+// camino, simplemente no sigue con los siguientes (no hay "cancelar todo").
+function corregirFinesDePersona(personaId,anio){
+  const pendientes=state.periodos.filter(p=>p.personaId===personaId && periodoVisibleEnAnio(p,anio) && finDesajustado(p));
+  if(!pendientes.length) return;
+  pendientes.forEach(p=>{
+    const finEsp=finEsperado(p);
+    if(finEsp) corregirFinPeriodo(p.id,finEsp);
+  });
 }
 // Cuántos días corridos sugerir para el período de esta persona (LCT según antigüedad real si se
 // conoce su fecha de ingreso — roster.ingreso — si no, el default de 15 que ya tenía el panel).
