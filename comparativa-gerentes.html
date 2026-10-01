@@ -151,6 +151,34 @@ tr.c-none td{background:#fff} tr.c-none .rank{background:var(--gris)}
 .empty{padding:40px;text-align:center;color:var(--ink3)}
 .err{background:var(--rojo-bg);border:1px solid #F3C9C4;color:var(--rojo-dk);padding:12px 16px;
   border-radius:11px;margin-bottom:16px;font-size:13.5px;font-weight:600}
+.ovBadge{display:inline-block;margin-left:6px;font-size:11.5px;color:var(--brand);cursor:default}
+
+/* ---------- editor de montos (overrides) ---------- */
+.ovModal{position:fixed;inset:0;z-index:9000;background:rgba(21,26,36,.46);display:flex;
+  align-items:center;justify-content:center;padding:24px}
+.ovBox{width:100%;max-width:620px;max-height:84vh;background:#fff;border-radius:16px;
+  display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 70px -20px rgba(20,30,60,.4)}
+.ovHead{display:flex;align-items:flex-start;gap:14px;padding:18px 20px;border-bottom:1px solid var(--line)}
+.ovHead h3{font-size:16px;font-weight:700;margin-bottom:5px}
+.ovSub{font-size:12.5px;color:var(--ink2);line-height:1.45}
+.ovClose{margin-left:auto;flex:none;width:28px;height:28px;border-radius:8px;border:1px solid var(--line);
+  background:#fff;color:var(--ink2);cursor:pointer;font-size:13px}
+.ovClose:hover{background:var(--bg)}
+.ovList{overflow-y:auto;padding:6px 20px}
+.ovRow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line2)}
+.ovRow:last-child{border-bottom:none}
+.ovName{flex:1;font-size:13.5px;font-weight:600;display:flex;flex-direction:column;gap:2px}
+.ovName .branch{font-weight:600}
+.ovInput{width:158px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;
+  font-size:13.5px;text-align:right;color:var(--ink)}
+.ovInput:focus{outline:none;border-color:var(--brand)}
+.ovUndo{flex:none;width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:#fff;
+  color:var(--ink2);cursor:pointer;font-size:14px}
+.ovUndo:hover{background:var(--bg);color:var(--ink)}
+.ovFoot{display:flex;align-items:center;gap:14px;padding:14px 20px;border-top:1px solid var(--line);
+  background:#FAFBFC;flex-wrap:wrap}
+.ovTotales{font-size:13px}
+.ovBtns{margin-left:auto;display:flex;gap:9px}
 @media print{
   body{background:#fff;padding:0}
   .topbar .right,.config,.tabs,.card-head .tools{display:none!important}
@@ -289,6 +317,7 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
         <div class="tools">
           <button class="btn" id="btnCols">Columnas ▾</button>
           <button class="btn" id="btnAuto">Recolorear automático</button>
+          <button class="btn" id="btnEditar">✎ Corregir montos</button>
         </div>
       </div>
       <div class="tablescroll"><table id="tabla"></table></div>
@@ -314,13 +343,16 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
 "use strict";
 
 /* =============== estado =============== */
+let OV_INIT = {};
+try{ OV_INIT = JSON.parse(localStorage.getItem('cgOverrides') || '{}'); }catch(e){ OV_INIT = {}; }
 const S = {
-  ventas: [], fuerzas: [], meses: [],
+  ventas: [], ventasRaw: [], fuerzas: [], meses: [],
   fuerza: 'GERENTE', mesAct: null, mesAnt: null,
   metaInd: 30000000, metaEq: 300000000,
   soloActivos: true,
   corte: true, dia: 31, ultimoDia: 31,
   colores: {},                 // vendedor -> 'azul'|'verde'|'amar'|'rojo'|'none'|undefined(auto)
+  overrides: OV_INIT,          // 'fuerza§vendedor§mes' -> {neto: montoCorregido}
   sort: { key: 'netoAct', dir: -1 },
   chart: 'cumpl',
   rows: [], tot: null
@@ -412,7 +444,8 @@ async function cargarBackup(manual){
 function procesar(data){
   const v = data.ventas;
   if(!Array.isArray(v) || !v.length) return showErr('El backup no tiene un array "ventas".');
-  S.ventas = v;
+  S.ventasRaw = v;
+  aplicarOverrides();
   S.fuerzas = [...new Set(v.map(x=>x.fuerza_venta).filter(Boolean))].sort();
   S.meses   = [...new Set(v.map(x=>(x.fecha||'').slice(0,7)).filter(Boolean))].sort();
   if(!S.fuerzas.includes(S.fuerza)) S.fuerza = S.fuerzas[0];
@@ -447,6 +480,138 @@ function procesar(data){
 
 function fill(sel, arr, val, lab){
   sel.innerHTML = arr.map(x=>'<option value="'+esc(x)+'"'+(x===val?' selected':'')+'>'+esc(lab(x))+'</option>').join('');
+}
+
+/* =============== correcciones manuales (overrides) =============== */
+// Permite reemplazar a mano el neto de un gerente en un mes puntual (p.ej. para
+// reflejar una venta reasignada a otro vendedor después de importada, o una
+// devolución que el backup todavía no tiene). Se guarda como un "ajuste" sintético
+// (delta = corregido - real) fechado el día 1 del mes, agregado a S.ventas — así
+// agregar()/los gráficos de evolución y acumulado diario lo ven automáticamente
+// sin tener que tocar esa lógica en cada lugar donde se recorre S.ventas.
+function claveOv(vendedor, mes){ return S.fuerza+'§'+vendedor+'§'+mes; }
+
+function rawNetoDe(vendedor, mes){
+  let s = 0;
+  for(const x of S.ventasRaw){
+    if(x.vendedor===vendedor && x.fuerza_venta===S.fuerza && (x.fecha||'').slice(0,7)===mes) s += x.neto;
+  }
+  return s;
+}
+
+function aplicarOverrides(){
+  const ajustes = [];
+  for(const k in S.overrides){
+    const partes = k.split('§');
+    if(partes.length !== 3) continue;
+    const [fuerza, vendedor, mes] = partes;
+    const ov = S.overrides[k];
+    let raw = 0;
+    for(const x of S.ventasRaw){
+      if(x.vendedor===vendedor && x.fuerza_venta===fuerza && (x.fecha||'').slice(0,7)===mes) raw += x.neto;
+    }
+    const delta = ov.neto - raw;
+    if(Math.abs(delta) < 1) continue;
+    ajustes.push({
+      fuerza_venta: fuerza, vendedor: vendedor,
+      fecha: mes+'-01', neto: delta,
+      tipo_venta: delta>=0 ? 'Contado' : 'Financiado',
+      sucursal_venta: '(Ajuste manual)'
+    });
+  }
+  S.ventas = ajustes.length ? S.ventasRaw.concat(ajustes) : S.ventasRaw;
+}
+
+function guardarOverrides(){
+  localStorage.setItem('cgOverrides', JSON.stringify(S.overrides));
+}
+
+function abrirEditorMontos(){
+  cerrarPops();
+  const overlay = document.createElement('div');
+  overlay.className = 'ovModal';
+  overlay.innerHTML =
+    '<div class="ovBox">' +
+      '<div class="ovHead">' +
+        '<div>' +
+          '<h3>Corregir montos de facturación</h3>' +
+          '<div class="ovSub">'+esc(rango(S.mesAct))+' · '+esc(S.fuerza)+' — el valor reemplaza el neto total del mes '+
+          'para ese gerente (útil para reflejar ventas reasignadas a otro vendedor o devoluciones que el backup '+
+          'todavía no tiene). Afecta tabla, KPIs y los 6 gráficos.</div>' +
+        '</div>' +
+        '<button class="ovClose" id="ovClose" title="Cerrar">✕</button>' +
+      '</div>' +
+      '<div class="ovList" id="ovList"></div>' +
+      '<div class="ovFoot">' +
+        '<div class="ovTotales" id="ovTotales"></div>' +
+        '<div class="ovBtns">' +
+          '<button class="btn" id="ovResetAll">Restablecer todo</button>' +
+          '<button class="btn primary" id="ovApply">Recalcular gráficos y tabla</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  const filasOrden = S.rows.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+  $('ovList').innerHTML = filasOrden.map(r=>{
+    const raw = rawNetoDe(r.key, S.mesAct);
+    const has = S.overrides.hasOwnProperty(claveOv(r.key, S.mesAct));
+    return '<div class="ovRow" data-k="'+esc(claveOv(r.key,S.mesAct))+'" data-raw="'+raw+'">' +
+      '<div class="ovName">'+esc(r.nombre)+'<span class="branch">'+esc(r.suc)+'</span></div>' +
+      '<input type="number" step="1" class="ovInput" value="'+Math.round(r.netoAct)+'">' +
+      '<button class="ovUndo" title="Restablecer valor original" style="visibility:'+(has?'visible':'hidden')+'">↺</button>' +
+    '</div>';
+  }).join('');
+
+  const totalesEl = $('ovTotales');
+  function actualizarTotales(){
+    let total = 0;
+    overlay.querySelectorAll('.ovInput').forEach(i=> total += (+i.value || 0));
+    totalesEl.innerHTML = 'Total corregido: <b>'+money(total)+'</b> <span class="muted">(original: '+money(S.tot.netoAct)+')</span>';
+  }
+  actualizarTotales();
+
+  overlay.querySelectorAll('.ovInput').forEach(inp=>{
+    inp.addEventListener('input', () => {
+      const row = inp.closest('.ovRow');
+      const raw = +row.dataset.raw;
+      row.querySelector('.ovUndo').style.visibility = (Math.round(+inp.value) === Math.round(raw)) ? 'hidden' : 'visible';
+      actualizarTotales();
+    });
+  });
+  overlay.querySelectorAll('.ovUndo').forEach(btn=>{
+    btn.onclick = () => {
+      const row = btn.closest('.ovRow');
+      row.querySelector('.ovInput').value = Math.round(+row.dataset.raw);
+      btn.style.visibility = 'hidden';
+      actualizarTotales();
+    };
+  });
+
+  const cerrar = () => overlay.remove();
+  $('ovClose').onclick = cerrar;
+  overlay.addEventListener('click', e => { if(e.target === overlay) cerrar(); });
+
+  $('ovResetAll').onclick = () => {
+    overlay.querySelectorAll('.ovRow').forEach(row=>{
+      row.querySelector('.ovInput').value = Math.round(+row.dataset.raw);
+      row.querySelector('.ovUndo').style.visibility = 'hidden';
+    });
+    actualizarTotales();
+  };
+
+  $('ovApply').onclick = () => {
+    overlay.querySelectorAll('.ovRow').forEach(row=>{
+      const k = row.dataset.k, raw = +row.dataset.raw;
+      const val = +row.querySelector('.ovInput').value || 0;
+      if(Math.round(val) === Math.round(raw)) delete S.overrides[k];
+      else S.overrides[k] = {neto: val};
+    });
+    guardarOverrides();
+    aplicarOverrides();
+    render();
+    cerrar();
+  };
 }
 
 /* =============== agregación =============== */
@@ -510,7 +675,10 @@ const COLS = [
   {id:'pos',   lab:'#',              al:'ta-c', vis:true, sort:'netoAct', w:52,
    cell:r=>'<span class="rank" data-k="'+esc(r.key)+'">'+r.pos+'</span>', foot:()=>''},
   {id:'nombre',lab:'Gerente',        al:'ta-l', vis:true, sort:'nombre',
-   cell:r=>'<span class="name">'+esc(r.nombre)+'</span>', foot:()=>'<span class="name">Total '+S.rows.length+' gerentes</span>'},
+   cell:r=>'<span class="name">'+esc(r.nombre)+
+     (S.overrides[claveOv(r.key,S.mesAct)]?' <span class="ovBadge" title="Monto corregido a mano (original: '+money(rawNetoDe(r.key,S.mesAct))+')">✎</span>':'')+
+     '</span>',
+   foot:()=>'<span class="name">Total '+S.rows.length+' gerentes</span>'},
   {id:'suc',   lab:'Sucursal',       al:'ta-l', vis:true, sort:'suc',
    cell:r=>'<span class="branch">'+esc(r.suc)+'</span>', foot:()=>''},
   {id:'netoAct',lab:'Neto mes actual', al:'ta-r', vis:true, sort:'netoAct',
@@ -988,6 +1156,7 @@ $('selDia').onchange = e => { S.dia = +e.target.value; if(!S.corte){ S.corte = t
 $('corteChk').onchange = e => { S.corte = e.target.checked; render(); };
 $('btnCols').onclick = e => { e.stopPropagation(); abrirColumnas(e.currentTarget); };
 $('btnAuto').onclick = () => { S.colores = {}; render(); };
+$('btnEditar').onclick = () => abrirEditorMontos();
 $('btnPng').onclick = descargarPng;
 $('btnCopyCard').onclick = () => copiarKpiPng($('chartsCard'), $('btnCopyCard'));
 $('btnPrint').onclick = () => window.print();
