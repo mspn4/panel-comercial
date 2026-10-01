@@ -594,7 +594,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
         <button class="btn-add-period" id="btnAddMonths" onclick="addPickedMonths()" disabled>+ Agregar seleccionados</button>
       </div>
       <div class="period-tags" id="periodTags"></div>
-      <div class="period-hint">Sin mes = año completo · Sin días = mes completo · Máx. 6 períodos · Tocá varios meses de arriba para agregarlos en el orden en que los toques</div>
+      <div class="period-hint">Sin mes = año completo · Sin días = mes completo · Máx. 24 períodos · Tocá varios meses de arriba para agregarlos en el orden en que los toques</div>
     </div>
     <div class="panel-group vendor-only">
       <div class="panel-label">Buscar colaborador</div>
@@ -1277,7 +1277,7 @@ function addPickedMonths(){
   if(!monthPickOrder.length) return;
   let added=0,dup=0,limitHit=false;
   for(const mp of monthPickOrder){
-    if(periods.length>=6){ limitHit=true; break; }
+    if(periods.length>=24){ limitHit=true; break; }
     const lastD=new Date(parseInt(mp.y),parseInt(mp.m),0).getDate();
     const dateFrom=`${mp.y}-${mp.m}-01`,dateTo=`${mp.y}-${mp.m}-${String(lastD).padStart(2,'0')}`;
     if(periods.find(p=>p.dateFrom===dateFrom&&p.dateTo===dateTo)){ dup++; continue; }
@@ -1288,7 +1288,7 @@ function addPickedMonths(){
   monthPickOrder=[];
   renderMonthMultiChips();
   renderPeriodTags(); refreshPills();
-  if(limitHit) alert(`Máximo 6 períodos. Se agregaron ${added} de los meses seleccionados.`);
+  if(limitHit) alert(`Máximo 24 períodos. Se agregaron ${added} de los meses seleccionados.`);
   else if(dup) alert(`${dup} de los meses seleccionados ya estaban agregados y se omitieron.`);
 }
 function updateDayOptions(){
@@ -1308,7 +1308,7 @@ pMonth.addEventListener('change',updateDayOptions);
 updateMonthOptions();
 
 function addPeriod(){
-  if(periods.length>=6){alert('Máximo 6 períodos.');return;}
+  if(periods.length>=24){alert('Máximo 24 períodos.');return;}
   const y=pYear.value,m=pMonth.value,d1=pDayFrom.value,d2=pDayTo.value;
   let dateFrom,dateTo,label;
   if(!m){
@@ -1333,7 +1333,7 @@ function removePeriod(i){ periods.splice(i,1); periods.forEach((p,idx)=>p.colorI
 function renderPeriodTags(){
   const el=document.getElementById('periodTags');
   if(!periods.length){el.innerHTML='<span style="font-size:11px;color:var(--mu);font-style:italic;">Sin períodos todavía</span>';return;}
-  el.innerHTML=periods.map((p,i)=>`<span class="ptag p${i}"><span class="ptag-lbl">P${i+1}</span>${p.label}<span class="ptag-x" onclick="removePeriod(${i})">×</span></span>`).join('');
+  el.innerHTML=periods.map((p,i)=>`<span class="ptag p${i%6}"><span class="ptag-lbl">P${i+1}</span>${p.label}<span class="ptag-x" onclick="removePeriod(${i})">×</span></span>`).join('');
 }
 renderPeriodTags();
 
