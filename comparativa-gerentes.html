@@ -318,6 +318,9 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
           <button class="btn" id="btnCols">Columnas ▾</button>
           <button class="btn" id="btnAuto">Recolorear automático</button>
           <button class="btn" id="btnEditar">✎ Corregir montos</button>
+          <button class="btn" id="btnExportOv" title="Descargar un archivo con las correcciones de montos cargadas">💾 Exportar correcciones</button>
+          <button class="btn" id="btnImportOv" title="Cargar un archivo de correcciones ya exportado (pisa/combina con lo que ya está cargado)">📂 Cargar correcciones</button>
+          <input type="file" id="fileImportOv" accept="application/json" style="display:none">
         </div>
       </div>
       <div class="tablescroll"><table id="tabla"></table></div>
@@ -520,6 +523,34 @@ function aplicarOverrides(){
     });
   }
   S.ventas = ajustes.length ? S.ventasRaw.concat(ajustes) : S.ventasRaw;
+}
+
+function exportarOverrides(){
+  const payload = { overrides: S.overrides, exportado: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'correcciones-gerentes-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importarOverrides(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const data = JSON.parse(e.target.result);
+      const ov = (data && typeof data.overrides === 'object') ? data.overrides : data;
+      if(!ov || typeof ov !== 'object' || Array.isArray(ov)) throw new Error('el archivo no tiene el formato esperado');
+      Object.assign(S.overrides, ov);
+      guardarOverrides();
+      aplicarOverrides();
+      render();
+    }catch(err){
+      showErr('No se pudo cargar el archivo de correcciones: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
 }
 
 function guardarOverrides(){
@@ -1157,6 +1188,9 @@ $('corteChk').onchange = e => { S.corte = e.target.checked; render(); };
 $('btnCols').onclick = e => { e.stopPropagation(); abrirColumnas(e.currentTarget); };
 $('btnAuto').onclick = () => { S.colores = {}; render(); };
 $('btnEditar').onclick = () => abrirEditorMontos();
+$('btnExportOv').onclick = exportarOverrides;
+$('btnImportOv').onclick = () => $('fileImportOv').click();
+$('fileImportOv').onchange = e => { if(e.target.files[0]) importarOverrides(e.target.files[0]); e.target.value = ''; };
 $('btnPng').onclick = descargarPng;
 $('btnCopyCard').onclick = () => copiarKpiPng($('chartsCard'), $('btnCopyCard'));
 $('btnPrint').onclick = () => window.print();

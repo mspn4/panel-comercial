@@ -272,6 +272,10 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
         <div class="pill pill-date" id="lastFetchPill" title="Última vez que este panel consultó ventas-backup.json">—</div>
         <button class="tool-btn" id="forceBackupBtn" title="Sube a GitHub el estado actual de Drive, sin esperar al backup automático de las 23:00">☁ Forzar backup</button>
         <button class="tool-btn" id="refreshBtn" title="Volver a consultar ventas-backup.json">↻ Actualizar</button>
+        <button class="tool-btn" id="btnCopiarComparativa" title="Trae las correcciones manuales de montos guardadas en Comparativa Intermensual (mismo navegador)">📋 Copiar de Comparativa</button>
+        <button class="tool-btn" id="btnExportOv" title="Descargar un archivo con las correcciones de montos cargadas">💾 Exportar correcciones</button>
+        <button class="tool-btn" id="btnImportOv" title="Cargar un archivo de correcciones ya exportado (desde Comparativa u otra computadora)">📂 Cargar correcciones</button>
+        <input type="file" id="fileImportOv" accept="application/json" style="display:none">
       </div>
     </div>
 
@@ -418,12 +422,81 @@ let colWidths = JSON.parse(localStorage.getItem('pg_colWidths') || '{}');
 let hiddenCols = JSON.parse(localStorage.getItem('pg_hiddenCols') || '[]');
 let sortState = JSON.parse(localStorage.getItem('pg_sort') || '{"col":"neto","dir":"desc"}');
 let selectedMonth = localStorage.getItem('pg_month') || null;
+let pgOverrides = {};
+try{ pgOverrides = JSON.parse(localStorage.getItem('pg_overrides') || '{}'); }catch(e){ pgOverrides = {}; }
 
-let ventasAll = [];
+let ventasRaw = [];   // crudo de ventas-backup.json, sin tocar
+let ventasAll = [];   // = ventasRaw + ajustes sintéticos por pgOverrides — todo lo demás del archivo lee esta
 let reservasAll = [];
 let exportadoAt = null;
 let currentRows = [];
 function reservaKey(r){ return r.nota_vta+'|'+r.cod_cli+'|'+r.fecha; }
+
+/* ---------- correcciones manuales (overrides), compartidas con comparativa-gerentes.html ---------- */
+// Mismo formato de clave que esa pestaña ('fuerza§vendedor§mes' -> {neto}) para poder copiar/cargar
+// directo el mismo archivo o leerlo de localStorage sin transformar nada.
+function guardarPgOverrides(){ localStorage.setItem('pg_overrides', JSON.stringify(pgOverrides)); }
+
+function rawNetoDeGerente(vendedor, mes){
+  let s = 0;
+  for(const x of ventasRaw){
+    if(x.vendedor===vendedor && x.fuerza_venta==='GERENTE' && (x.fecha||'').slice(0,7)===mes) s += x.neto;
+  }
+  return s;
+}
+function tieneOverridePg(vendedor, mes){ return pgOverrides.hasOwnProperty('GERENTE§'+vendedor+'§'+mes); }
+
+function aplicarPgOverrides(){
+  const ajustes = [];
+  for(const k in pgOverrides){
+    const partes = k.split('§');
+    if(partes.length !== 3) continue;
+    const [fuerza, vendedor, mes] = partes;
+    const ov = pgOverrides[k];
+    let raw = 0;
+    for(const x of ventasRaw){
+      if(x.vendedor===vendedor && x.fuerza_venta===fuerza && (x.fecha||'').slice(0,7)===mes) raw += x.neto;
+    }
+    const delta = ov.neto - raw;
+    if(Math.abs(delta) < 1) continue;
+    ajustes.push({
+      fuerza_venta: fuerza, vendedor: vendedor,
+      fecha: mes+'-01', neto: delta,
+      tipo_venta: delta>=0 ? 'Contado' : 'Financiado',
+      sucursal_venta: '(Ajuste manual)'
+    });
+  }
+  ventasAll = ajustes.length ? ventasRaw.concat(ajustes) : ventasRaw;
+}
+
+function exportarPgOverrides(){
+  const payload = { overrides: pgOverrides, exportado: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'correcciones-gerentes-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importarPgOverrides(file, onDone){
+  const reader = new FileReader();
+  reader.onload = e => {
+    let ok = false;
+    try{
+      const data = JSON.parse(e.target.result);
+      const ov = (data && typeof data.overrides === 'object') ? data.overrides : data;
+      if(!ov || typeof ov !== 'object' || Array.isArray(ov)) throw new Error('formato inválido');
+      Object.assign(pgOverrides, ov);
+      guardarPgOverrides();
+      aplicarPgOverrides();
+      renderAll();
+      ok = true;
+    }catch(err){ console.warn('No se pudo cargar el archivo de correcciones', err); }
+    if(onDone) onDone(ok);
+  };
+  reader.readAsText(file);
+}
 
 const COLS = [
   {key:'vendedor',   label:'Vendedor',   hideable:false, sortable:true, type:'text', width:220},
@@ -476,7 +549,8 @@ async function loadData(manual){
     const r = await fetch('ventas-backup.json', {cache:'no-store'});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const data = await r.json();
-    ventasAll = data.ventas || [];
+    ventasRaw = data.ventas || [];
+    aplicarPgOverrides();
     reservasAll = data.reservas || [];
     exportadoAt = data.exportado || null;
   }catch(err){
@@ -521,6 +595,38 @@ async function loadData(manual){
   if(manual){ btn.disabled = false; btn.textContent = '↻ Actualizar'; }
 }
 document.getElementById('refreshBtn').addEventListener('click', ()=>loadData(true));
+
+document.getElementById('btnCopiarComparativa').addEventListener('click', ()=>{
+  const btn = document.getElementById('btnCopiarComparativa');
+  const original = btn.textContent;
+  let cg = {};
+  try{ cg = JSON.parse(localStorage.getItem('cgOverrides') || '{}'); }catch(e){}
+  const keys = Object.keys(cg).filter(k=>k.startsWith('GERENTE§'));
+  if(!keys.length){
+    btn.textContent = 'Sin correcciones en Comparativa';
+  }else{
+    keys.forEach(k=> pgOverrides[k] = cg[k]);
+    guardarPgOverrides();
+    aplicarPgOverrides();
+    renderAll();
+    btn.textContent = '✓ ' + keys.length + ' copiadas';
+  }
+  setTimeout(()=>{ btn.textContent = original; }, 2500);
+});
+
+document.getElementById('btnExportOv').addEventListener('click', exportarPgOverrides);
+document.getElementById('btnImportOv').addEventListener('click', ()=> document.getElementById('fileImportOv').click());
+document.getElementById('fileImportOv').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const btn = document.getElementById('btnImportOv');
+  const original = btn.textContent;
+  importarPgOverrides(file, ok=>{
+    btn.textContent = ok ? '✓ Cargado' : '✕ Archivo inválido';
+    setTimeout(()=>{ btn.textContent = original; }, 2500);
+  });
+  e.target.value = '';
+});
 
 document.getElementById('forceBackupBtn').addEventListener('click', async ()=>{
   const btn = document.getElementById('forceBackupBtn');
@@ -688,7 +794,10 @@ function renderTable(){
     let tds = '';
     cols.forEach(c=>{
       if(c.key==='vendedor'){
-        tds += '<td><span class="vend-name">'+r.nombre+'</span></td>';
+        const badge = tieneOverridePg(r.key, selectedMonth)
+          ? ' <span style="font-size:11px;color:var(--blue)" title="Monto corregido a mano (original: '+fmtFull(rawNetoDeGerente(r.key,selectedMonth))+')">✎</span>'
+          : '';
+        tds += '<td><span class="vend-name">'+r.nombre+badge+'</span></td>';
       }else if(c.key==='sucursal'){
         tds += '<td style="color:var(--ink-2);font-weight:600;font-size:12px">'+r.sucursal+'</td>';
       }else if(c.key==='neto'){
