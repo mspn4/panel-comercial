@@ -282,6 +282,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
     <a href="#l1000">Lista 1000</a>
     <a href="#l6001">Listas 6001 / 6002</a>
     <a href="#penalidades">Penalidades Gerentes/Líderes</a>
+    <a href="#premios-produccion">Premios por Producción</a>
     <a href="#categorias">Categorías</a>
     <a href="#aclaraciones">Aclaraciones</a>
   </nav>
@@ -432,6 +433,65 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
     </div>
   </section>
 
+  <!-- PREMIOS POR PRODUCCIÓN -->
+  <section class="panel" id="premios-produccion">
+    <h2><span class="cat-pill c5">Premios por Producción</span> <span class="h2sub">Líderes Comerciales · Fuerzas de Venta · Empleados/Staff</span></h2>
+    <p class="lead">Premios según la posición en el ranking de ventas personales. Cada fila de la tabla es un ranking independiente.</p>
+
+    <div id="premiosIntro">
+      <p class="rule">Definido por el Departamento Comercial en conjunto con Cacho Avellaneda. Comunicado original: <b>02/06/2026</b>. El esquema vigente ya incorpora la rectificación posterior sobre los premios de Vendedor Redes Sociales y Vendedor Senior.</p>
+    </div>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr>
+          <th>Ranking</th>
+          <th class="num">1.° puesto</th>
+          <th class="num">2.° puesto</th>
+          <th class="num">3.° puesto</th>
+          <th class="num">Total por ranking</th>
+        </tr></thead>
+        <tbody id="tblPremios"></tbody>
+      </table>
+    </div>
+
+    <h3 style="font-size:13px;font-weight:700;margin:18px 0 8px">Detalle por categoría y cambios respecto al esquema anterior</h3>
+    <div id="listPremiosDetalle"></div>
+
+    <div class="callout" id="premiosObjetivo">
+      <div class="ic">🎯</div>
+      <div class="txt">
+        <div class="lab">Objetivo</div>
+        <p>Incentivar la competencia en las distintas fuerzas de venta, de manera que el objetivo no sea solamente el primer puesto, sino el podio.</p>
+      </div>
+    </div>
+
+    <h3 style="font-size:13px;font-weight:700;margin:22px 0 8px">Premios eliminados</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr>
+          <th>Premio eliminado</th>
+          <th class="num">Monto anterior</th>
+        </tr></thead>
+        <tbody id="tblPremiosEliminados"></tbody>
+      </table>
+    </div>
+
+    <h3 style="font-size:13px;font-weight:700;margin:22px 0 8px">Impacto en el presupuesto de premios <span style="font-weight:600;color:var(--ink3);text-transform:none;letter-spacing:0">(referencia interna)</span></h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr>
+          <th>Concepto</th>
+          <th class="num">Antes</th>
+          <th class="num">Ahora</th>
+          <th class="num">Diferencia</th>
+        </tr></thead>
+        <tbody id="tblPremiosImpacto"></tbody>
+      </table>
+    </div>
+    <p class="rule" style="font-size:11.5px;color:var(--ink3);font-style:italic;margin-top:10px">Total recalculado a partir de los montos detallados, incluyendo la rectificación de Vendedor Redes Sociales/Senior. El comunicado original, previo a la rectificación, informaba una reducción de $1.900.000.</p>
+  </section>
+
   <!-- CATEGORIAS -->
   <section class="panel" id="categorias">
     <h2><span class="cat-pill c1">Categorías</span></h2>
@@ -458,7 +518,9 @@ const td=(v,cls)=>`<td class="${cls||''}">${v}</td>`;
 /* ---------- Modo edición: overrides guardados en localStorage (por navegador) ---------- */
 const EDIT_KEY='379604191919abcdE!';
 const EDIT_IDS=['l3767Intro','tbl3767','outletLead','tblOutletPdo','tblOutletDescuento','outletImportante',
-  'l101Intro','tbl101','tbl1018','l1000Intro','tbl1000','l6001Body','penalidadesBody','listCategorias','listAclaraciones'];
+  'l101Intro','tbl101','tbl1018','l1000Intro','tbl1000','l6001Body','penalidadesBody',
+  'premiosIntro','tblPremios','listPremiosDetalle','premiosObjetivo','tblPremiosEliminados','tblPremiosImpacto',
+  'listCategorias','listAclaraciones'];
 let OV={};
 try{ OV=JSON.parse(localStorage.getItem('policiesOverrides')||'{}'); }catch(e){ OV={}; }
 function ov(id,html){ const el=document.getElementById(id); if(!el)return; el.innerHTML=(OV[id]!==undefined)?OV[id]:html; }
@@ -480,7 +542,7 @@ const L3767=[
   ['N','12,01 - 13%','0,600%','1,600%','0,225%','0,0625%'],
   ['O','13,01 - 14%','0,400%','1,400%','0,113%','0,0310%'],
   ['P','14,01% - 15%','0,200%','1,200%','0,056%','0,0160%'],
-  ['Q','Mayor a 15%','0,000%','1,000%','0,000%','0,0000%'],
+  ['Q','Mayor a 15%','0,125%','1,000%','0,000%','0,0000%'],
 ];
 ov('tbl3767',L3767.map(r=>fila(
   td(r[0],'letra')+td(r[1])+td(r[2],'num vendedor')+td(r[3],'num free')+td(r[4],'num lider')+td(r[5],'num gerente')
@@ -534,6 +596,62 @@ const L1000=[
 ];
 ov('tbl1000',L1000.map(r=>fila(
   td(r[0],'letra')+td(r[1])+td(r[2],'num vendedor')+td(r[3],'num lider')+td(r[4],'num gerente')
+)).join(''));
+
+/* Premios por Producción — ranking: [categoría, 1er puesto, 2do puesto, 3er puesto, total por ranking] */
+const PREMIOS_RANKING=[
+  ['Cobradores','$300.000','$200.000','$100.000','$600.000'],
+  ['Vendedores Showroom','$300.000','$200.000','$100.000','$600.000'],
+  ['Vendedor Redes Sociales','$300.000','$200.000','$100.000','$600.000'],
+  ['Vendedor Senior','$300.000','$200.000','$100.000','$600.000'],
+  ['Vendedor Junior Terreno','$300.000','Sin premio','Sin premio','$300.000'],
+  ['Líderes Comerciales','$500.000','$400.000','$300.000','$1.200.000'],
+  ['Empleados / Staff Merchandising','Merchandising','Sin premio','Sin premio','Sin premio en dinero'],
+];
+ov('tblPremios',PREMIOS_RANKING.map(r=>fila(
+  td(r[0],'letra')+td(r[1],'num vendedor')+td(r[2],'num')+td(r[3],'num')+td(r[4],'num free')
+)).join(''));
+
+/* Premios por Producción — detalle por categoría: [título, premios, cambio vs. esquema anterior] */
+const PREMIOS_DETALLE=[
+  ['Cobradores / Vendedores Showroom','Premios: 1.° $300.000 · 2.° $200.000 · 3.° $100.000 (rankings separados para Cobradores y para Showroom).','Cambio: Antes se otorgaba un único premio de $500.000 al primero. Ese monto se redistribuye y se agrega el premio al tercer lugar.'],
+  ['Vendedor Redes Sociales / Vendedor Senior','Premios: 1.° $300.000 · 2.° $200.000 · 3.° $100.000 (rankings separados para Redes Sociales y para Senior), según la posición en el ranking por ventas personales.','Cambio: Montos rectificados: reemplazan los $500.000, $400.000 y $300.000 del esquema anterior.'],
+  ['Vendedor Junior Terreno','Premio: 1.° $300.000. Se otorga premio solamente al primero.','Cambio: Premio nuevo: antes no existía.'],
+  ['Líderes Comerciales','Premios: 1.° $500.000 · 2.° $400.000 · 3.° $300.000.','Cambio: Se elimina el premio de $100.000 por alcanzar el 100% de cumplimiento con el equipo. También se eliminan los premios para Líderes de Redes Sociales, que tenían los mismos montos ($500.000, $400.000 y $300.000) según la posición ocupada por sus equipos.'],
+  ['Empleados / Staff','Sin premio en dinero. El mejor vendedor empleado/staff gana el premio de merchandising mensual (por ejemplo: mochila, campera, etc.).','Cambio: Se elimina el premio por posición en el ranking de ventas personales, que era de $500.000, $400.000 y $300.000.'],
+];
+ov('listPremiosDetalle',PREMIOS_DETALLE.map(d=>
+  `<p class="rule"><b>${d[0]}</b></p>`+
+  `<p class="rule">${d[1]}</p>`+
+  `<p class="rule" style="font-size:12.5px;color:var(--ink2);font-style:italic">${d[2]}</p>`
+).join(''));
+
+/* Premios por Producción — premios eliminados: [premio, monto anterior] */
+const PREMIOS_ELIMINADOS=[
+  ['Líderes de Redes Sociales: premio por posición de sus equipos','$500.000 · $400.000 · $300.000'],
+  ['Empleados / Staff: premio por ranking de ventas personales','$500.000 · $400.000 · $300.000'],
+  ['Líderes Comerciales: premio por 100% de cumplimiento del equipo','$100.000'],
+];
+ov('tblPremiosEliminados',PREMIOS_ELIMINADOS.map(r=>fila(
+  td(r[0])+td(r[1],'num')
+)).join(''));
+
+/* Premios por Producción — impacto presupuestario: [concepto, antes, ahora, diferencia] */
+const PREMIOS_IMPACTO=[
+  ['Cobradores','$500.000','$600.000','+$100.000'],
+  ['Vendedores Showroom','$500.000','$600.000','+$100.000'],
+  ['Vendedor Redes Sociales','$1.200.000','$600.000','-$600.000'],
+  ['Vendedor Senior','$1.200.000','$600.000','-$600.000'],
+  ['Vendedor Junior Terreno','$0','$300.000','+$300.000'],
+  ['Líderes Comerciales (ranking)','$1.200.000','$1.200.000','$0'],
+  ['Líderes Comerciales (100% cumplimiento)','$100.000','$0','-$100.000'],
+  ['Líderes de Redes Sociales','$1.200.000','$0','-$1.200.000'],
+  ['Empleados / Staff','$1.200.000','$0','-$1.200.000'],
+  ['Total','$7.100.000','$3.900.000','-$3.200.000'],
+];
+ov('tblPremiosImpacto',PREMIOS_IMPACTO.map((r,i)=>fila(
+  td(r[0],i===PREMIOS_IMPACTO.length-1?'letra':'')+td(r[1],'num')+td(r[2],'num')+td(r[3],'num'),
+  i===PREMIOS_IMPACTO.length-1?'rowgroup-b':''
 )).join(''));
 
 /* Categorías: [nombre, descripción de liquidación, objetivo] — editar acá si cambian condiciones */
@@ -595,7 +713,7 @@ ov('tbl1018',L1018.map(r=>fila(
 )).join(''));
 
 /* Aplica overrides guardados sobre los bloques de texto estático (no generados por array JS) */
-['l3767Intro','outletLead','outletImportante','l101Intro','l1000Intro','l6001Body','penalidadesBody'].forEach(id=>{
+['l3767Intro','outletLead','outletImportante','l101Intro','l1000Intro','l6001Body','penalidadesBody','premiosIntro','premiosObjetivo'].forEach(id=>{
   if(OV[id]!==undefined){ const el=document.getElementById(id); if(el) el.innerHTML=OV[id]; }
 });
 
