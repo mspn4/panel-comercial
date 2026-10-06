@@ -1800,6 +1800,18 @@ function render(idx){
   const dlSec=(color,minePlot,otherPlot,mineReal,otherReal)=>({display:true,align:'bottom',anchor:'end',
     offset:(ctx)=>secOffset(minePlot,otherPlot,mineReal,otherReal,ctx),
     clip:false,clamp:true,color,font:fontCfg,formatter:(v,ctx)=>fmtLabel(mineReal[ctx.dataIndex]),...labelBg});
+  // Reservar espacio arriba del gráfico cuando el resumen (Tarjeta/Minimal/Minimal v2/v3)
+  // está en una posición superior (tl/tc/tr) — si no, como el eje Y se autoescala al
+  // máximo real de los datos sin saber que hay texto ahí, un pico alto termina con su
+  // punto/etiqueta justo debajo o encima del resumen (reportado con Minimal v3 en
+  // centro-arriba, pero el mismo choque puede pasar con cualquier estilo en esa fila).
+  // Se mide la altura real ya renderizada del overlay (su contenido ya se arma más
+  // arriba en esta función) en vez de un valor fijo, porque Tarjeta/Minimal v2 ocupan
+  // bastante más alto que una sola línea de texto de Minimal v3.
+  const overlayEl=document.getElementById('sumOverlay');
+  const curSumPos=sumStyle==='textfree'?tfPos:sumPos;
+  const overlayArriba=showSummary&&/^t/.test(curSumPos)&&overlayEl.innerHTML.trim();
+  const topPad=overlayArriba?Math.max(36,overlayEl.offsetHeight+24):36;
   chart=new Chart(ctx,{
     type:'line',plugins:[ChartDataLabels],
     data:{labels,datasets:[
@@ -1807,7 +1819,7 @@ function render(idx){
       {label:'Contado',data:contPlot,borderColor:'#0b7fc2',backgroundColor:gC,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#0b7fc2',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#0b7fc2',contPlot,finPlot,contData,finData)},
       {label:'Financiado',data:finPlot,borderColor:'#F97316',backgroundColor:gF,borderWidth:2.5,tension:.35,fill:true,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#F97316',pointBorderColor:'#fff',pointBorderWidth:2,datalabels:dlSec('#F97316',finPlot,contPlot,finData,contData)},
     ]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:36,right:36,left:36,bottom:34}},animation:{duration:0},interaction:{mode:'index',intersect:false},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:topPad,right:36,left:36,bottom:34}},animation:{duration:0},interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{enabled:false},datalabels:{display:false}},
       scales:{x:{grid:{color:'rgba(0,0,0,.04)',drawBorder:false},border:{display:false},ticks:{font:{size:12,weight:'600'},color:'#566579',padding:8}},y:{display:false,beginAtZero:true}}}
   });
