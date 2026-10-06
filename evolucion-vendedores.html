@@ -778,18 +778,18 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
 <div class="tf-bar" id="tfBar">
   <span class="tf-bar-label">✏ v3</span>
   <div class="tf-bar-field">
-    <span class="tf-bar-field-lbl">Facturado:</span>
+    <span class="tf-bar-field-lbl">Ventas:</span>
     <input class="tf-bar-input" id="tfFact" type="text" placeholder="$1.200.000" oninput="updateTF()">
   </div>
   <span class="tf-bar-sep">|</span>
   <div class="tf-bar-field">
-    <span class="tf-bar-field-lbl">Reserva:</span>
+    <span class="tf-bar-field-lbl">Reservas:</span>
     <input class="tf-bar-input" id="tfRes" type="text" placeholder="$800.000" oninput="updateTF()">
   </div>
   <div class="tf-bar-divider"></div>
   <span class="tf-bar-pos-label">Posición:</span>
-  <button class="tf-bar-pos-btn on" id="tfPosTL" onclick="setTFPos('tl')">↖</button>
-  <button class="tf-bar-pos-btn"    id="tfPosTC" onclick="setTFPos('tc')">↑</button>
+  <button class="tf-bar-pos-btn"    id="tfPosTL" onclick="setTFPos('tl')">↖</button>
+  <button class="tf-bar-pos-btn on" id="tfPosTC" onclick="setTFPos('tc')">↑</button>
   <button class="tf-bar-pos-btn"    id="tfPosTR" onclick="setTFPos('tr')">↗</button>
   <button class="tf-bar-pos-btn"    id="tfPosBL" onclick="setTFPos('bl')">↙</button>
   <button class="tf-bar-pos-btn"    id="tfPosBR" onclick="setTFPos('br')">↘</button>
@@ -805,7 +805,7 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
   <button class="tf-bar-color-btn"    id="tfColBlue"  style="background:#0075DE" onclick="setTFColor('#0075DE')" title="Azul"></button>
   <button class="tf-bar-color-btn"    id="tfColOrange" style="background:#DD5B00" onclick="setTFColor('#DD5B00')" title="Naranja"></button>
   <button class="tf-bar-color-btn"    id="tfColGreen" style="background:#1AAE39" onclick="setTFColor('#1AAE39')" title="Verde"></button>
-  <button class="tf-bar-auto-btn" onclick="autoFillTF()" title="Vuelve a calcular Facturado y Reserva desde el JSON cargado para el último período">↺ Autocompletar del JSON</button>
+  <button class="tf-bar-auto-btn" onclick="autoFillTF()" title="Vuelve a calcular Ventas y Reservas del mes en curso (1° del mes a la última fecha del backup)">↺ Autocompletar del JSON</button>
 </div>
 
 <div class="zip-sel-bar" id="zipSelBar">
@@ -1069,7 +1069,7 @@ let sumPos='tr';     // 'tr' | 'tl' | 'tc' | 'br' | 'bl'
 let teamMode=false;
 let labelWeight=800;
 let labelSize=11;
-let tfPos='tl';      // posición independiente del texto libre
+let tfPos='tc';      // posición independiente del texto libre (centro-arriba por defecto)
 let tfSize='m';      // 's' | 'm' | 'l'
 let tfColor='#000000';
 let tfData={};       // { slideKey: {fact:'', res:''} }
@@ -1150,26 +1150,32 @@ function syncTFEditor(){
   document.getElementById('tfRes').value=d.res;
 }
 
-// Calcula Facturado/Reserva del último período para el slide actual, a partir
-// de los datos ya cargados (D.daily / D.reservasDaily). No sobreescribe nada
-// que el usuario ya haya tocado a mano (ver syncTFEditor/autoFillTF).
+// Calcula Ventas/Reservas del MES EN CURSO para el slide actual — no el total de
+// todo D.dateRange ni el período que se esté comparando en el gráfico (ese suele
+// ser un rango de meses ya CERRADOS para ver la tendencia, ej. Abril a Septiembre).
+// "Mes en curso" = el mes de D.dateRange.max (la última fecha cargada del backup,
+// que se actualiza a diario), desde el día 1 de ese mes hasta esa fecha — el avance
+// del mes que todavía no cerró y por eso no entra como columna del gráfico, pero sí
+// se puede mostrar como texto. A partir de los datos ya cargados (D.daily /
+// D.reservasDaily). No sobreescribe nada que el usuario ya haya tocado a mano (ver
+// syncTFEditor/autoFillTF).
 function fmtMoneyFull(n){ return '$'+Math.round(n).toLocaleString('es-AR'); }
 function autoTFValues(){
-  if(!slides.length||!periods.length) return {fact:'',res:''};
-  const v=slides[cur], p=periods[periods.length-1];
+  if(!slides.length||!D.dateRange) return {fact:'',res:''};
+  const v=slides[cur], dTo=D.dateRange.max, dFrom=dTo.slice(0,7)+'-01';
   const hayReservas=D.reservasDaily && Object.keys(D.reservasDaily).length>0;
   let fact=0, res=0, resAplica=hayReservas;
   if(v.type==='team'){
     v.members.forEach(n=>{
-      fact+=sumPeriod(D.daily,n,p.dateFrom,p.dateTo).total;
-      if(hayReservas) res+=sumPeriod(D.reservasDaily,n,p.dateFrom,p.dateTo).total;
+      fact+=sumPeriod(D.daily,n,dFrom,dTo).total;
+      if(hayReservas) res+=sumPeriod(D.reservasDaily,n,dFrom,dTo).total;
     });
   }else if(v.type==='suc'){
-    fact=sumPeriod(D.daily_suc,v.key,p.dateFrom,p.dateTo).total;
+    fact=sumPeriod(D.daily_suc,v.key,dFrom,dTo).total;
     resAplica=false; // las reservas del backup no traen sucursal, no se puede calcular por sucursal
   }else{
-    fact=sumPeriod(D.daily,v.key,p.dateFrom,p.dateTo).total;
-    if(hayReservas) res=sumPeriod(D.reservasDaily,v.key,p.dateFrom,p.dateTo).total;
+    fact=sumPeriod(D.daily,v.key,dFrom,dTo).total;
+    if(hayReservas) res=sumPeriod(D.reservasDaily,v.key,dFrom,dTo).total;
   }
   return { fact: fact?fmtMoneyFull(fact):'', res: resAplica?fmtMoneyFull(res):'' };
 }
@@ -1215,7 +1221,7 @@ function renderTFOverlay(){
   const d=tfData[k]||{fact:'',res:''};
   const fact=d.fact||'$—';
   const res=d.res||'$—';
-  const text=`Facturado: ${fact} \u00a0|\u00a0 Reserva: ${res}`;
+  const text=`Ventas: ${fact} \u00a0-\u00a0 Reservas: ${res}`;
   // Font size map
   const fsMap={s:'1.4vw',m:'1.85vw',l:'2.4vw'};
   const fs=fsMap[tfSize]||'1.85vw';
