@@ -236,22 +236,30 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
 (function(){
   if (localStorage.getItem('panelAuthOK') === '1') return;
   document.documentElement.classList.add('panel-locked');
+  var PA_HASH = '0967f02e309390459f5a18a0b79676ff308c3ad4604113a1984e413595c86551';
+  function paHash(s){
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then(function(buf){
+      return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+    });
+  }
   document.getElementById('panelAuthForm').addEventListener('submit', function(e){
     e.preventDefault();
     var u = document.getElementById('paUser').value.trim();
     var p = document.getElementById('paPass').value;
-    if (u === 'wsenieva' && p === '379604191919abcde!') {
-      localStorage.setItem('panelAuthOK', '1');
-      document.documentElement.classList.remove('panel-locked');
-    } else {
-      document.getElementById('paError').textContent = 'Usuario o contraseña incorrectos.';
-      var card = document.querySelector('#panelAuthOverlay .pa-card');
-      card.classList.remove('pa-shake');
-      void card.offsetWidth;
-      card.classList.add('pa-shake');
-      document.getElementById('paPass').value = '';
-      document.getElementById('paPass').focus();
-    }
+    paHash(u + ':' + p).then(function(h){
+      if (h === PA_HASH) {
+        localStorage.setItem('panelAuthOK', '1');
+        document.documentElement.classList.remove('panel-locked');
+      } else {
+        document.getElementById('paError').textContent = 'Usuario o contraseña incorrectos.';
+        var card = document.querySelector('#panelAuthOverlay .pa-card');
+        card.classList.remove('pa-shake');
+        void card.offsetWidth;
+        card.classList.add('pa-shake');
+        document.getElementById('paPass').value = '';
+        document.getElementById('paPass').focus();
+      }
+    });
   });
 })();
 </script>
@@ -516,7 +524,12 @@ const fila=(cells,cls)=>`<tr class="${cls||''}">${cells}</tr>`;
 const td=(v,cls)=>`<td class="${cls||''}">${v}</td>`;
 
 /* ---------- Modo edición: overrides guardados en localStorage (por navegador) ---------- */
-const EDIT_KEY='379604191919abcdE!';
+const EDIT_HASH='d7a19d8f8628e72a62f1d158d49529a4aa99ca38b2aa1fadffbf1713e49ea482';
+function editHash(s){
+  return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then(function(buf){
+    return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  });
+}
 const EDIT_IDS=['l3767Intro','tbl3767','outletLead','tblOutletPdo','tblOutletDescuento','outletImportante',
   'l101Intro','tbl101','tbl1018','l1000Intro','tbl1000','l6001Body','penalidadesBody',
   'premiosIntro','tblPremios','listPremiosDetalle','premiosObjetivo','tblPremiosEliminados','tblPremiosImpacto',
@@ -746,18 +759,20 @@ $('#editAuthCancel').addEventListener('click',()=>{ $('#editAuthOverlay').style.
 $('#editAuthForm').addEventListener('submit',function(e){
   e.preventDefault();
   const p=$('#editAuthPass').value;
-  if(p===EDIT_KEY){
-    sessionStorage.setItem('policiesEditOK','1');
-    $('#editAuthOverlay').style.display='none';
-    $('#editAuthPass').value='';
-    $('#editAuthError').textContent='';
-    setEditMode(true);
-  }else{
-    $('#editAuthError').textContent='Contraseña incorrecta.';
-    const card=$('#editAuthOverlay .ea-card');
-    card.classList.remove('ea-shake'); void card.offsetWidth; card.classList.add('ea-shake');
-    $('#editAuthPass').value=''; $('#editAuthPass').focus();
-  }
+  editHash('edit:'+p).then(function(h){
+    if(h===EDIT_HASH){
+      sessionStorage.setItem('policiesEditOK','1');
+      $('#editAuthOverlay').style.display='none';
+      $('#editAuthPass').value='';
+      $('#editAuthError').textContent='';
+      setEditMode(true);
+    }else{
+      $('#editAuthError').textContent='Contraseña incorrecta.';
+      const card=$('#editAuthOverlay .ea-card');
+      card.classList.remove('ea-shake'); void card.offsetWidth; card.classList.add('ea-shake');
+      $('#editAuthPass').value=''; $('#editAuthPass').focus();
+    }
+  });
 });
 $('#editExitBtn').addEventListener('click',()=>{ if(confirm('¿Salir sin guardar los cambios de este bloque?')) location.reload(); });
 $('#editSaveBtn').addEventListener('click',()=>{

@@ -252,22 +252,30 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
 (function(){
   if (localStorage.getItem('panelAuthOK') === '1') return;
   document.documentElement.classList.add('panel-locked');
+  var PA_HASH = '0967f02e309390459f5a18a0b79676ff308c3ad4604113a1984e413595c86551';
+  function paHash(s){
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then(function(buf){
+      return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+    });
+  }
   document.getElementById('panelAuthForm').addEventListener('submit', function(e){
     e.preventDefault();
     var u = document.getElementById('paUser').value.trim();
     var p = document.getElementById('paPass').value;
-    if (u === 'wsenieva' && p === '379604191919abcde!') {
-      localStorage.setItem('panelAuthOK', '1');
-      document.documentElement.classList.remove('panel-locked');
-    } else {
-      document.getElementById('paError').textContent = 'Usuario o contraseña incorrectos.';
-      var card = document.querySelector('#panelAuthOverlay .pa-card');
-      card.classList.remove('pa-shake');
-      void card.offsetWidth;
-      card.classList.add('pa-shake');
-      document.getElementById('paPass').value = '';
-      document.getElementById('paPass').focus();
-    }
+    paHash(u + ':' + p).then(function(h){
+      if (h === PA_HASH) {
+        localStorage.setItem('panelAuthOK', '1');
+        document.documentElement.classList.remove('panel-locked');
+      } else {
+        document.getElementById('paError').textContent = 'Usuario o contraseña incorrectos.';
+        var card = document.querySelector('#panelAuthOverlay .pa-card');
+        card.classList.remove('pa-shake');
+        void card.offsetWidth;
+        card.classList.add('pa-shake');
+        document.getElementById('paPass').value = '';
+        document.getElementById('paPass').focus();
+      }
+    });
   });
 })();
 </script>
