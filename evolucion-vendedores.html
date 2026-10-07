@@ -946,6 +946,7 @@ function rebuildD(ventas){
   const vendorMeta={}; // nombre -> {lastFecha,s,f} (fallback si el último mes no tiene datos)
   const vendorMonthSuc={}, vendorMonthFuerza={}; // nombre -> mes(YYYY-MM) -> {valor:cantidad}
   const fuerzasSet=new Set(), sucursalesSet=new Set(), monthsSet=new Set();
+  const codVend={}; // cod_vend (código de vendedor del ERP) -> nombre — para cruzar contra cod_ven de la nómina, más confiable que el nombre (ver rebuildNominaRoster)
   let minF=null, maxF=null;
   for(const r of ventas){
     const name=(r.vendedor||'').trim();
@@ -954,6 +955,7 @@ function rebuildD(ventas){
     const suc=(r.sucursal_venta||'').trim();
     const fuerza=(r.fuerza_venta||'').trim();
     const neto=Number(r.neto)||0;
+    if(r.cod_vend) codVend[r.cod_vend]=name;
     // idx: 1=contado, 2=financiado (neto ya viene con signo, las NC restan solas)
     const idx = r.tipo_venta==='Contado' ? 1 : (r.tipo_venta==='Financiado' ? 2 : 0);
 
@@ -1011,6 +1013,7 @@ function rebuildD(ventas){
     daily, daily_suc,
     dateRange:{min:minF, max:maxF},
     months:[...monthsSet].sort(),
+    codVend,
   };
 }
 
@@ -1027,6 +1030,7 @@ function aplicarNuevaData(nuevo){
   Object.keys(D).forEach(k=>delete D[k]);
   Object.assign(D, nuevo);
   D.vendorsVentas=nuevo.vendors.slice(); // roster "real" (quién tiene ventas) — se preserva aparte para poder volver atrás si se destilda "Generar según nómina", y para re-cruzar la nómina si ya estaba cargada
+  D.codVendVentas=nuevo.codVend||{};     // cod_vend (ventas) -> nombre, para el cruce por código con cod_ven de la nómina
 
   // Si ya hay una nómina cargada esta sesión, re-cruzarla contra los vendedores
   // nuevos (un JSON nuevo puede traer la misma persona con una grafía levemente
@@ -1147,40 +1151,46 @@ function parseNominaXLSX(arrayBuffer){
     const nombre=String(r.nombre||'').trim().toUpperCase();
     const apellido=fixMojibake(String(r.apellido||'').trim().toUpperCase());
     if(!nombre||!apellido) return;
-    out.push({apellido,nombre,areaRaw:r.area,tareaRaw:r.tarea});
+    out.push({apellido,nombre,areaRaw:r.area,tareaRaw:r.tarea,codVen:r.cod_ven});
   });
   return out;
 }
 
-// Cruza nominaRawRows contra D.vendorsVentas usando nombre normalizado (sin
-// acentos) — si hay coincidencia, el colaborador de la nómina usa el nombre
-// TAL CUAL figura en las ventas como key (así D.daily lo encuentra siempre);
-// si no hay ninguna coincidencia ni siquiera normalizada, se arma el nombre
-// desde apellido+nombre de la nómina (puede no tener ventas asociadas
-// todavía, y queda en nominaSinMatch para avisar al usuario). Se puede
-// volver a llamar en cualquier momento (ej. al cargar un JSON de ventas
-// nuevo) para que el cruce quede al día sin recargar el excel de nómina.
+// Cruza nominaRawRows contra las ventas cargadas, en 3 pasos — el colaborador
+// de la nómina siempre termina usando el nombre TAL CUAL figura en las
+// ventas como key (así D.daily lo encuentra), menos cuando no se encuentra
+// ninguna de las 3 formas (ahí usa el nombre de la nómina tal cual, puede no
+// tener ventas asociadas, y queda en nominaSinMatch para avisar al usuario):
+//   1) cod_ven de la nómina === cod_vend de las ventas (mismo código del
+//      ERP en los dos archivos) — el método más confiable, no le importan
+//      acentos ni truncamientos de ningún lado. Cubre ~98% en los archivos
+//      reales probados.
+//   2) nombre normalizado (sin acentos, espacios colapsados) exacto.
+//   3) nombre de la nómina como PREFIJO único de un nombre de ventas —
+//      varios planos de RRHH reales traen el campo "nombre" truncado a un
+//      largo fijo (ej. "RUIZ LUCAS EMANUEL ALFRED" por "...ALFREDO"). Solo
+//      se acepta si hay EXACTAMENTE un candidato (mínimo 8 caracteres de
+//      prefijo) — nunca se adivina con ambigüedad. No cubre el caso en que
+//      el nombre de VENTAS también viene truncado (ahí ni cod_ven debería
+//      fallar, así que en la práctica el paso 1 ya lo resuelve antes).
+// Se puede volver a llamar en cualquier momento (ej. al cargar un JSON de
+// ventas nuevo) para que el cruce quede al día sin recargar el excel.
 function rebuildNominaRoster(){
-  const idxVentas={};
-  const ventasNorm=[]; // [{norm,real}] — para el fallback por prefijo de abajo
+  const idxVentas={}, idxCod={};
+  const ventasNorm=[]; // [{norm,real}] — para el fallback por prefijo
   (D.vendorsVentas||[]).forEach(v=>{
     const n=normName(v.n);
     idxVentas[n]=v.n;
     ventasNorm.push({norm:n, real:v.n});
   });
+  Object.entries(D.codVendVentas||{}).forEach(([cod,nombre])=>{ idxCod[String(cod)]=nombre; });
+
   const roster=[]; const sinMatch=[];
   nominaRawRows.forEach(r=>{
     const nombreNomina=(r.apellido+' '+r.nombre).replace(/\s+/g,' ').trim();
+    let real = r.codVen!=null ? idxCod[String(r.codVen)] : undefined;
     const nNorm=normName(nombreNomina);
-    let real=idxVentas[nNorm];
-    // Fallback por prefijo: varios planos de RRHH reales (visto en este mismo
-    // proyecto) traen la columna "nombre" truncada a un largo fijo (ej. "RUIZ
-    // LUCAS EMANUEL ALFRED" en vez de "...ALFREDO") — si el nombre de la nómina
-    // es prefijo de EXACTAMENTE un nombre de ventas (ninguno más), se toma ese
-    // match. Si hay más de un candidato, no se adivina — mejor dejarlo en
-    // nominaSinMatch que arriesgar pegarle el nombre a la persona equivocada.
-    // El mínimo de 8 caracteres evita que un nombre corto matchee de pura
-    // casualidad contra cualquier cosa que empiece igual.
+    if(!real) real=idxVentas[nNorm];
     if(!real && nNorm.length>=8){
       const candidatos=ventasNorm.filter(x=>x.norm.length>nNorm.length && x.norm.startsWith(nNorm));
       if(candidatos.length===1) real=candidatos[0].real;
