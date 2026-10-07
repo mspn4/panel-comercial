@@ -460,8 +460,12 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
         <input type="file" id="jsonFileInput" accept="application/json,.json" style="display:none" onchange="onJSONFileSelected(event)">
         <button class="btn btn-ghost" id="forceBackupBtn" onclick="forzarBackupAhora()" title="Sube a GitHub el estado actual de Drive, sin esperar al backup automático de las 23:00">☁ Forzar backup ahora</button>
         <button class="btn btn-ghost" id="loadBackupBtn" onclick="cargarDesdeBackup()" title="Trae ventas-backup.json directo de GitHub Pages, sin tener que elegir el archivo a mano">↻ Cargar desde backup</button>
-        <button class="btn btn-ghost" onclick="document.getElementById('nominaFileInput').click()" title="Excel de nómina (nombre/apellido/area) — fija la sucursal de cada colaborador según ese archivo, en vez de inferirla de las ventas">📋 Cargar nómina (Excel)</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('nominaFileInput').click()" title="Excel de nómina (nombre/apellido/area/tarea) — mismo formato que nomina-produccion.html">📋 Cargar nómina (Excel)</button>
         <input type="file" id="nominaFileInput" accept=".xlsx,.xls" style="display:none" onchange="onNominaFileSelected(event)">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;" title="Si está activo, la lista de colaboradores para generar placas sale de la nómina cargada (no de quién tiene ventas, que puede incluir gente que ya no trabaja más acá). Sucursal y puesto también salen de la nómina; los $ de cada período se siguen buscando en las ventas por nombre.">
+          <input type="checkbox" id="usarNominaChk" onchange="toggleUsarNomina(this.checked)">
+          Generar según nómina
+        </label>
       </div>
       <div id="dataInfo" style="font-size:11px;color:var(--muted-ink);"></div>
       <div id="backupStatus" style="font-size:11px;color:var(--muted-ink);margin-top:4px;"></div>
@@ -1022,11 +1026,14 @@ function updateDataInfo(){
 function aplicarNuevaData(nuevo){
   Object.keys(D).forEach(k=>delete D[k]);
   Object.assign(D, nuevo);
+  D.vendorsVentas=nuevo.vendors.slice(); // roster "real" (quién tiene ventas) — se preserva aparte para poder volver atrás si se destilda "Generar según nómina", y para re-cruzar la nómina si ya estaba cargada
 
-  // Si ya hay una nómina cargada esta sesión, re-aplicar la sucursal fijada —
-  // si no, cada vez que se trae un JSON nuevo (o se sincroniza con el backup)
-  // se perdería el pisado y volvería a quedar la sucursal inferida de ventas.
-  const sucFijadas=aplicarNominaSucursal();
+  // Si ya hay una nómina cargada esta sesión, re-cruzarla contra los vendedores
+  // nuevos (un JSON nuevo puede traer la misma persona con una grafía levemente
+  // distinta) y reaplicar — si no, cada vez que se trae/sincroniza un JSON se
+  // perdía el "generar según nómina" y volvía a listar según quién tiene ventas.
+  if(nominaRawRows.length) rebuildNominaRoster();
+  aplicarFuenteVendors();
 
   // Reset de selección/estado dependiente de los datos anteriores
   selFuerzas.clear(); selSucursales.clear(); selSucOnly.clear(); selIndividuals.clear();
@@ -1055,7 +1062,7 @@ function aplicarNuevaData(nuevo){
   refreshPills();
   updateDataInfo();
   alert(`Datos cargados: ${D.vendors.length} colaboradores, ${D.months.length} meses (${D.dateRange.min} a ${D.dateRange.max}).`+
-    (sucFijadas?` Sucursal fijada según la nómina cargada en ${sucFijadas} de ellos.`:''));
+    (usarNomina&&nominaRoster.length?` Generando según la nómina (${nominaRoster.length} personas).`:''));
 }
 
 function rebuildSucursalChips(){
@@ -1069,16 +1076,25 @@ function rebuildSucursalChips(){
   });
 }
 
-// ─── NÓMINA (Excel) — fija la sucursal de cada colaborador según ese archivo,
-// en vez de inferirla de la sucursal más frecuente de sus ventas. Formato
-// esperado: columnas nombre/apellido/area (mismo xlsx que ya usa
-// nomina-produccion.html). La nómina solo distingue 11 sucursales "región"
-// (no separa Metán de Norte Centro, Orán de Norte Interior, ni Concepción de
-// Tuc Interior como sí lo hacen las ventas) — para esos 3 casos se usa la
-// sucursal "madre" de la región, así que alguien que antes aparecía en la
-// sucursal fina (ej. Metán) por sus ventas puede pasar a la más amplia
-// (Norte Centro) después de cargar la nómina.
-let nominaSucursalMap={}; // 'APELLIDO NOMBRE' (mismo formato que D.vendors.n) -> sucursal normalizada
+// ─── NÓMINA (Excel) ─────────────────────────────────────────────
+// Con "Generar según nómina" activo, D.vendors deja de salir de quién tiene
+// ventas cargadas (ahí quedan "fantasmas": gente que ya no trabaja más acá
+// pero tiene ventas históricas) y pasa a ser EXACTAMENTE la nómina —
+// sucursal y fuerza/puesto salen de ahí. El neto/contado/financiado de cada
+// período se sigue buscando en D.daily por nombre (eso no cambia, sigue
+// viniendo 100% del JSON del Reporte Comercial o del backup sincronizado);
+// si no hay ventas con ese nombre, el período da $0 en vez de inventarse algo.
+//
+// Formato esperado del excel: columnas nombre/apellido/area/tarea (mismo
+// que ya usa nomina-produccion.html). La nómina solo distingue 11
+// sucursales "región" (no separa Metán de Norte Centro, Orán de Norte
+// Interior, ni Concepción de Tuc Interior como sí lo hacen las ventas) —
+// decisión ya confirmada con el usuario: la nómina pisa igual esos 3 casos.
+let nominaRawRows=[];  // [{apellido,nombre,areaRaw,tareaRaw}] tal cual se parseó el excel, SIN cruzar todavía contra las ventas cargadas
+let nominaRoster=[];   // [{n,s,f}] YA cruzado contra D.vendorsVentas (ver rebuildNominaRoster)
+let nominaSinMatch=[]; // nombres de la nómina que no encontraron ningún vendedor parecido en las ventas actualmente cargadas
+let usarNomina=false;  // true = D.vendors sale de la nómina, no de quién tiene ventas
+
 const NOMINA_SUC_ALIAS={
   'tucuman capital':'TUC CAPITAL',
   'tucuman interior':'TUC INTERIOR',
@@ -1091,37 +1107,121 @@ function normSucursalNomina(s){
   const limpio=String(s||'').trim();
   return NOMINA_SUC_ALIAS[limpio.toLowerCase()] || limpio.toUpperCase();
 }
+// La columna "tarea" de la nómina usa nombres distintos a los que trae
+// "fuerza_venta" en las ventas (ej. "GERENTE DE AREA" vs "GERENTE",
+// "VENDEDOR DE SHOW R" vs "SHOWROOM") — sin este alias, cualquiera cargado
+// solo por nómina quedaría con un puesto que no coincide con los chips de
+// fuerza ya existentes (y "TERRENO_" de currentFilePrefix() no lo detectaría).
+const NOMINA_FUERZA_ALIAS={
+  'gerente de area':'GERENTE',
+  'lider comercial':'LIDER COMERCIAL',
+  'lider crm':'LIDER CRM',
+  'lider redes':'LIDER POR REDES',
+  'vendedor cobrador':'COBRADOR',
+  'vendedor crm':'VENDEDOR CRM',
+  'vendedor de show r':'SHOWROOM',
+  'vendedor junior':'VENDEDOR JUNIOR',
+  'vendedor redes':'VENDEDOR REDES',
+  'vendedor redes jr':'VENDEDOR REDES JUNIOR',
+  'vendedor senior':'VENDEDOR SENIOR',
+};
+function normFuerzaNomina(t){
+  const limpio=String(t||'').trim();
+  return NOMINA_FUERZA_ALIAS[limpio.toLowerCase()] || limpio.toUpperCase();
+}
 function fixMojibake(s){ return String(s||'').replace(/[¥�]/g,'Ñ'); } // 'ROIG BA¥A' -> 'ROIG BAÑA' — mismo caso real (encoding roto en el origen) ya visto en otros excels de RRHH; "¥" es el carácter real que trae ESTE archivo, "�" se deja también por si otro excel lo trae distinto
+// Quita acentos para cruzar nombres tolerando diferencias de tilde entre la
+// nómina y las ventas (ej. "SANTILLÁN" en un archivo vs "SANTILLAN" en el
+// otro) — sin esto el cruce exacto fallaba en silencio y la persona quedaba
+// con la sucursal/fuerza que le tocara por descarte, no por error visible.
+function normName(s){
+  return String(s||'').normalize('NFD').replace(/\p{Mn}/gu,'').replace(/\s+/g,' ').trim().toUpperCase();
+}
 
 function parseNominaXLSX(arrayBuffer){
   const wb=XLSX.read(arrayBuffer,{type:'array'});
   const sheetName=wb.SheetNames.find(n=>/hoja1|n[oó]mina/i.test(n))||wb.SheetNames[0];
   const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{defval:null,raw:true});
-  const map={}; let count=0;
+  const out=[];
   rows.forEach(r=>{
     const nombre=String(r.nombre||'').trim().toUpperCase();
     const apellido=fixMojibake(String(r.apellido||'').trim().toUpperCase());
     if(!nombre||!apellido) return;
-    const key=(apellido+' '+nombre).replace(/\s+/g,' ').trim();
-    map[key]=normSucursalNomina(r.area);
-    count++;
+    out.push({apellido,nombre,areaRaw:r.area,tareaRaw:r.tarea});
   });
-  return {map,count};
+  return out;
 }
 
-// Pisa v.s en D.vendors para cada colaborador presente en la nómina cargada, y
-// recalcula D.sucursales en base al resultado. Devuelve cuántos colaboradores
-// con ventas cargadas matchearon contra la nómina (0 si no hay nómina cargada
-// todavía, o si D.vendors está vacío).
-function aplicarNominaSucursal(){
-  if(!D.vendors || !D.vendors.length || !Object.keys(nominaSucursalMap).length) return 0;
-  let aplicados=0;
-  D.vendors.forEach(v=>{
-    const suc=nominaSucursalMap[v.n];
-    if(suc){ v.s=suc; aplicados++; }
+// Cruza nominaRawRows contra D.vendorsVentas usando nombre normalizado (sin
+// acentos) — si hay coincidencia, el colaborador de la nómina usa el nombre
+// TAL CUAL figura en las ventas como key (así D.daily lo encuentra siempre);
+// si no hay ninguna coincidencia ni siquiera normalizada, se arma el nombre
+// desde apellido+nombre de la nómina (puede no tener ventas asociadas
+// todavía, y queda en nominaSinMatch para avisar al usuario). Se puede
+// volver a llamar en cualquier momento (ej. al cargar un JSON de ventas
+// nuevo) para que el cruce quede al día sin recargar el excel de nómina.
+function rebuildNominaRoster(){
+  const idxVentas={};
+  const ventasNorm=[]; // [{norm,real}] — para el fallback por prefijo de abajo
+  (D.vendorsVentas||[]).forEach(v=>{
+    const n=normName(v.n);
+    idxVentas[n]=v.n;
+    ventasNorm.push({norm:n, real:v.n});
   });
+  const roster=[]; const sinMatch=[];
+  nominaRawRows.forEach(r=>{
+    const nombreNomina=(r.apellido+' '+r.nombre).replace(/\s+/g,' ').trim();
+    const nNorm=normName(nombreNomina);
+    let real=idxVentas[nNorm];
+    // Fallback por prefijo: varios planos de RRHH reales (visto en este mismo
+    // proyecto) traen la columna "nombre" truncada a un largo fijo (ej. "RUIZ
+    // LUCAS EMANUEL ALFRED" en vez de "...ALFREDO") — si el nombre de la nómina
+    // es prefijo de EXACTAMENTE un nombre de ventas (ninguno más), se toma ese
+    // match. Si hay más de un candidato, no se adivina — mejor dejarlo en
+    // nominaSinMatch que arriesgar pegarle el nombre a la persona equivocada.
+    // El mínimo de 8 caracteres evita que un nombre corto matchee de pura
+    // casualidad contra cualquier cosa que empiece igual.
+    if(!real && nNorm.length>=8){
+      const candidatos=ventasNorm.filter(x=>x.norm.length>nNorm.length && x.norm.startsWith(nNorm));
+      if(candidatos.length===1) real=candidatos[0].real;
+    }
+    roster.push({ n: real||nombreNomina, s: normSucursalNomina(r.areaRaw), f: normFuerzaNomina(r.tareaRaw) });
+    if(!real) sinMatch.push(nombreNomina);
+  });
+  nominaRoster=roster; nominaSinMatch=sinMatch;
+}
+
+// Decide de dónde sale D.vendors: de la nómina (si "Generar según nómina"
+// está activo y hay una cargada) o de D.vendorsVentas (quién tiene ventas,
+// comportamiento de siempre). Si todavía no se cargó ningún JSON (recién
+// abierta la página, con el dataset de ejemplo embebido) y usarNomina es
+// false, no se toca D.vendors — sigue siendo el dataset de ejemplo.
+function aplicarFuenteVendors(){
+  if(usarNomina && nominaRoster.length){
+    D.vendors=nominaRoster.map(p=>({n:p.n,s:p.s,f:p.f}));
+  } else if(D.vendorsVentas){
+    D.vendors=D.vendorsVentas.slice();
+  }
+  D.fuerzas=[...new Set(D.vendors.map(v=>v.f).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
   D.sucursales=[...new Set(D.vendors.map(v=>v.s).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
-  return aplicados;
+}
+
+function refrescarChipsYSeleccion(){
+  document.getElementById('fuerzaChips').innerHTML='';
+  buildChips('fuerzaChips',D.fuerzas,'f',selFuerzas);
+  rebuildSucursalChips();
+  selFuerzas.clear(); selSucursales.clear(); selSucOnly.clear(); selIndividuals.clear();
+  refreshPills();
+  updateDataInfo();
+}
+
+function toggleUsarNomina(on){
+  usarNomina=on;
+  aplicarFuenteVendors();
+  refrescarChipsYSeleccion();
+  document.getElementById('nominaStatus').textContent=usarNomina
+    ? `Generando según la nómina (${nominaRoster.length} personas).`+(nominaSinMatch.length?` ${nominaSinMatch.length} sin ventas con ese nombre exacto, quedan en $0.`:'')
+    : 'Generando según quién tiene ventas cargadas (comportamiento original).';
 }
 
 function onNominaFileSelected(ev){
@@ -1131,13 +1231,17 @@ function onNominaFileSelected(ev){
   const reader=new FileReader();
   reader.onload=()=>{
     try{
-      const {map,count}=parseNominaXLSX(reader.result);
-      if(!count) throw new Error('no se encontraron filas con nombre y apellido');
-      nominaSucursalMap=map;
-      const aplicados=aplicarNominaSucursal();
-      rebuildSucursalChips();
-      status.textContent=`Nómina cargada: ${count} personas. Sucursal fijada en ${aplicados} colaboradores con ventas cargadas.`+
-        (slides.length?' Volvé a tocar "Generar" para que los slides ya armados tomen la sucursal nueva.':'');
+      const rows=parseNominaXLSX(reader.result);
+      if(!rows.length) throw new Error('no se encontraron filas con nombre y apellido');
+      nominaRawRows=rows;
+      rebuildNominaRoster();
+      usarNomina=true;
+      const chk=document.getElementById('usarNominaChk'); if(chk) chk.checked=true;
+      aplicarFuenteVendors();
+      refrescarChipsYSeleccion();
+      let msg=`Nómina cargada: ${nominaRoster.length} personas — generando según la nómina.`;
+      if(nominaSinMatch.length) msg+=` ${nominaSinMatch.length} sin ventas con ese nombre exacto (quedan en $0 hasta que coincida): ${nominaSinMatch.slice(0,5).join(', ')}${nominaSinMatch.length>5?'…':''}`;
+      status.textContent=msg;
     }catch(e){
       status.textContent='No se pudo leer el archivo de nómina: '+e.message;
     }finally{
