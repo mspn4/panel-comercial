@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -459,9 +460,12 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
         <input type="file" id="jsonFileInput" accept="application/json,.json" style="display:none" onchange="onJSONFileSelected(event)">
         <button class="btn btn-ghost" id="forceBackupBtn" onclick="forzarBackupAhora()" title="Sube a GitHub el estado actual de Drive, sin esperar al backup automático de las 23:00">☁ Forzar backup ahora</button>
         <button class="btn btn-ghost" id="loadBackupBtn" onclick="cargarDesdeBackup()" title="Trae ventas-backup.json directo de GitHub Pages, sin tener que elegir el archivo a mano">↻ Cargar desde backup</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('nominaFileInput').click()" title="Excel de nómina (nombre/apellido/area) — fija la sucursal de cada colaborador según ese archivo, en vez de inferirla de las ventas">📋 Cargar nómina (Excel)</button>
+        <input type="file" id="nominaFileInput" accept=".xlsx,.xls" style="display:none" onchange="onNominaFileSelected(event)">
       </div>
       <div id="dataInfo" style="font-size:11px;color:var(--muted-ink);"></div>
       <div id="backupStatus" style="font-size:11px;color:var(--muted-ink);margin-top:4px;"></div>
+      <div id="nominaStatus" style="font-size:11px;color:var(--muted-ink);margin-top:4px;"></div>
     </div>
     <div class="panel-group">
       <div class="panel-label">Estilo del gráfico</div>
@@ -1019,6 +1023,11 @@ function aplicarNuevaData(nuevo){
   Object.keys(D).forEach(k=>delete D[k]);
   Object.assign(D, nuevo);
 
+  // Si ya hay una nómina cargada esta sesión, re-aplicar la sucursal fijada —
+  // si no, cada vez que se trae un JSON nuevo (o se sincroniza con el backup)
+  // se perdería el pisado y volvería a quedar la sucursal inferida de ventas.
+  const sucFijadas=aplicarNominaSucursal();
+
   // Reset de selección/estado dependiente de los datos anteriores
   selFuerzas.clear(); selSucursales.clear(); selSucOnly.clear(); selIndividuals.clear();
   periods.length=0;
@@ -1040,19 +1049,103 @@ function aplicarNuevaData(nuevo){
 
   // Chips (fuerza / sucursal / sucursal-solo)
   document.getElementById('fuerzaChips').innerHTML='';
+  buildChips('fuerzaChips',D.fuerzas,'f',selFuerzas);
+  rebuildSucursalChips();
+
+  refreshPills();
+  updateDataInfo();
+  alert(`Datos cargados: ${D.vendors.length} colaboradores, ${D.months.length} meses (${D.dateRange.min} a ${D.dateRange.max}).`+
+    (sucFijadas?` Sucursal fijada según la nómina cargada en ${sucFijadas} de ellos.`:''));
+}
+
+function rebuildSucursalChips(){
   document.getElementById('sucursalChips').innerHTML='';
   document.getElementById('sucursalOnlyChips').innerHTML='';
-  buildChips('fuerzaChips',D.fuerzas,'f',selFuerzas);
   buildChips('sucursalChips',D.sucursales,'s',selSucursales);
   D.sucursales.forEach(v=>{
     const c=document.createElement('div');c.className='chip';c.dataset.val=v;c.textContent=v;
     c.addEventListener('click',()=>{ selSucOnly.has(v)?(selSucOnly.delete(v),c.classList.remove('on')):(selSucOnly.add(v),c.classList.add('on')); refreshPills(); });
     document.getElementById('sucursalOnlyChips').appendChild(c);
   });
+}
 
-  refreshPills();
-  updateDataInfo();
-  alert(`Datos cargados: ${D.vendors.length} colaboradores, ${D.months.length} meses (${D.dateRange.min} a ${D.dateRange.max}).`);
+// ─── NÓMINA (Excel) — fija la sucursal de cada colaborador según ese archivo,
+// en vez de inferirla de la sucursal más frecuente de sus ventas. Formato
+// esperado: columnas nombre/apellido/area (mismo xlsx que ya usa
+// nomina-produccion.html). La nómina solo distingue 11 sucursales "región"
+// (no separa Metán de Norte Centro, Orán de Norte Interior, ni Concepción de
+// Tuc Interior como sí lo hacen las ventas) — para esos 3 casos se usa la
+// sucursal "madre" de la región, así que alguien que antes aparecía en la
+// sucursal fina (ej. Metán) por sus ventas puede pasar a la más amplia
+// (Norte Centro) después de cargar la nómina.
+let nominaSucursalMap={}; // 'APELLIDO NOMBRE' (mismo formato que D.vendors.n) -> sucursal normalizada
+const NOMINA_SUC_ALIAS={
+  'tucuman capital':'TUC CAPITAL',
+  'tucuman interior':'TUC INTERIOR',
+  'norte centr':'NORTE CENTRO','norte centro':'NORTE CENTRO',
+  'norte interior':'NORTE INTERIOR',
+  'santiago':'SANTIAGO','santiago del estero':'SANTIAGO',
+  'catamarca':'CATAMARCA','cordoba':'CORDOBA','jujuy':'JUJUY','la rioja':'LA RIOJA','salta':'SALTA','crm':'CRM',
+};
+function normSucursalNomina(s){
+  const limpio=String(s||'').trim();
+  return NOMINA_SUC_ALIAS[limpio.toLowerCase()] || limpio.toUpperCase();
+}
+function fixMojibake(s){ return String(s||'').replace(/[¥�]/g,'Ñ'); } // 'ROIG BA¥A' -> 'ROIG BAÑA' — mismo caso real (encoding roto en el origen) ya visto en otros excels de RRHH; "¥" es el carácter real que trae ESTE archivo, "�" se deja también por si otro excel lo trae distinto
+
+function parseNominaXLSX(arrayBuffer){
+  const wb=XLSX.read(arrayBuffer,{type:'array'});
+  const sheetName=wb.SheetNames.find(n=>/hoja1|n[oó]mina/i.test(n))||wb.SheetNames[0];
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{defval:null,raw:true});
+  const map={}; let count=0;
+  rows.forEach(r=>{
+    const nombre=String(r.nombre||'').trim().toUpperCase();
+    const apellido=fixMojibake(String(r.apellido||'').trim().toUpperCase());
+    if(!nombre||!apellido) return;
+    const key=(apellido+' '+nombre).replace(/\s+/g,' ').trim();
+    map[key]=normSucursalNomina(r.area);
+    count++;
+  });
+  return {map,count};
+}
+
+// Pisa v.s en D.vendors para cada colaborador presente en la nómina cargada, y
+// recalcula D.sucursales en base al resultado. Devuelve cuántos colaboradores
+// con ventas cargadas matchearon contra la nómina (0 si no hay nómina cargada
+// todavía, o si D.vendors está vacío).
+function aplicarNominaSucursal(){
+  if(!D.vendors || !D.vendors.length || !Object.keys(nominaSucursalMap).length) return 0;
+  let aplicados=0;
+  D.vendors.forEach(v=>{
+    const suc=nominaSucursalMap[v.n];
+    if(suc){ v.s=suc; aplicados++; }
+  });
+  D.sucursales=[...new Set(D.vendors.map(v=>v.s).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  return aplicados;
+}
+
+function onNominaFileSelected(ev){
+  const file=ev.target.files && ev.target.files[0];
+  if(!file) return;
+  const status=document.getElementById('nominaStatus');
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const {map,count}=parseNominaXLSX(reader.result);
+      if(!count) throw new Error('no se encontraron filas con nombre y apellido');
+      nominaSucursalMap=map;
+      const aplicados=aplicarNominaSucursal();
+      rebuildSucursalChips();
+      status.textContent=`Nómina cargada: ${count} personas. Sucursal fijada en ${aplicados} colaboradores con ventas cargadas.`+
+        (slides.length?' Volvé a tocar "Generar" para que los slides ya armados tomen la sucursal nueva.':'');
+    }catch(e){
+      status.textContent='No se pudo leer el archivo de nómina: '+e.message;
+    }finally{
+      ev.target.value='';
+    }
+  };
+  reader.onerror=()=>{ status.textContent='No se pudo leer el archivo.'; };
+  reader.readAsArrayBuffer(file);
 }
 
 // STATE
@@ -1510,11 +1603,10 @@ function buildSlides(){
       slides.push({type:'team',key:'__customteam__'+t.id,label:t.label,sub:`Equipo · ${t.members.length} colaboradores`,badge:'EQUIPO',members:t.members.slice(),custom:true});
     });
     if(!slides.length){alert('Sin colaboradores para esa selección.');return;}
-    slides.sort((a,b)=>{
-      const p=periods[periods.length-1];
-      const totalOf=sl=>sl.type==='team'?sumPeriodTeam(sl.members,p.dateFrom,p.dateTo).total:sumPeriod(D.daily,sl.key,p.dateFrom,p.dateTo).total;
-      return totalOf(b)-totalOf(a);
-    });
+    // Alfabético por apellido — label ya viene como "Apellido Nombre" (fmtName de v.n,
+    // que en los datos de ventas siempre trae el apellido primero), así que ordenar
+    // por label ordena por apellido sin necesidad de separarlo aparte.
+    slides.sort((a,b)=>a.label.localeCompare(b.label,'es'));
   }
   cur=0;
   document.getElementById('emptyState').style.display='none';
@@ -1830,7 +1922,15 @@ document.addEventListener('keydown',e=>{ if(e.key==='ArrowRight') go(1); if(e.ke
 
 // ─── FILE NAMING (prefijo = puesto, para agrupar al ordenar alfabéticamente) ──
 function sanitizeFN(str){ return (str||'').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ ]/g,'').replace(/\s+/g,'_'); }
-function currentFilePrefix(){ return sanitizeFN(document.getElementById('sBadge').textContent||'') || 'SINPUESTO'; }
+// Vendedor Senior/Junior que NO sean de Redes (fuerza exactamente "VENDEDOR SENIOR" o
+// "VENDEDOR JUNIOR", sin "REDES" en el nombre) llevan el prefijo "TERRENO_" antes del
+// puesto — pedido puntual del usuario para distinguirlos de un vistazo en el ZIP.
+function currentFilePrefix(){
+  const raw=(document.getElementById('sBadge').textContent||'').trim().toUpperCase();
+  const base=sanitizeFN(raw) || 'SINPUESTO';
+  const esTerreno=raw==='VENDEDOR SENIOR'||raw==='VENDEDOR JUNIOR';
+  return esTerreno?'TERRENO_'+base:base;
+}
 
 // ─── COPY AS JPG ─────────────────────────────────────────────
 async function copySlide(){
