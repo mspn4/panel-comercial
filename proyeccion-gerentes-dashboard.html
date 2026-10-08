@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -34,7 +34,7 @@
     --shadow-hero:0 10px 24px rgba(0,0,0,.5);--shadow-btn:0 8px 24px rgba(0,0,0,.55);
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
-  html,body{background:var(--bg);font-family:'Inter',-apple-system,sans-serif;color:var(--ink);}
+  html,body{background:var(--bg);font-family:'IBM Plex Sans',-apple-system,sans-serif;color:var(--ink);}
   #viewport{display:flex;justify-content:center;padding:24px 16px 8px;}
   #stage{
     width:1280px;max-width:100%;background:var(--card);border-radius:26px;overflow:hidden;position:relative;
@@ -180,7 +180,7 @@
   body.exporting .col-resizer,body.exporting .icon-btn,body.exporting .sort-arrow,body.exporting .tool-btn,body.exporting .col-menu-wrap,body.exporting select.pill{visibility:hidden;}
 </style>
 <style>
-#panelAuthOverlay{display:none;visibility:visible;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#F6F5F4;font-family:'Inter',system-ui,-apple-system,sans-serif;padding:20px;box-sizing:border-box}
+#panelAuthOverlay{display:none;visibility:visible;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#F6F5F4;font-family:'IBM Plex Sans',system-ui,-apple-system,sans-serif;padding:20px;box-sizing:border-box}
 html[data-theme="dark"] #panelAuthOverlay{background:#191919}
 html.panel-locked body{visibility:hidden}
 html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
@@ -1040,8 +1040,8 @@ function renderEvolChart(){
     options:{
       responsive:true, maintainAspectRatio:false,
       scales:{
-        x:{grid:{display:false}, border:{display:false}, ticks:{color:tickColor, font:{family:'Inter',size:10.5}, maxRotation:60, minRotation:0, autoSkip:true, maxTicksLimit:24}},
-        y:{grid:{color:gridColor}, border:{display:false}, ticks:{color:tickColor, font:{family:'Inter',size:11}, callback:v=>'$'+(v/1e6)+'M'}}
+        x:{grid:{display:false}, border:{display:false}, ticks:{color:tickColor, font:{family:'IBM Plex Sans',size:10.5}, maxRotation:60, minRotation:0, autoSkip:true, maxTicksLimit:24}},
+        y:{grid:{color:gridColor}, border:{display:false}, ticks:{color:tickColor, font:{family:'IBM Plex Sans',size:11}, callback:v=>'$'+(v/1e6)+'M'}}
       },
       plugins:{
         legend:{display:false},

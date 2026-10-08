@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   /* Paleta: design-system/panel-comercial/MASTER.md (Notion). El PNG exportado (composeSlide, canvas
@@ -50,7 +50,7 @@
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
-    font-family:'Inter',system-ui,sans-serif;
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
     background:var(--bg);
     color:var(--ink);
     -webkit-font-smoothing:antialiased;
@@ -186,7 +186,7 @@
   }
 </style>
 <style>
-#panelAuthOverlay{display:none;visibility:visible;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#F6F5F4;font-family:'Inter',system-ui,-apple-system,sans-serif;padding:20px;box-sizing:border-box}
+#panelAuthOverlay{display:none;visibility:visible;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#F6F5F4;font-family:'IBM Plex Sans',system-ui,-apple-system,sans-serif;padding:20px;box-sizing:border-box}
 html[data-theme="dark"] #panelAuthOverlay{background:#191919}
 html.panel-locked body{visibility:hidden}
 html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
@@ -493,7 +493,7 @@ function parseDiag(txt){
 
 /* ===================== CHART STATE ===================== */
 let chFact,chConv,chScatter;
-Chart.defaults.font.family="'Inter',sans-serif";
+Chart.defaults.font.family="'IBM Plex Sans',sans-serif";
 Chart.defaults.color="#615D59"; // fijo: el chart vive en .slide, siempre claro
 
 // plugin línea promedio
@@ -508,7 +508,7 @@ const avgLine={
     ctx.lineWidth=1.6;ctx.strokeStyle='#D7484B';ctx.stroke();
     ctx.setLineDash([]);
     const label='Promedio Red: '+Math.round(opts.value);
-    ctx.font="700 12px 'Inter'";
+    ctx.font="700 12px 'IBM Plex Sans'";
     const tw=ctx.measureText(label).width;
     const bx=left+8, by=yp-11, bw=tw+18, bh=22;
     ctx.fillStyle='#213183';

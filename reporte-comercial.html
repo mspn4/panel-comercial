@@ -13,7 +13,7 @@ document.documentElement.setAttribute('data-theme', localStorage.getItem('panelT
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -62,8 +62,8 @@ document.documentElement.setAttribute('data-theme', localStorage.getItem('panelT
   --rose: #E1548A;
   --lime: #4C9F1F;
 
-  --font-display: 'Inter', system-ui, sans-serif;
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.04);
@@ -1490,7 +1490,7 @@ body.modo-directorio .mapa-toolbar [data-admin-only] {
 
 </style>
 <style>
-#panelAuthOverlay{display:none;visibility:visible;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#F6F5F4;font-family:'Inter',system-ui,-apple-system,sans-serif;padding:20px;box-sizing:border-box}
+#panelAuthOverlay{display:none;visibility:visible;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#F6F5F4;font-family:'IBM Plex Sans',system-ui,-apple-system,sans-serif;padding:20px;box-sizing:border-box}
 html[data-theme="dark"] #panelAuthOverlay{background:#191919}
 html.panel-locked body{visibility:hidden}
 html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
@@ -2996,7 +2996,7 @@ buildEnriched();
 Chart.register(ChartDataLabels);
 Chart.defaults.plugins.datalabels.display = false;
 function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.font.family = "'IBM Plex Sans', system-ui, sans-serif";
 Chart.defaults.color = cssVar('--text-muted');
 Chart.defaults.borderColor = cssVar('--border');
 function aplicarTema(t){
@@ -4322,7 +4322,7 @@ function renderVarChart(r) {
       plugins: {
         legend: r.group ? {
           display: true, position: 'bottom',
-          labels: { color: cssVar('--text'), font: { size: 11, family: "'Inter', sans-serif" }, boxWidth: 12, boxHeight: 12, padding: 10 }
+          labels: { color: cssVar('--text'), font: { size: 11, family: "'IBM Plex Sans', sans-serif" }, boxWidth: 12, boxHeight: 12, padding: 10 }
         } : { display: false },
         datalabels: (r.group || chartType !== 'bar') ? { display: false } : {
           display: true, anchor: 'end', align: 'top', offset: 4,
@@ -4740,7 +4740,7 @@ function renderEvolZonas(data) {
     ctx.canvas.height = 200;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.fillStyle = cssVar('--text-subtle');
-    ctx.font = "italic 14px 'Inter', sans-serif";
+    ctx.font = "italic 14px 'IBM Plex Sans', sans-serif";
     ctx.textAlign = 'center';
     ctx.fillText('Seleccioná zonas en el panel de arriba para ver su evolución', ctx.canvas.width/2, 100);
     return;
@@ -4758,7 +4758,7 @@ function renderEvolZonas(data) {
       plugins: {
         legend: {
           display: true, position: 'bottom',
-          labels: { color: cssVar('--text'), font: { size: 11, family: "'Inter', sans-serif" }, boxWidth: 10, boxHeight: 10, padding: 10, usePointStyle: true, pointStyle: 'circle' }
+          labels: { color: cssVar('--text'), font: { size: 11, family: "'IBM Plex Sans', sans-serif" }, boxWidth: 10, boxHeight: 10, padding: 10, usePointStyle: true, pointStyle: 'circle' }
         },
         datalabels: { display: false },
         tooltip: {
