@@ -148,6 +148,16 @@ body{
 #tabComparativa .strong{font-weight:700;font-size:15px}
 #tabComparativa .muted{color:var(--ink2)}
 #tabComparativa .mini{font-size:11.5px;color:var(--ink3);font-weight:600;margin-left:7px}
+#tabComparativa .novedad-list{padding:4px 20px 14px}
+#tabComparativa .novedad-row{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--line2)}
+#tabComparativa .novedad-row:last-child{border-bottom:none}
+#tabComparativa .novedad-ic{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+#tabComparativa .novedad-ic.fact{background:var(--azul-bg)}
+#tabComparativa .novedad-ic.res{background:var(--amar-bg)}
+#tabComparativa .novedad-ic.nc{background:var(--rojo-bg)}
+#tabComparativa .novedad-txt{flex:1;font-size:13.5px;color:var(--ink2)}
+#tabComparativa .novedad-txt b{font-weight:700;color:var(--ink)}
+#tabComparativa .novedad-empty{padding:18px 20px;text-align:center;color:var(--ink3);font-size:13px}
 #tabComparativa .rank{width:27px;height:27px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
   font-size:12px;font-weight:700;color:#fff;background:var(--gris);cursor:pointer;border:2px solid transparent}
 #tabComparativa .rank:hover{border-color:rgba(0,0,0,.18)}
@@ -559,6 +569,14 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
 
     <div class="kpis" id="kpis"></div>
 
+    <div class="card" id="novedadesCard" style="display:none">
+      <div class="card-head">
+        <h3>📣 Novedades desde la última carga</h3>
+        <div class="tools"><span class="mini" id="novedadesInfo"></span></div>
+      </div>
+      <div id="novedadesBody" class="novedad-list"></div>
+    </div>
+
     <div class="card">
       <div class="card-head">
         <h3>Facturación y cumplimiento por gerente</h3>
@@ -738,7 +756,7 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
 let OV_INIT = {};
 try{ OV_INIT = JSON.parse(localStorage.getItem('cgOverrides') || '{}'); }catch(e){ OV_INIT = {}; }
 const S = {
-  ventas: [], ventasRaw: [], fuerzas: [], meses: [],
+  ventas: [], ventasRaw: [], reservasRaw: [], novedades: null, fuerzas: [], meses: [],
   fuerza: 'GERENTE', mesAct: null, mesAnt: null,
   metaInd: 30000000, metaEq: 300000000,
   soloActivos: true,
@@ -837,6 +855,8 @@ function procesar(data){
   const v = data.ventas;
   if(!Array.isArray(v) || !v.length) return showErr('El backup no tiene un array "ventas".');
   S.ventasRaw = v;
+  S.reservasRaw = Array.isArray(data.reservas) ? data.reservas : [];
+  S.novedades = calcularNovedades(v, S.reservasRaw, data.exportado);
   aplicarOverrides();
   S.fuerzas = [...new Set(v.map(x=>x.fuerza_venta).filter(Boolean))].sort();
   S.meses   = [...new Set(v.map(x=>(x.fecha||'').slice(0,7)).filter(Boolean))].sort();
@@ -872,6 +892,106 @@ function procesar(data){
 
 function fill(sel, arr, val, lab){
   sel.innerHTML = arr.map(x=>'<option value="'+esc(x)+'"'+(x===val?' selected':'')+'>'+esc(lab(x))+'</option>').join('');
+}
+
+/* =============== novedades desde la última carga (diff local) =============== */
+// Compara los ids de ventas/reservas del backup recién cargado contra el snapshot
+// guardado en este navegador la última vez que se abrió esta página — así se puede
+// mostrar "qué cambió" (facturación nueva, reservas nuevas, devoluciones) sin
+// backend que lleve historial. Se guardan solo los ids (no el registro completo)
+// para no inflar localStorage con un dataset de 50k+ filas.
+const NOVEDADES_KEY = 'facturacionGerentesSnapshot';
+
+function calcularNovedades(ventas, reservas, exportadoActual){
+  let prev = null;
+  try { prev = JSON.parse(localStorage.getItem(NOVEDADES_KEY) || 'null'); } catch(e){}
+  const primeraVez = !prev || !Array.isArray(prev.v);
+  const prevV = new Set(primeraVez ? [] : prev.v);
+  const prevR = new Set((!prev || !Array.isArray(prev.r)) ? [] : prev.r);
+
+  const nuevasVentas = primeraVez ? [] : ventas.filter(x => x.id && !prevV.has(x.id));
+  const nuevasReservas = primeraVez ? [] : reservas.filter(x => x.id && !prevR.has(x.id));
+
+  try {
+    localStorage.setItem(NOVEDADES_KEY, JSON.stringify({
+      v: ventas.map(x=>x.id).filter(Boolean),
+      r: reservas.map(x=>x.id).filter(Boolean),
+      exportado: exportadoActual || null,
+      guardado: new Date().toISOString(),
+    }));
+  } catch(e){ /* localStorage lleno — la próxima carga no va a poder comparar, no es grave */ }
+
+  const porVendedor = {};
+  function bucket(vendedor){
+    if(!porVendedor[vendedor]) porVendedor[vendedor] = { facturado:0, opsFact:0, devolucion:0, opsDev:0, reservas:0, opsRes:0, fuerza:'' };
+    return porVendedor[vendedor];
+  }
+  nuevasVentas.forEach(x=>{
+    const b = bucket(x.vendedor);
+    b.fuerza = x.fuerza_venta || b.fuerza;
+    if(x.es_nc){ b.devolucion += x.neto; b.opsDev++; }
+    else { b.facturado += x.neto; b.opsFact++; }
+  });
+  nuevasReservas.forEach(x=>{
+    bucket(x.vendedor).reservas += (x.subtot||0);
+    bucket(x.vendedor).opsRes++;
+  });
+
+  // las reservas no traen fuerza_venta propia — si alguien quedó con reserva
+  // nueva pero sin venta nueva en esta tanda, su bucket queda sin fuerza; se
+  // busca en el histórico completo de ventas (no solo las nuevas) para no
+  // perderlo del filtro por fuerza de venta.
+  const faltaFuerza = Object.keys(porVendedor).filter(v => !porVendedor[v].fuerza);
+  if(faltaFuerza.length){
+    const pend = new Set(faltaFuerza);
+    for(const x of ventas){
+      if(pend.has(x.vendedor) && x.fuerza_venta){
+        porVendedor[x.vendedor].fuerza = x.fuerza_venta;
+        pend.delete(x.vendedor);
+        if(!pend.size) break;
+      }
+    }
+  }
+
+  return {
+    primeraVez,
+    prevExportado: prev && prev.exportado,
+    porVendedor,
+  };
+}
+
+function pintarNovedades(){
+  const card = $('novedadesCard'), body = $('novedadesBody'), info = $('novedadesInfo');
+  const n = S.novedades;
+  if(!n){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  if(n.primeraVez){
+    info.textContent = '';
+    body.innerHTML = '<div class="novedad-empty">Primera carga registrada en este navegador. La próxima vez que entres acá vas a ver qué cambió desde ahora.</div>';
+    return;
+  }
+
+  const fecha = n.prevExportado ? new Date(n.prevExportado).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+  info.textContent = 'Desde la carga del ' + fecha;
+
+  const filas = Object.entries(n.porVendedor)
+    .filter(([,b]) => !S.fuerza || b.fuerza === S.fuerza)
+    .map(([vendedor,b]) => ({vendedor, ...b}))
+    .sort((a,b) => (b.facturado+b.reservas-b.devolucion) - (a.facturado+a.reservas-a.devolucion));
+
+  if(!filas.length){
+    body.innerHTML = '<div class="novedad-empty">Sin cambios en ' + esc(S.fuerza) + ' desde la última carga.</div>';
+    return;
+  }
+
+  body.innerHTML = filas.map(f=>{
+    const lineas = [];
+    if(f.opsFact) lineas.push('<div class="novedad-row"><span class="novedad-ic fact">💰</span><span class="novedad-txt"><b>'+esc(f.vendedor)+'</b> facturó '+money(f.facturado)+' ('+f.opsFact+(f.opsFact===1?' operación nueva':' operaciones nuevas')+')</span></div>');
+    if(f.opsRes) lineas.push('<div class="novedad-row"><span class="novedad-ic res">📋</span><span class="novedad-txt"><b>'+esc(f.vendedor)+'</b> cargó '+f.opsRes+(f.opsRes===1?' reserva nueva':' reservas nuevas')+' por '+money(f.reservas)+'</span></div>');
+    if(f.opsDev) lineas.push('<div class="novedad-row"><span class="novedad-ic nc">↩️</span><span class="novedad-txt"><b>'+esc(f.vendedor)+'</b> recibió '+(f.opsDev===1?'una devolución':f.opsDev+' devoluciones')+' por '+money(Math.abs(f.devolucion))+'</span></div>');
+    return lineas.join('');
+  }).join('');
 }
 
 /* =============== correcciones manuales (overrides) =============== */
@@ -1196,7 +1316,7 @@ function render(){
     el.onclick = e => { e.stopPropagation(); abrirColores(el, el.dataset.k); };
   });
 
-  pintarKpis(); pintarChart();
+  pintarKpis(); pintarChart(); pintarNovedades();
   $('pAct').textContent = rango(S.mesAct);
   $('pAnt').textContent = 'vs ' + rango(S.mesAnt);
   $('pOps').textContent = S.tot.ops + ' operaciones';
