@@ -603,7 +603,7 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
         <h3>Facturación y cumplimiento por gerente</h3>
         <div class="tools">
           <button class="btn" id="btnCols">Columnas ▾</button>
-          <button class="btn" id="btnAuto">Recolorear automático</button>
+          <button class="btn" id="btnAuto">Quitar colores</button>
           <button class="btn" id="btnEditar">✎ Corregir montos</button>
           <button class="btn" id="btnExportOv" title="Descargar un archivo con las correcciones de montos cargadas">💾 Exportar correcciones</button>
           <button class="btn" id="btnImportOv" title="Cargar un archivo de correcciones ya exportado (pisa/combina con lo que ya está cargado)">📂 Cargar correcciones</button>
@@ -775,13 +775,18 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
 /* =============== estado =============== */
 let OV_INIT = {};
 try{ OV_INIT = JSON.parse(localStorage.getItem('cgOverrides') || '{}'); }catch(e){ OV_INIT = {}; }
+// Diagnóstico por color de cada gerente — manual y persistido, igual que Proyección
+// (pg_rowColors), pero en su propia clave: cada pestaña tiene su diagnóstico.
+let COLORES_INIT = {};
+try{ COLORES_INIT = JSON.parse(localStorage.getItem('cgColores') || '{}'); }catch(e){ COLORES_INIT = {}; }
+function guardarColores(){ localStorage.setItem('cgColores', JSON.stringify(S.colores)); }
 const S = {
   ventas: [], ventasRaw: [], reservasRaw: [], novedades: null, fuerzas: [], meses: [],
   fuerza: 'GERENTE', mesAct: null, mesAnt: null,
   metaInd: 30000000, metaEq: 300000000,
   soloActivos: true,
   corte: true, dia: 31, ultimoDia: 31,
-  colores: {},                 // vendedor -> 'azul'|'verde'|'amar'|'rojo'|'none'|undefined(auto)
+  colores: COLORES_INIT,       // vendedor -> 'azul'|'verde'|'amar'|'rojo' (diagnóstico manual, sin entrada = sin color)
   overrides: OV_INIT,          // 'fuerza§vendedor§mes' -> {neto: montoCorregido}
   sort: { key: 'netoAct', dir: -1 },
   chart: 'cumpl',
@@ -814,7 +819,6 @@ async function copiarKpiPng(card, btn){
   }
 }
 
-const UMBRAL = [[90,'azul'],[60,'verde'],[35,'amar'],[-1e9,'rojo']];
 const COLOR = {
   azul:{bar:'#3B82F6',dk:'#1D4ED8'}, verde:{bar:'#22A55E',dk:'#137A42'},
   amar:{bar:'#E0A020',dk:'#A87811'}, rojo:{bar:'#E4574C',dk:'#B3352B'},
@@ -839,12 +843,21 @@ const mesLabel = m => {
 };
 const rango = m => mesLabel(m) + (S.corte ? ' · 1 al ' + S.dia : '');
 const diasDelMes = m => new Date(+m.slice(0,4), +m.slice(5,7), 0).getDate();
-const linda = s => (s||'').replace(/¥/g,'Ñ').toLowerCase()
+// Nombres que se muestran siempre igual, sin importar cómo vengan escritos en el
+// backup (ej. "ROIG BA¥A SEBASTIAN" con la Ñ rota). apNom = "Apellido Nombre"
+// (formato de las tablas), nomAp = "Nombre Apellido" (para texto corrido).
+const NOMBRES_FIJOS = [
+  {re:/^ROIG\s+BA\S{1,2}A\s+SEBASTI[AÁ]N$/i, apNom:'Roig Sebastian', nomAp:'Sebastian Roig'},
+];
+function nombreFijo(s, orden){
+  const f = NOMBRES_FIJOS.find(x=>x.re.test((s||'').trim()));
+  return f ? (orden==='nomAp' ? f.nomAp : f.apNom) : null;
+}
+const linda = s => nombreFijo(s) || (s||'').replace(/¥/g,'Ñ').toLowerCase()
   .split(' ').filter(Boolean).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
 const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-function tierAuto(p){ for(const [u,c] of UMBRAL) if(p>=u) return c; return 'rojo'; }
-function tierOf(r){ return S.colores[r.key] || tierAuto(r.cumplAct); }
+function tierOf(r){ return S.colores[r.key] || 'none'; }
 
 /* =============== carga de datos (disparada desde el control compartido) =============== */
 const $ = id => document.getElementById(id);
@@ -987,9 +1000,9 @@ function pintarNovedades(){
 
   body.innerHTML = filas.map(f=>{
     const lineas = [];
-    if(f.opsFact) lineas.push('<div class="novedad-row"><span class="novedad-ic fact">💰</span><span class="novedad-txt"><b>'+esc(f.vendedor)+'</b> facturó '+money(f.facturado)+' ('+f.opsFact+(f.opsFact===1?' operación nueva':' operaciones nuevas')+')</span></div>');
-    if(f.opsRes) lineas.push('<div class="novedad-row"><span class="novedad-ic res">📋</span><span class="novedad-txt"><b>'+esc(f.vendedor)+'</b> cargó '+f.opsRes+(f.opsRes===1?' reserva nueva':' reservas nuevas')+' por '+money(f.reservas)+'</span></div>');
-    if(f.opsDev) lineas.push('<div class="novedad-row"><span class="novedad-ic nc">↩️</span><span class="novedad-txt"><b>'+esc(f.vendedor)+'</b> recibió '+(f.opsDev===1?'una devolución':f.opsDev+' devoluciones')+' por '+money(Math.abs(f.devolucion))+'</span></div>');
+    if(f.opsFact) lineas.push('<div class="novedad-row"><span class="novedad-ic fact">💰</span><span class="novedad-txt"><b>'+esc(nombreFijo(f.vendedor,'nomAp')||f.vendedor)+'</b> facturó '+money(f.facturado)+' ('+f.opsFact+(f.opsFact===1?' operación nueva':' operaciones nuevas')+')</span></div>');
+    if(f.opsRes) lineas.push('<div class="novedad-row"><span class="novedad-ic res">📋</span><span class="novedad-txt"><b>'+esc(nombreFijo(f.vendedor,'nomAp')||f.vendedor)+'</b> cargó '+f.opsRes+(f.opsRes===1?' reserva nueva':' reservas nuevas')+' por '+money(f.reservas)+'</span></div>');
+    if(f.opsDev) lineas.push('<div class="novedad-row"><span class="novedad-ic nc">↩️</span><span class="novedad-txt"><b>'+esc(nombreFijo(f.vendedor,'nomAp')||f.vendedor)+'</b> recibió '+(f.opsDev===1?'una devolución':f.opsDev+' devoluciones')+' por '+money(Math.abs(f.devolucion))+'</span></div>');
     return lineas.join('');
   }).join('');
 }
@@ -1369,8 +1382,7 @@ function abrirColores(el, key){
   cerrarPops();
   const p = document.createElement('div');
   p.className = 'pop'; p.dataset.pop = '1';
-  p.innerHTML = '<h4>Color de la fila</h4><div class="swatches">'+
-    '<div class="sw auto" data-c="auto" title="Automático por cumplimiento"></div>'+
+  p.innerHTML = '<h4>Diagnóstico</h4><div class="swatches">'+
     '<div class="sw" data-c="azul"  style="background:var(--azul)"  title="Excelencia"></div>'+
     '<div class="sw" data-c="verde" style="background:var(--verde)" title="Bien"></div>'+
     '<div class="sw" data-c="amar"  style="background:var(--amar)"  title="Regular"></div>'+
@@ -1384,8 +1396,8 @@ function abrirColores(el, key){
   p.querySelectorAll('.sw').forEach(sw=>{
     sw.onclick = () => {
       const c = sw.dataset.c;
-      if(c==='auto') delete S.colores[key]; else S.colores[key] = c;
-      cerrarPops(); render();
+      if(c==='none') delete S.colores[key]; else S.colores[key] = c;
+      guardarColores(); cerrarPops(); render();
     };
   });
 }
@@ -1695,7 +1707,10 @@ $('soloActivos').onchange = e => { S.soloActivos = e.target.checked; render(); }
 $('selDia').onchange = e => { S.dia = +e.target.value; if(!S.corte){ S.corte = true; $('corteChk').checked = true; } render(); };
 $('corteChk').onchange = e => { S.corte = e.target.checked; render(); };
 $('btnCols').onclick = e => { e.stopPropagation(); abrirColumnas(e.currentTarget); };
-$('btnAuto').onclick = () => { S.colores = {}; render(); };
+$('btnAuto').onclick = () => {
+  if(!Object.keys(S.colores).length || !confirm('¿Quitar el diagnóstico de color de todos los gerentes?')) return;
+  S.colores = {}; guardarColores(); render();
+};
 $('btnEditar').onclick = () => abrirEditorMontos();
 $('btnExportOv').onclick = exportarOverrides;
 $('btnImportOv').onclick = () => $('fileImportOv').click();
@@ -1713,7 +1728,7 @@ const GERENTES = [
   {key:"GOMEZ LEONARDO DAMIAN",        nombre:"Gómez Leonardo Damián"},
   {key:"ISA MASSA VICTOR YAMIL",       nombre:"Isa Massa Víctor Yamil"},
   {key:"ARJONA SEBASTIAN RICARDO",     nombre:"Arjona Sebastián Ricardo"},
-  {key:"ROIG BA¥A SEBASTIAN",     nombre:"Roig Baña Sebastián"},
+  {key:"ROIG BA¥A SEBASTIAN",          nombre:nombreFijo("ROIG BA¥A SEBASTIAN")},
   {key:"DEPETRIS LEANDRO GABRIEL",     nombre:"Depetris Leandro Gabriel"},
   {key:"LUDUEÑA GABRIEL EZEQUIEL",     nombre:"Ludueña Gabriel Ezequiel"},
   {key:"RODRIGUEZ CARLOS NAZARIO RAUL",nombre:"Rodríguez Carlos Nazario Raúl"},
