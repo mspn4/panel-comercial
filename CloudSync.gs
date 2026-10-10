@@ -67,6 +67,7 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (body.action === "ventas_add") return json(agregarVentas(body.ventas || []));
+    if (body.action === "ventas_set") return json(reemplazarVentas(body.ventas || []));
     if (body.action === "reservas_set") return json(reemplazarReservas(body.reservas || []));
     return json({ error: "Acción desconocida: " + body.action });
   } catch (err) {
@@ -134,6 +135,24 @@ function agregarVentas(nuevas) {
     });
     if (agregadas > 0) guardarVentas(actuales);
     return { ok: true, agregadas: agregadas, total: actuales.length };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Reemplaza el histórico completo de ventas en Drive por el que mande el
+ * dashboard — a diferencia de agregarVentas() (que solo suma), esto pisa todo.
+ * Pensado para limpiezas puntuales (ej. sacar filas con fecha corrupta) donde
+ * el merge por id de agregarVentas() no alcanza porque la fila mala y la
+ * corregida tienen id distinto y quedan las dos.
+ */
+function reemplazarVentas(ventas) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    guardarVentas(ventas);
+    return { ok: true, total: ventas.length };
   } finally {
     lock.releaseLock();
   }

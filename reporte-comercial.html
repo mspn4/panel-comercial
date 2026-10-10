@@ -2606,6 +2606,12 @@ html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
           </div>
         </div>
         <div class="backup-section">
+          <h4>⚠ Reemplazar histórico completo en la nube</h4>
+          <p>Pisa <strong style="color:var(--text)">TODAS</strong> las ventas guardadas en Drive (<code>ventas-live.json</code>, lo que lee este dashboard en todas las computadoras) por las <strong style="color:var(--text)"><span id="reemplazarNubeCount">0</span> ventas</strong> que tenés cargadas ahora mismo en este navegador. Usalo después de limpiar un mes con datos corruptos (ej. "Eliminar mes" en Tabla Detallada → Ventas) y volver a cargar el Excel correcto de ese mes — "Eliminar mes" solo borra local, esto es lo que de verdad limpia la nube. <strong style="color:var(--text)">No se puede deshacer</strong>: exportá un backup JSON antes si no estás seguro.</p>
+          <button class="btn btn-danger" id="reemplazarNubeBtn">☁ Reemplazar histórico en la nube</button>
+          <div id="reemplazarNubeStatus" style="font-size:12px;color:var(--text-muted);margin-top:8px"></div>
+        </div>
+        <div class="backup-section">
           <h4>Estado actual</h4>
           <div id="backupStats" style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);line-height:1.9"></div>
         </div>
@@ -2758,6 +2764,36 @@ async function forceBackupNow() {
   }
 }
 document.getElementById('forceBackupBtn')?.addEventListener('click', forceBackupNow);
+
+async function reemplazarVentasEnNube() {
+  const btn = document.getElementById('reemplazarNubeBtn');
+  const status = document.getElementById('reemplazarNubeStatus');
+  if (!CLOUD_CONFIG.APPSSCRIPT_URL) { toast('warn', 'Falta configurar CLOUD_CONFIG.APPSSCRIPT_URL.'); return; }
+  const n = STATE.ventas.length;
+  if (!confirm('Esto va a BORRAR y REEMPLAZAR todo lo que hay en la nube (Drive) por las ' + fmt.int(n) + ' ventas cargadas ahora en este navegador.\n\nNo se puede deshacer. ¿Exportaste un backup JSON antes por si algo sale mal?\n\nConfirmá para continuar.')) return;
+  btn.disabled = true;
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Reemplazando…';
+  status.textContent = '';
+  try {
+    const r = await fetch(CLOUD_CONFIG.APPSSCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'ventas_set', ventas: STATE.ventas }),
+    });
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    toast('ok', 'Nube reemplazada: ahora tiene ' + fmt.int(data.total) + ' ventas.');
+    status.textContent = 'Listo. El resto de las computadoras va a ver este mismo histórico la próxima vez que carguen la página.';
+  } catch (e) {
+    console.warn('No se pudo reemplazar el histórico en la nube', e);
+    toast('warn', 'No se pudo reemplazar: ' + e.message);
+    status.textContent = 'Falló. Si acabás de agregar la acción ventas_set a CloudSync.gs, revisá que lo hayas re-deployado (Nueva versión).';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
+}
+document.getElementById('reemplazarNubeBtn')?.addEventListener('click', reemplazarVentasEnNube);
 
 // ====================== STORAGE LAYER ======================
 function loadState() {
@@ -7368,6 +7404,8 @@ function renderBackupTab() {
      · <strong style="color:var(--text)">${vendsN}</strong> asignaciones vendedor→zona<br>
      · <strong style="color:var(--text)">${fmt.int(ventasN)}</strong> facturas acumuladas en <strong style="color:var(--text)">${monthsN}</strong> mes${monthsN!==1?'es':''}<br>
      · Producción total: <strong style="color:var(--text)">${fmt.moneyShort(totalNeto)}</strong>`;
+  const cEl = document.getElementById('reemplazarNubeCount');
+  if (cEl) cEl.textContent = fmt.int(ventasN);
 }
 document.getElementById('exportJson').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(STATE, null, 2)], { type: 'application/json' });
