@@ -43,7 +43,21 @@ body{
 }
 .wrap-tab:hover{background:#F5F7FA; color:var(--wrap-ink)}
 .wrap-tab.on{background:var(--wrap-brand); border-color:var(--wrap-brand); color:#fff}
-.wrap-hint{margin-left:auto; font-size:11.5px; color:var(--wrap-ink2); white-space:nowrap}
+.wrap-databar{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  padding:10px 26px; background:var(--wrap-card); border-bottom:1px solid var(--wrap-line); flex:none;
+}
+.wrap-databar-estado{font-size:12px; color:var(--wrap-ink2); font-weight:600}
+.wrap-databar-estado.error{color:#C0392B}
+.wrap-databar-btns{display:flex; gap:8px; margin-left:auto; flex-wrap:wrap}
+.wrap-databar-btn{
+  font:inherit; font-size:12.5px; font-weight:600; color:var(--wrap-ink2); cursor:pointer;
+  background:#fff; border:1px solid var(--wrap-line); border-radius:8px; padding:7px 14px;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.wrap-databar-btn:hover{border-color:var(--wrap-brand); color:var(--wrap-brand)}
+.wrap-databar-btn:disabled{opacity:.6; cursor:default}
+.wrap-databar-btn.danger:hover{border-color:#C0392B; color:#C0392B}
 #tabComparativa, #tabProyeccion{flex:1; min-height:0; overflow:auto}
 </style>
 <style>
@@ -502,7 +516,15 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
     <a class="wrap-tab on" data-tab="comp" href="#" onclick="return gerSwitchTab('comp')">Comparativa Intermensual</a>
     <a class="wrap-tab" data-tab="proy" href="#" onclick="return gerSwitchTab('proy')">Proyección de Facturación</a>
   </div>
-  <div class="wrap-hint">Datos de ventas-backup.json, se cargan al abrir cada pestaña por primera vez</div>
+</div>
+<div class="wrap-databar">
+  <span class="wrap-databar-estado" id="gerEstado">Sin datos cargados</span>
+  <div class="wrap-databar-btns">
+    <button class="wrap-databar-btn" id="gerBtnActualizar" onclick="gerActualizarTodo()">🔄 Actualizar todo</button>
+    <button class="wrap-databar-btn" id="gerBtnCargarJSON" onclick="document.getElementById('gerFileInput').click()">📂 Cargar JSON manual</button>
+    <input type="file" id="gerFileInput" accept="application/json,.json" style="display:none">
+    <button class="wrap-databar-btn danger" id="gerBtnBorrar" onclick="gerBorrarTodo()">🗑️ Borrar todo</button>
+  </div>
 </div>
 
 <div id="tabComparativa">
@@ -513,7 +535,7 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
       <div class="logo">M&amp;A</div>
       <div>
         <h1>Comparativa Intermensual · Gerentes</h1>
-        <div class="sub" id="subtitle">Departamento Comercial · cargando ventas-backup.json…</div>
+        <div class="sub" id="subtitle">Departamento Comercial · sin datos cargados</div>
       </div>
     </a>
     <div class="right" id="topRight"></div>
@@ -522,8 +544,8 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
   <div id="err"></div>
 
   <div id="loading">
-    <h2>Cargando datos</h2>
-    <p>Consultando <b>ventas-backup.json</b>…</p>
+    <h2>Sin datos cargados</h2>
+    <p>Usá <b>🔄 Actualizar todo</b> (arriba) para traer <b>ventas-backup.json</b>, o cargalo manual con <b>📂 Cargar JSON manual</b>.</p>
   </div>
 
   <div id="app" style="display:none">
@@ -563,7 +585,6 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
       </div>
       <div class="spacer">
         <button class="btn" id="btnPrint">Imprimir / PDF</button>
-        <button class="btn" id="btnRefresh">↻ Actualizar</button>
       </div>
     </div>
 
@@ -625,7 +646,6 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
         <div class="pill pill-date" id="updatedPill">—</div>
         <div class="pill pill-date" id="lastFetchPill" title="Última vez que este panel consultó ventas-backup.json">—</div>
         <button class="tool-btn" id="forceBackupBtn" title="Sube a GitHub el estado actual de Drive, sin esperar al backup automático de las 23:00">☁ Forzar backup</button>
-        <button class="tool-btn" id="refreshBtn" title="Volver a consultar ventas-backup.json">↻ Actualizar</button>
         <button class="tool-btn" id="btnCopiarComparativa" title="Trae las correcciones manuales de montos guardadas en Comparativa Intermensual (mismo navegador)">📋 Copiar de Comparativa</button>
         <button class="tool-btn" id="btnExportOvPg" title="Descargar un archivo con las correcciones de montos cargadas">💾 Exportar correcciones</button>
         <button class="tool-btn" id="btnImportOvPg" title="Cargar un archivo de correcciones ya exportado (desde Comparativa u otra computadora)">📂 Cargar correcciones</button>
@@ -676,7 +696,7 @@ html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
         <table id="mainTable">
           <colgroup id="mainColgroup"></colgroup>
           <thead><tr id="theadRow"></tr></thead>
-          <tbody id="tbody"><tr><td colspan="11" style="padding:24px;text-align:center;color:var(--ink-2)">Cargando datos de ventas-backup.json…</td></tr></tbody>
+          <tbody id="tbody"><tr><td colspan="11" style="padding:24px;text-align:center;color:var(--ink-2)">Sin datos cargados — usá "Actualizar todo" o "Cargar JSON manual" arriba.</td></tr></tbody>
           <tfoot><tr id="tfootRow"></tr></tfoot>
         </table>
       </div>
@@ -826,30 +846,10 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 function tierAuto(p){ for(const [u,c] of UMBRAL) if(p>=u) return c; return 'rojo'; }
 function tierOf(r){ return S.colores[r.key] || tierAuto(r.cumplAct); }
 
-/* =============== carga automática desde ventas-backup.json =============== */
+/* =============== carga de datos (disparada desde el control compartido) =============== */
 const $ = id => document.getElementById(id);
 
 function showErr(msg){ $('err').innerHTML = msg ? '<div class="err">'+esc(msg)+'</div>' : ''; }
-
-async function cargarBackup(manual){
-  showErr('');
-  if(manual){ $('btnRefresh').disabled = true; $('btnRefresh').textContent = 'Actualizando…'; }
-  try{
-    const r = await fetch('ventas-backup.json', {cache:'no-store'});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const data = await r.json();
-    procesar(data);
-  }catch(err){
-    $('app').style.display = 'none';
-    $('loading').style.display = 'block';
-    $('loading').innerHTML = '<h2>No se pudo cargar</h2>' +
-      '<p>No se pudo cargar <b>ventas-backup.json</b>. Si abriste este archivo directo (file://), ' +
-      'serví la carpeta con un servidor local o abrilo desde GitHub Pages.</p>' +
-      '<button class="btn primary" id="btnRetry">Reintentar</button>';
-    $('btnRetry').onclick = () => cargarBackup(false);
-  }
-  if(manual){ $('btnRefresh').disabled = false; $('btnRefresh').textContent = '↻ Actualizar'; }
-}
 
 function procesar(data){
   const v = data.ventas;
@@ -1703,9 +1703,6 @@ $('fileImportOv').onchange = e => { if(e.target.files[0]) importarOverrides(e.ta
 $('btnPng').onclick = descargarPng;
 $('btnCopyCard').onclick = () => copiarKpiPng($('chartsCard'), $('btnCopyCard'));
 $('btnPrint').onclick = () => window.print();
-$('btnRefresh').onclick = () => cargarBackup(true);
-
-window.initComparativa = function(){ pintarTabs(); cargarBackup(false); };
 </script>
 <script>
 
@@ -1857,29 +1854,14 @@ function tierClass(key){
 
 /* ---------- Carga de datos ---------- */
 let monthSelectWired = false;
-async function loadData(manual){
-  const btn = document.getElementById('refreshBtn');
-  if(manual){ btn.disabled = true; btn.textContent = '↻ Actualizando…'; }
-  try{
-    const r = await fetch('ventas-backup.json', {cache:'no-store'});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const data = await r.json();
-    ventasRaw = data.ventas || [];
-    aplicarPgOverrides();
-    reservasAll = data.reservas || [];
-    exportadoAt = data.exportado || null;
-  }catch(err){
-    document.getElementById('tbody').innerHTML =
-      '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--red)">'+
-      'No se pudo cargar <b>ventas-backup.json</b>. Si abriste este archivo directo (file://), '+
-      'serví la carpeta con un servidor local o abrilo desde GitHub Pages.</td></tr>';
-    document.getElementById('evolWrap').innerHTML = '<div class="evol-card"><div class="evol-empty">Sin datos disponibles.</div></div>';
-    if(manual){ btn.disabled = false; btn.textContent = '↻ Actualizar'; }
-    return;
-  }
+function procesarProyeccion(data){
+  ventasRaw = data.ventas || [];
+  aplicarPgOverrides();
+  reservasAll = data.reservas || [];
+  exportadoAt = data.exportado || null;
 
   const months = [...new Set(ventasAll.map(v=>v.fecha.slice(0,7)))].sort().reverse();
-  if(!months.length){ if(manual){ btn.disabled=false; btn.textContent='↻ Actualizar'; } return; }
+  if(!months.length) return;
   if(!selectedMonth || !months.includes(selectedMonth)) selectedMonth = months[0];
 
   const monthSelect = document.getElementById('monthSelect');
@@ -1907,9 +1889,7 @@ async function loadData(manual){
   document.getElementById('evolTo').value = fechas[fechas.length-1];
 
   renderAll();
-  if(manual){ btn.disabled = false; btn.textContent = '↻ Actualizar'; }
 }
-document.getElementById('refreshBtn').addEventListener('click', ()=>loadData(true));
 
 document.getElementById('btnCopiarComparativa').addEventListener('click', ()=>{
   const btn = document.getElementById('btnCopiarComparativa');
@@ -2296,7 +2276,11 @@ function weekKey(fecha){
   return d.toISOString().slice(0,10);
 }
 function buildEvolSeries(gerenteKey, gran, from, to){
+  // Algunos registros del backup traen fecha:"########" (error de exportación
+  // de Excel, celda angosta) en vez de una fecha real — se descartan acá antes
+  // de bucketear, si no MESES_ES[m-1] da undefined y rompe toda la función.
   const filtered = ventasAll.filter(v=>{
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(v.fecha||'')) return false;
     if(v.fecha < from || v.fecha > to) return false;
     if(gerenteKey==='ALL') return GERENTE_KEYS.has(v.vendedor);
     return v.vendedor===gerenteKey;
@@ -2409,23 +2393,88 @@ async function copiarKpiPng(card, btn){
     console.warn('No se pudo copiar la tarjeta como imagen', err);
   }
 }
-window.initProyeccion = function(){ loadData(); };
 </script>
 <script>
 (function(){
-  var loaded = { comp:false, proy:false };
   function activar(tab){
     document.getElementById('tabComparativa').style.display = tab === 'comp' ? '' : 'none';
     document.getElementById('tabProyeccion').style.display = tab === 'proy' ? '' : 'none';
     document.querySelectorAll('.wrap-tab').forEach(function(a){
       a.classList.toggle('on', a.dataset.tab === tab);
     });
-    if (tab === 'comp' && !loaded.comp) { loaded.comp = true; window.initComparativa(); }
-    if (tab === 'proy' && !loaded.proy) { loaded.proy = true; window.initProyeccion(); }
+    // Chart.js necesita el contenedor visible para medir tamaño — si la carga de
+    // datos pasó mientras esta pestaña estaba oculta, el gráfico de Proyección
+    // pudo quedar mal dimensionado. Re-renderizar al activarla lo corrige
+    // (renderAll() ya es seguro de llamar sin datos: corta si no hay selectedMonth).
+    if (tab === 'proy' && typeof renderAll === 'function') renderAll();
   }
   window.gerSwitchTab = function(tab){ activar(tab); return false; };
   activar('comp');
+  pintarTabs();
 })();
+
+/* =============== control de datos compartido: Actualizar todo / Cargar JSON manual / Borrar todo ===============
+   Antes cada pestaña (Comparativa y Proyección) hacía su propio fetch automático
+   de ventas-backup.json al activarse por primera vez. A pedido del usuario, ahora
+   NINGUNA pestaña carga datos sola — todo pasa por estos 3 controles compartidos
+   de la barra de arriba, y una sola carga (de servidor o de archivo manual)
+   alimenta las dos pestañas a la vez vía gerAplicarDatos(). */
+function gerSetEstado(msg, esError){
+  var el = document.getElementById('gerEstado');
+  el.textContent = msg;
+  el.classList.toggle('error', !!esError);
+}
+
+function gerAplicarDatos(data, origen){
+  if(!data || !Array.isArray(data.ventas)){
+    gerSetEstado('El archivo no tiene un array "ventas" válido.', true);
+    return;
+  }
+  showErr('');
+  procesar(data);
+  procesarProyeccion(data);
+  var marca = (origen === 'manual' ? 'Cargado manualmente' : 'Actualizado') + ' · ' +
+    new Date().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  gerSetEstado(marca);
+}
+
+async function gerActualizarTodo(){
+  var btn = document.getElementById('gerBtnActualizar');
+  btn.disabled = true; btn.textContent = '🔄 Actualizando…';
+  gerSetEstado('Consultando ventas-backup.json…');
+  try{
+    var r = await fetch('ventas-backup.json', {cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    var data = await r.json();
+    gerAplicarDatos(data, 'servidor');
+  }catch(err){
+    gerSetEstado('No se pudo actualizar: '+err.message, true);
+  }
+  btn.disabled = false; btn.textContent = '🔄 Actualizar todo';
+}
+
+document.getElementById('gerFileInput').addEventListener('change', function(e){
+  var file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  gerSetEstado('Leyendo ' + file.name + '…');
+  var reader = new FileReader();
+  reader.onload = function(){
+    try{
+      var data = JSON.parse(reader.result);
+      gerAplicarDatos(data, 'manual');
+    }catch(err){
+      gerSetEstado('El archivo elegido no es un JSON válido.', true);
+    }
+  };
+  reader.onerror = function(){ gerSetEstado('No se pudo leer el archivo.', true); };
+  reader.readAsText(file);
+});
+
+function gerBorrarTodo(){
+  if(!confirm('¿Borrar toda la información cargada de Facturación · Gerentes?\n\nVas a tener que usar "Actualizar todo" o cargar el JSON de nuevo para volver a ver datos.')) return;
+  location.reload();
+}
 </script>
 </body>
 </html>
