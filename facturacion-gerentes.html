@@ -1104,7 +1104,7 @@ function abrirEditorMontos(){
         '</div>' +
       '</div>' +
     '</div>';
-  document.body.appendChild(overlay);
+  $('tabComparativa').appendChild(overlay); // dentro de la pestaña: sus estilos están escopados a #tabComparativa
 
   const filasOrden = S.rows.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
   $('ovList').innerHTML = filasOrden.map(r=>{
@@ -1390,10 +1390,7 @@ function abrirColores(el, key){
     '<div class="sw" data-c="rojo"  style="background:var(--rojo)"  title="A mejorar"></div>'+
     '<div class="sw" data-c="none"  style="background:#E9ECF1"      title="Sin color"></div>'+
     '</div>';
-  document.body.appendChild(p);
-  const r = el.getBoundingClientRect();
-  p.style.left = (window.scrollX + r.left) + 'px';
-  p.style.top  = (window.scrollY + r.bottom + 8) + 'px';
+  ubicarPop(p, el, 'left');
   p.querySelectorAll('.sw').forEach(sw=>{
     sw.onclick = () => {
       const c = sw.dataset.c;
@@ -1402,7 +1399,23 @@ function abrirColores(el, key){
     };
   });
 }
+// Los popovers van DENTRO de #tabComparativa (sus estilos y variables de color están
+// escopados ahí — colgados de <body> salían sin tamaño ni color) y con position:fixed,
+// porque lo que scrollea es el contenedor de la pestaña, no la ventana.
+function ubicarPop(p, ancla, lado){
+  $('tabComparativa').appendChild(p);
+  const r = ancla.getBoundingClientRect();
+  p.style.position = 'fixed';
+  p.style.top = (r.bottom + 8) + 'px';
+  const w = p.offsetWidth;
+  let left = lado === 'right' ? r.right - w : r.left;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  p.style.left = left + 'px';
+  const h = p.offsetHeight;
+  if(r.bottom + 8 + h > window.innerHeight - 8 && r.top - 8 - h > 8) p.style.top = (r.top - 8 - h) + 'px';
+}
 function cerrarPops(){ document.querySelectorAll('[data-pop]').forEach(x=>x.remove()); }
+$('tabComparativa').addEventListener('scroll', cerrarPops);
 document.addEventListener('click', e => { if(!e.target.closest('[data-pop]')) cerrarPops(); });
 
 /* =============== menú de columnas =============== */
@@ -1418,10 +1431,7 @@ function abrirColumnas(btn){
     }).join('') +
     '<div style="font-size:11.5px;color:var(--ink3);margin-top:9px">Arrastrá para reordenar. ' +
     'También podés arrastrar los encabezados de la tabla.</div>';
-  document.body.appendChild(p);
-  const r = btn.getBoundingClientRect();
-  p.style.left = (window.scrollX + r.right - 280) + 'px';
-  p.style.top  = (window.scrollY + r.bottom + 8) + 'px';
+  ubicarPop(p, btn, 'right');
 
   p.querySelectorAll('.row').forEach(row=>{
     row.onclick = e => {
