@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Logística Santiago del Estero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Hoja de ruta semanal — encabezado tipo remito, tabla de 7 días, mapa y equipo al pie */
+:root{
+  --bg:#f6f5f1; --paper:#ffffff; --ink:#1d2328; --muted:#5f6a72; --line:#dcdcd4;
+  --accent:#b4531f; --accent-soft:#f6e6da; --off:#eeede8; --scrim:rgba(20,24,28,.55);
+  --l-sum:#8a5a12; --l-ana:#1f6b5c; --l-cap:#3b5aa8; --l-ban:#8e3b6e; --bad:#b3261e;
+  --display:"Archivo",system-ui,sans-serif; --body:"Source Sans 3",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#15191c; --paper:#1d2226; --ink:#e8e6df; --muted:#9aa4ab; --line:#333a40;
+  --accent:#e2884f; --accent-soft:#3a2a20; --off:#191d20; --scrim:rgba(0,0,0,.65);
+  --l-sum:#e0b25e; --l-ana:#5fc3ad; --l-cap:#8fa8ec; --l-ban:#e08cc0; --bad:#ff8a80; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--body)}
+.wrap{max-width:1280px;margin:0 auto;padding-block:28px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;gap:22px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:16px;border-bottom:3px solid var(--ink);padding-bottom:14px}
+.eyebrow{font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font:800 clamp(26px,4vw,36px)/1.1 var(--display);margin:4px 0 0;text-wrap:balance}
+.headright{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.week{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.week label{font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+input,select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:7px 9px;width:100%;min-width:0}
+input:disabled,select:disabled{opacity:1;background:transparent;border-color:transparent;padding-left:0;-webkit-appearance:none;appearance:none;color:var(--ink)}
+input:focus,select:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.week input{width:auto}
+.mode{display:inline-flex;align-items:center;gap:8px;font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.mode b{color:var(--accent)}
+.hours{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:15px;color:var(--muted)}
+.hours b{color:var(--ink);font-weight:600}
+.tbl{background:var(--paper);border:1px solid var(--line);border-radius:6px;overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.loccell{min-width:300px}
+td.logcell{min-width:170px}
+td.sel{min-width:130px}
+.day{font:700 16px var(--display);white-space:nowrap}
+.date{display:block;font:500 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.toggle{border:1px solid var(--line);background:transparent;color:var(--muted);font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.toggle.on{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.toggle:disabled{cursor:default}
+tr.off td{background:var(--off)}
+tr.off .field{opacity:.4}
+.empty{color:var(--muted);font-size:14px}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips:empty{display:none}
+.logchip{--c:var(--muted);display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:4px 10px;font:600 13px var(--body);cursor:pointer}
+.logchip::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+.logchip[aria-pressed="true"]{border-color:var(--c);background:color-mix(in srgb,var(--c) 16%,var(--paper))}
+.logchip:disabled{cursor:default}
+.chip{display:inline-flex;align-items:center;gap:2px;background:var(--accent-soft);color:var(--ink);border-radius:999px;padding:3px 10px;font-size:14px;line-height:1.3}
+.chip.ed{padding-right:3px}
+.chip button{border:0;background:transparent;color:var(--accent);font:700 15px/1 var(--body);width:22px;height:22px;border-radius:50%;cursor:pointer}
+.chip button:hover{background:var(--paper)}
+.sugg{border-left:3px solid var(--c);padding:4px 0 2px 8px;margin-top:8px;display:grid;gap:5px}
+.sugg-h{display:flex;justify-content:space-between;align-items:center;gap:8px;font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.linkbtn{border:0;background:none;color:var(--accent);font:600 13px var(--body);cursor:pointer;padding:0}
+.add{border:1px dashed var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:2px 9px;font-size:13px;cursor:pointer}
+.add:hover{border-style:solid;border-color:var(--c)}
+.locin{margin-top:8px}
+
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{border-radius:4px;padding:10px 16px;font:600 15px var(--body);cursor:pointer;text-decoration:none;display:inline-block}
+.main{background:var(--accent);color:#fff;border:0}
+.sec{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.msg{font-size:14px;color:var(--muted)}
+.mapbox{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:16px;display:grid;gap:12px}
+.maphead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:18px;height:3px;border-radius:2px;background:var(--c)}
+.mapframe{position:relative;width:100%;max-width:100%;aspect-ratio:4/3;max-height:640px;border-radius:4px;overflow:hidden;border:1px solid var(--line);background:var(--off)}
+@media (min-width:900px){.mapframe{aspect-ratio:16/9}}
+.mapframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.small{font-size:14px;color:var(--muted)}
+.small a{color:var(--accent)}
+.team{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.person{border-top:2px solid var(--line);padding-top:8px}
+.person b{display:block;font:700 16px var(--display)}
+.person span{font-size:14px;color:var(--muted)}
+h2{font:700 13px var(--mono);letter-spacing:.08em;text-transform:uppercase;margin:0 0 10px;color:var(--muted)}
+.mapbox h2{margin:0}
+
+/* login */
+.overlay{position:fixed;inset:0;background:var(--scrim);display:grid;place-items:center;padding:16px;z-index:10}
+.login{background:var(--paper);color:var(--ink);border-radius:8px;padding:22px;width:100%;max-width:340px;display:grid;gap:12px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.login h3{font:800 20px var(--display);margin:0}
+.login p{margin:0;color:var(--muted);font-size:14px}
+.login label{display:grid;gap:4px;font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.login .err{color:var(--bad);font-size:14px;min-height:1.2em}
+.login .row{display:flex;gap:8px;justify-content:flex-end}
+
+textarea.hid{position:absolute;left:-9999px}
+@media (max-width:860px){
+  table,tbody,tr,td{display:block}
+  thead{display:none}
+  tr{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 12px;border-bottom:1px solid var(--line)}
+  td{border:0;padding:0}
+  td.loccell,td.logcell,td.sel{min-width:0}
+  td[data-l]::before{content:attr(data-l);display:block;font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px}
+  td.full{grid-column:1/-1}
+  td.st{text-align:right}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">M&amp;A · Sucursal Santiago del Estero</div>
+      <h1>Hoja de ruta semanal de entregas</h1>
+    </div>
+    <div class="headright">
+      <div class="week">
+        <label for="lunes">Semana del lunes</label>
+        <input type="date" id="lunes">
+      </div>
+      <span class="mode" id="mode"></span>
+      <button class="btn sec" id="auth"></button>
+    </div>
+  </header>
+
+  <div class="hours">
+    <span><b>Lun a vie:</b> 9:00–13:00 y 17:00–21:00</span>
+    <span><b>Sábados:</b> 9:00–13:00</span>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Día</th><th>Salida</th><th>Nombre logística</th><th>Supervisor</th><th>Ayudante</th><th>Vehículo</th><th>Localidades</th><th>Observaciones</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="actions">
+    <button class="btn main" id="copy">Copiar para WhatsApp</button>
+    <button class="btn sec" id="reset">Restablecer semana</button>
+    <span class="msg" id="msg" role="status"></span>
+  </div>
+
+  <section class="mapbox">
+    <div class="maphead">
+      <h2>Mapa de trazas</h2>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="mapframe">
+      <iframe src="https://www.google.com/maps/d/embed?mid=1EwNQch3MS3N3y3Ta4zx4nU22LpPsk7I&amp;ehbc=2E312F" title="Mapa de trazas de las logísticas de Santiago del Estero" loading="lazy" allowfullscreen></iframe>
+    </div>
+    <div class="small"><a href="https://www.google.com/maps/d/viewer?mid=1EwNQch3MS3N3y3Ta4zx4nU22LpPsk7I" target="_blank" rel="noopener">Abrir el mapa en pantalla completa</a></div>
+  </section>
+
+  <section>
+    <h2>Equipo y vehículos</h2>
+    <div class="team">
+      <div class="person"><b>Eduardo Todesco</b><span>Supervisor</span></div>
+      <div class="person"><b>Lucas Cejas</b><span>Maestranza especializado</span></div>
+      <div class="person"><b>Cristian</b><span>Maestranza</span></div>
+      <div class="person"><b>Camión · Camioneta</b><span>Vehículos disponibles</span></div>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <form class="login" id="loginForm" autocomplete="off">
+    <h3>Ingresar para editar</h3>
+    <p>La planilla se puede ver sin usuario. Para modificarla, ingresá tus datos.</p>
+    <label>Usuario<input id="user" autocapitalize="off" spellcheck="false" required></label>
+    <label>Contraseña<input id="pass" type="password" inputmode="numeric" required></label>
+    <div class="err" id="err" role="alert"></div>
+    <div class="row">
+      <button type="button" class="btn sec" id="cancel">Cancelar</button>
+      <button type="submit" class="btn main">Ingresar</button>
+    </div>
+  </form>
+</div>
+
+<datalist id="locs"></datalist>
+<textarea class="hid" id="tmp" aria-hidden="true" tabindex="-1"></textarea>
+
+<script>
+const DAYS=["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+const PEOPLE=["Eduardo Todesco","Lucas Cejas","Cristian"];
+const HELPERS=[...PEOPLE,"Sin ayudante"];
+const VEHICLES=["Camión","Camioneta"];
+const LOGS={
+  "Sumamao":{c:"--l-sum",locs:["Ruta 9","Zanjón","Yanda","Santa María","Árraga","Silípica","Nueva Francia","Loreto","Sumamao","Los Cardozo","San Pedro","Vuelta de la Barranca","Maco"]},
+  "Añatuya":{c:"--l-ana",locs:["Vilmer","Beltrán","Forres","Fernández","Garza","Herrera","Lugones","Icaño","Colonia Dora","Añatuya","Taboada"]},
+  "Santiago Capital":{c:"--l-cap",locs:["Santiago del Estero (capital)"]},
+  "Banda":{c:"--l-ban",locs:["La Banda"]}
+};
+const LOGNAMES=Object.keys(LOGS);
+const EXTRA=["Termas de Río Hondo","Frías","Quimilí","Clodomira","Monte Quemado","Pampa de los Guanacos","Bandera","Suncho Corral","Los Juríes","Tintina","Campo Gallo","Villa Atamisqui","Villa Ojo de Agua"];
+const ALL=[...new Set([...LOGNAMES.flatMap(n=>LOGS[n].locs),...EXTRA])];
+document.getElementById("locs").innerHTML=ALL.map(l=>`<option value="${l}">`).join("");
+document.getElementById("legend").innerHTML=LOGNAMES.map(n=>`<span style="--c:var(${LOGS[n].c})"><i></i>${n}</span>`).join("");
+
+/* ---- Persistencia compartida (Drive, vía Apps Script) ----
+   Mismo patrón que control-vacaciones.html/nomina-produccion.html: sin APPSSCRIPT_URL
+   configurado, esta página sigue funcionando exactamente igual que antes (solo localStorage
+   del navegador). Con la URL pegada, los cambios del gerente se guardan en Drive y se ven
+   desde cualquier PC/navegador. Ver pasos de deploy en LogisticaBackend.gs. */
+const CONFIG={APPSSCRIPT_URL:"",EDIT_KEY:"MAeditor2026"};
+
+/* ---- Acceso para editar ----
+   Usuario y contraseña se comparan como hash SHA-256 de "usuario:contraseña".
+   Es un candado de uso interno: evita ediciones accidentales, no protege datos sensibles. */
+const AUTH_HASH="2422850d21c38f90b0fd9e1d4e4317814ea3dde6ee0e9d908fe272a817320ac3";
+const SESSION_KEY="logistica-sde-edit";
+let editing=false;
+try{editing=sessionStorage.getItem(SESSION_KEY)==="1"}catch(e){}
+async function sha256(s){
+  const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+/* ---- Estado ---- */
+const KEY="logistica-sde-v3";
+const blank=d=>({on:d!=="Domingo",logs:[],sup:"Eduardo Todesco",ayu:"Cristian",veh:"Camión",locs:[],obs:""});
+const defaults=()=>({lunes:thisMonday(),rows:DAYS.map(blank)});
+function thisMonday(){const t=new Date();t.setDate(t.getDate()-(t.getDay()+6)%7);return t.toISOString().slice(0,10)}
+let st;
+try{st=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!st||!st.rows||st.rows.length!==7)st=defaults();
+st.rows.forEach(r=>{r.logs=r.logs||[];r.locs=r.locs||[]});
+function persistLocal(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+let syncTimer=null;
+function syncRemoto(){
+  if(!CONFIG.APPSSCRIPT_URL)return;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(()=>{
+    fetch(CONFIG.APPSSCRIPT_URL,{method:"POST",body:JSON.stringify({key:CONFIG.EDIT_KEY,lunes:st.lunes,rows:st.rows})})
+      .then(r=>r.json())
+      .then(res=>{flash(res&&res.ok?"Guardado en la nube.":"No se pudo guardar en la nube.")})
+      .catch(()=>flash("Sin conexión: guardado solo en este navegador."));
+  },600);
+}
+async function cargarRemoto(){
+  if(!CONFIG.APPSSCRIPT_URL)return;
+  try{
+    const r=await fetch(CONFIG.APPSSCRIPT_URL+"?accion=leer",{cache:"no-store"});
+    const data=await r.json();
+    if(data&&Array.isArray(data.rows)&&data.rows.length===7){
+      st={lunes:data.lunes||thisMonday(),rows:data.rows};
+      st.rows.forEach(r=>{r.logs=r.logs||[];r.locs=r.locs||[]});
+      persistLocal();
+      render();
+    }
+  }catch(e){ /* sin conexión: se queda con lo que ya había en localStorage */ }
+}
+const save=()=>{persistLocal();syncRemoto()};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const opts=(list,sel)=>list.map(p=>`<option${p===sel?" selected":""}>${esc(p)}</option>`).join("");
+const has=(arr,v)=>arr.some(x=>x.toLowerCase()===v.toLowerCase());
+const dis=()=>editing?"":" disabled";
+function fecha(i){if(!st.lunes)return"";const d=new Date(st.lunes+"T12:00");d.setDate(d.getDate()+i);return d.toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit"})}
+
+/* ---- Render ---- */
+function logHTML(i){const r=st.rows[i];
+  const list=editing?LOGNAMES:LOGNAMES.filter(n=>r.logs.includes(n));
+  if(!list.length)return `<span class="empty">—</span>`;
+  return `<div class="chips field">${list.map(n=>`<button class="logchip" style="--c:var(${LOGS[n].c})" data-log="${n}" aria-pressed="${r.logs.includes(n)}"${dis()}>${n}</button>`).join("")}</div>`}
+function locHTML(i){const r=st.rows[i];
+  const added=r.locs.map((l,j)=>`<span class="chip${editing?" ed":""}">${esc(l)}${editing?`<button data-del="${j}" aria-label="Quitar ${esc(l)}">×</button>`:""}</span>`).join("");
+  if(!editing)return added?`<div class="chips field">${added}</div>`:`<span class="empty">Sin localidades cargadas</span>`;
+  const sugg=r.logs.map(n=>{const rest=LOGS[n].locs.filter(l=>!has(r.locs,l));if(!rest.length)return"";
+    return `<div class="sugg" style="--c:var(${LOGS[n].c})"><div class="sugg-h">${n}<button class="linkbtn" data-all="${n}">Agregar todas</button></div>
+      <div class="chips">${rest.map(l=>`<button class="add" data-add="${esc(l)}">+ ${esc(l)}</button>`).join("")}</div></div>`}).join("");
+  return `<div class="field"><div class="chips">${added}</div>${sugg}
+    <input id="loc${i}" class="locin" list="locs" placeholder="Agregar otra localidad" autocomplete="off"></div>`}
+function render(){
+  const lunes=document.getElementById("lunes");
+  lunes.value=st.lunes||""; lunes.disabled=!editing;
+  document.getElementById("mode").innerHTML=editing?"Modo <b>edición</b> · santiago":"Solo lectura";
+  document.getElementById("auth").textContent=editing?"Salir":"Editar";
+  document.getElementById("reset").hidden=!editing;
+  setMsg();
+  document.getElementById("rows").innerHTML=st.rows.map((r,i)=>`
+  <tr class="${r.on?"":"off"}" data-i="${i}">
+    <td><span class="day">${DAYS[i]}</span><span class="date">${fecha(i)}</span></td>
+    <td class="st"><button class="toggle ${r.on?"on":""}" data-k="on" aria-pressed="${r.on}"${dis()}>${r.on?"Con salida":"Sin salida"}</button></td>
+    <td data-l="Nombre logística" class="full logcell">${logHTML(i)}</td>
+    <td data-l="Supervisor" class="sel"><select class="field" id="sup${i}" data-k="sup"${dis()}>${opts(PEOPLE,r.sup)}</select></td>
+    <td data-l="Ayudante" class="sel"><select class="field" id="ayu${i}" data-k="ayu"${dis()}>${opts(HELPERS,r.ayu)}</select></td>
+    <td data-l="Vehículo" class="sel"><select class="field" id="veh${i}" data-k="veh"${dis()}>${opts(VEHICLES,r.veh)}</select></td>
+    <td data-l="Localidades" class="full loccell">${locHTML(i)}</td>
+    <td data-l="Observaciones" class="full"><input class="field" id="obs${i}" data-k="obs" placeholder="${editing?"Opcional":""}" value="${esc(r.obs)}"${dis()}></td>
+  </tr>`).join("");
+}
+function refresh(i,focusInput){
+  const tr=document.querySelector(`tr[data-i="${i}"]`);
+  tr.querySelector(".logcell").innerHTML=logHTML(i);
+  tr.querySelector(".loccell").innerHTML=locHTML(i);
+  if(focusInput)document.getElementById("loc"+i).focus();
+}
+function addLoc(input){
+  const v=input.value.trim(); if(!v||!editing)return;
+  const i=input.closest("tr").dataset.i, r=st.rows[i];
+  if(!has(r.locs,v))r.locs.push(v);
+  save(); refresh(i,true);
+}
+
+/* ---- Eventos de la tabla ---- */
+const rows=document.getElementById("rows");
+rows.addEventListener("input",e=>{
+  if(!editing)return;
+  const t=e.target;
+  if(t.classList.contains("locin")){ if(ALL.includes(t.value))addLoc(t); return; }
+  const k=t.dataset.k; if(!k||k==="on")return;
+  st.rows[t.closest("tr").dataset.i][k]=t.value; save();
+});
+rows.addEventListener("change",e=>{if(e.target.classList.contains("locin"))addLoc(e.target)});
+rows.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.classList.contains("locin")){e.preventDefault();addLoc(e.target)}});
+rows.addEventListener("click",e=>{
+  if(!editing)return;
+  const t=e.target.closest("button"); if(!t)return;
+  const i=t.closest("tr").dataset.i, r=st.rows[i];
+  if(t.dataset.k==="on"){r.on=!r.on;save();render();return}
+  if(t.dataset.log){const n=t.dataset.log;r.logs=r.logs.includes(n)?r.logs.filter(x=>x!==n):[...r.logs,n];
+    if(LOGS[n].locs.length===1&&r.logs.includes(n)&&!has(r.locs,LOGS[n].locs[0]))r.locs.push(LOGS[n].locs[0]);}
+  else if(t.dataset.add){if(!has(r.locs,t.dataset.add))r.locs.push(t.dataset.add)}
+  else if(t.dataset.all){LOGS[t.dataset.all].locs.forEach(l=>{if(!has(r.locs,l))r.locs.push(l)})}
+  else if(t.dataset.del!==undefined){r.locs.splice(+t.dataset.del,1)}
+  else return;
+  save(); refresh(i);
+});
+document.getElementById("lunes").addEventListener("change",e=>{if(!editing)return;st.lunes=e.target.value;save();render()});
+
+/* ---- Mensajes ---- */
+const msg=document.getElementById("msg");
+function setMsg(){
+  if(!editing){msg.textContent="Para modificar la planilla, tocá Editar.";return}
+  msg.textContent=CONFIG.APPSSCRIPT_URL?"Los cambios se guardan en la nube (se ven desde cualquier PC).":"Los cambios se guardan solo en este navegador.";
+}
+function flash(t){msg.textContent=t;clearTimeout(flash.t);flash.t=setTimeout(setMsg,3000)}
+
+/* ---- Login ---- */
+const overlay=document.getElementById("overlay"), err=document.getElementById("err");
+function openLogin(){err.textContent="";document.getElementById("loginForm").reset();overlay.hidden=false;document.getElementById("user").focus()}
+function closeLogin(){overlay.hidden=true}
+document.getElementById("auth").addEventListener("click",()=>{
+  if(editing){editing=false;try{sessionStorage.removeItem(SESSION_KEY)}catch(e){};render();flash("Saliste del modo edición.");}
+  else openLogin();
+});
+document.getElementById("cancel").addEventListener("click",closeLogin);
+overlay.addEventListener("click",e=>{if(e.target===overlay)closeLogin()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!overlay.hidden)closeLogin()});
+document.getElementById("loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const u=document.getElementById("user").value.trim().toLowerCase();
+  const p=document.getElementById("pass").value;
+  let ok=false;
+  try{ok=(await sha256(u+":"+p))===AUTH_HASH}catch(x){err.textContent="Este navegador no permite verificar el acceso. Abrí la página desde GitHub Pages (https).";return}
+  if(!ok){err.textContent="Usuario o contraseña incorrectos.";document.getElementById("pass").select();return}
+  editing=true;try{sessionStorage.setItem(SESSION_KEY,"1")}catch(x){}
+  closeLogin();render();flash("Modo edición activado.");
+});
+
+/* ---- Restablecer y copiar ---- */
+document.getElementById("reset").addEventListener("click",function(){
+  if(!editing)return;
+  if(this.dataset.arm){st=defaults();save();render();this.textContent="Restablecer semana";delete this.dataset.arm;flash("Semana restablecida.");return}
+  this.dataset.arm=1;this.textContent="Confirmar: borrar todo";setTimeout(()=>{delete this.dataset.arm;this.textContent="Restablecer semana"},4000)});
+document.getElementById("copy").addEventListener("click",()=>{
+  let t=`*Hoja de ruta – Santiago del Estero*`+(st.lunes?` (semana del ${fecha(0)})`:"")+"\n";
+  st.rows.forEach((r,i)=>{
+    t+=`\n*${DAYS[i]} ${fecha(i)}*`;
+    if(!r.on){t+=": sin salida";return}
+    t+=(r.logs.length?` – Logística ${r.logs.join(" + ")}`:"")+`\n${r.sup}${r.ayu==="Sin ayudante"?" (sin ayudante)":" + "+r.ayu} · ${r.veh}\n${r.locs.length?r.locs.join(", "):"Localidades a definir"}`+(r.obs?`\nObs.: ${r.obs}`:"")+"\n";
+  });
+  const done=()=>flash("Copiado. Pegalo en WhatsApp.");
+  const fb=()=>{const ta=document.getElementById("tmp");ta.value=t;ta.select();try{document.execCommand("copy");done()}catch(e){flash("No se pudo copiar.")}};
+  navigator.clipboard?navigator.clipboard.writeText(t).then(done,fb):fb();
+});
+
+render();
+cargarRemoto();
+</script>
+</body>
+</html>
