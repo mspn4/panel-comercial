@@ -148,6 +148,7 @@ textarea.hid{position:absolute;left:-9999px}
   </div>
 
   <div class="actions">
+    <button class="btn main" id="guardar" hidden>Guardar cambios</button>
     <button class="btn main" id="copy">Copiar para WhatsApp</button>
     <button class="btn sec" id="reset">Restablecer semana</button>
     <span class="msg" id="msg" role="status"></span>
@@ -239,12 +240,14 @@ if(!st||!st.rows||st.rows.length!==7)st=defaults();
 st.rows.forEach(r=>{r.logs=r.logs||[];r.locs=r.locs||[]});
 function persistLocal(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
 let syncTimer=null;
+function postEstado(){
+  return fetch(CONFIG.APPSSCRIPT_URL,{method:"POST",body:JSON.stringify({key:CONFIG.EDIT_KEY,lunes:st.lunes,rows:st.rows})}).then(r=>r.json());
+}
 function syncRemoto(){
   if(!CONFIG.APPSSCRIPT_URL)return;
   clearTimeout(syncTimer);
   syncTimer=setTimeout(()=>{
-    fetch(CONFIG.APPSSCRIPT_URL,{method:"POST",body:JSON.stringify({key:CONFIG.EDIT_KEY,lunes:st.lunes,rows:st.rows})})
-      .then(r=>r.json())
+    postEstado()
       .then(res=>{flash(res&&res.ok?"Guardado en la nube.":"No se pudo guardar en la nube.")})
       .catch(()=>flash("Sin conexión: guardado solo en este navegador."));
   },600);
@@ -288,6 +291,7 @@ function render(){
   document.getElementById("mode").innerHTML=editing?"Modo <b>edición</b> · santiago":"Solo lectura";
   document.getElementById("auth").textContent=editing?"Salir":"Editar";
   document.getElementById("reset").hidden=!editing;
+  document.getElementById("guardar").hidden=!editing;
   setMsg();
   document.getElementById("rows").innerHTML=st.rows.map((r,i)=>`
   <tr class="${r.on?"":"off"}" data-i="${i}">
@@ -375,6 +379,18 @@ document.getElementById("reset").addEventListener("click",function(){
   if(!editing)return;
   if(this.dataset.arm){st=defaults();save();render();this.textContent="Restablecer semana";delete this.dataset.arm;flash("Semana restablecida.");return}
   this.dataset.arm=1;this.textContent="Confirmar: borrar todo";setTimeout(()=>{delete this.dataset.arm;this.textContent="Restablecer semana"},4000)});
+document.getElementById("guardar").addEventListener("click",function(){
+  if(!editing)return;
+  persistLocal();
+  if(!CONFIG.APPSSCRIPT_URL){flash("Guardado en este navegador (backend no configurado).");return}
+  clearTimeout(syncTimer);
+  const btn=this, prev=btn.textContent;
+  btn.disabled=true; btn.textContent="Guardando…";
+  postEstado()
+    .then(res=>flash(res&&res.ok?"Guardado en la nube.":"No se pudo guardar en la nube."))
+    .catch(()=>flash("Sin conexión: guardado solo en este navegador."))
+    .finally(()=>{btn.disabled=false;btn.textContent=prev});
+});
 document.getElementById("copy").addEventListener("click",()=>{
   let t=`*Hoja de ruta – Santiago del Estero*`+(st.lunes?` (semana del ${fecha(0)})`:"")+"\n";
   st.rows.forEach((r,i)=>{
