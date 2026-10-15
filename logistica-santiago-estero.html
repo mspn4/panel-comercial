@@ -27,12 +27,9 @@ header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end
 .eyebrow{font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
 h1{font:800 clamp(26px,4vw,36px)/1.1 var(--display);margin:4px 0 0;text-wrap:balance}
 .headright{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.week{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.week label{font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 input,select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:7px 9px;width:100%;min-width:0}
 input:disabled,select:disabled{opacity:1;background:transparent;border-color:transparent;padding-left:0;-webkit-appearance:none;appearance:none;color:var(--ink)}
 input:focus,select:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.week input{width:auto}
 .mode{display:inline-flex;align-items:center;gap:8px;font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .mode b{color:var(--accent)}
 .hours{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:15px;color:var(--muted)}
@@ -46,7 +43,6 @@ td.loccell{min-width:300px}
 td.logcell{min-width:170px}
 td.sel{min-width:130px}
 .day{font:700 16px var(--display);white-space:nowrap}
-.date{display:block;font:500 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .toggle{border:1px solid var(--line);background:transparent;color:var(--muted);font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-radius:999px;cursor:pointer;white-space:nowrap}
 .toggle.on{background:var(--accent-soft);color:var(--accent);border-color:transparent}
 .toggle:disabled{cursor:default}
@@ -123,20 +119,17 @@ textarea.hid{position:absolute;left:-9999px}
   <header>
     <div>
       <div class="eyebrow">M&amp;A · Sucursal Santiago del Estero</div>
-      <h1>Hoja de ruta semanal de entregas</h1>
+      <h1>Logística semanal</h1>
     </div>
     <div class="headright">
-      <div class="week">
-        <label for="lunes">Semana del lunes</label>
-        <input type="date" id="lunes">
-      </div>
       <span class="mode" id="mode"></span>
       <button class="btn sec" id="auth"></button>
     </div>
   </header>
 
   <div class="hours">
-    <span><b>Lun a vie:</b> 9:00–13:00 y 17:00–21:00</span>
+    <span><b>Dirección:</b> Belgrano Sur 1076</span>
+    <span><b>Lun a vie:</b> 8:30–13:00 y 17:30–21:00</span>
     <span><b>Sábados:</b> 9:00–13:00</span>
   </div>
 
@@ -150,7 +143,7 @@ textarea.hid{position:absolute;left:-9999px}
   <div class="actions">
     <button class="btn main" id="guardar" hidden>Guardar cambios</button>
     <button class="btn main" id="copy">Copiar para WhatsApp</button>
-    <button class="btn sec" id="reset">Restablecer semana</button>
+    <button class="btn sec" id="reset">Restablecer planilla</button>
     <span class="msg" id="msg" role="status"></span>
   </div>
 
@@ -168,6 +161,9 @@ textarea.hid{position:absolute;left:-9999px}
   <section>
     <h2>Equipo y vehículos</h2>
     <div class="team">
+      <div class="person"><b>Leandro Depetris</b><span>Gerente</span></div>
+      <div class="person"><b>Brian Duran</b><span>Líder comercial</span></div>
+      <div class="person"><b>Pablo Juarez</b><span>Encargado de depósito</span></div>
       <div class="person"><b>Eduardo Todesco</b><span>Supervisor</span></div>
       <div class="person"><b>Lucas Cejas</b><span>Maestranza especializado</span></div>
       <div class="person"><b>Cristian</b><span>Maestranza</span></div>
@@ -229,11 +225,12 @@ async function sha256(s){
   return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 
-/* ---- Estado ---- */
-const KEY="logistica-sde-v3";
+/* ---- Estado ----
+   Planilla única y persistente por día de semana (no por semana calendario):
+   los cambios quedan guardados y reflejados siempre, sin fecha asociada. */
+const KEY="logistica-sde-v4";
 const blank=d=>({on:d!=="Domingo",logs:[],sup:"Eduardo Todesco",ayu:"Cristian",veh:"Camión",locs:[],obs:""});
-const defaults=()=>({lunes:thisMonday(),rows:DAYS.map(blank)});
-function thisMonday(){const t=new Date();t.setDate(t.getDate()-(t.getDay()+6)%7);return t.toISOString().slice(0,10)}
+const defaults=()=>({rows:DAYS.map(blank)});
 let st;
 try{st=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!st||!st.rows||st.rows.length!==7)st=defaults();
@@ -241,7 +238,7 @@ st.rows.forEach(r=>{r.logs=r.logs||[];r.locs=r.locs||[]});
 function persistLocal(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
 let syncTimer=null;
 function postEstado(){
-  return fetch(CONFIG.APPSSCRIPT_URL,{method:"POST",body:JSON.stringify({key:CONFIG.EDIT_KEY,lunes:st.lunes,rows:st.rows})}).then(r=>r.json());
+  return fetch(CONFIG.APPSSCRIPT_URL,{method:"POST",body:JSON.stringify({key:CONFIG.EDIT_KEY,rows:st.rows})}).then(r=>r.json());
 }
 function syncRemoto(){
   if(!CONFIG.APPSSCRIPT_URL)return;
@@ -258,7 +255,7 @@ async function cargarRemoto(){
     const r=await fetch(CONFIG.APPSSCRIPT_URL+"?accion=leer",{cache:"no-store"});
     const data=await r.json();
     if(data&&Array.isArray(data.rows)&&data.rows.length===7){
-      st={lunes:data.lunes||thisMonday(),rows:data.rows};
+      st={rows:data.rows};
       st.rows.forEach(r=>{r.logs=r.logs||[];r.locs=r.locs||[]});
       persistLocal();
       render();
@@ -270,7 +267,6 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 const opts=(list,sel)=>list.map(p=>`<option${p===sel?" selected":""}>${esc(p)}</option>`).join("");
 const has=(arr,v)=>arr.some(x=>x.toLowerCase()===v.toLowerCase());
 const dis=()=>editing?"":" disabled";
-function fecha(i){if(!st.lunes)return"";const d=new Date(st.lunes+"T12:00");d.setDate(d.getDate()+i);return d.toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit"})}
 
 /* ---- Render ---- */
 function logHTML(i){const r=st.rows[i];
@@ -286,8 +282,6 @@ function locHTML(i){const r=st.rows[i];
   return `<div class="field"><div class="chips">${added}</div>${sugg}
     <input id="loc${i}" class="locin" list="locs" placeholder="Agregar otra localidad" autocomplete="off"></div>`}
 function render(){
-  const lunes=document.getElementById("lunes");
-  lunes.value=st.lunes||""; lunes.disabled=!editing;
   document.getElementById("mode").innerHTML=editing?"Modo <b>edición</b> · santiago":"Solo lectura";
   document.getElementById("auth").textContent=editing?"Salir":"Editar";
   document.getElementById("reset").hidden=!editing;
@@ -295,7 +289,7 @@ function render(){
   setMsg();
   document.getElementById("rows").innerHTML=st.rows.map((r,i)=>`
   <tr class="${r.on?"":"off"}" data-i="${i}">
-    <td><span class="day">${DAYS[i]}</span><span class="date">${fecha(i)}</span></td>
+    <td><span class="day">${DAYS[i]}</span></td>
     <td class="st"><button class="toggle ${r.on?"on":""}" data-k="on" aria-pressed="${r.on}"${dis()}>${r.on?"Con salida":"Sin salida"}</button></td>
     <td data-l="Nombre logística" class="full logcell">${logHTML(i)}</td>
     <td data-l="Supervisor" class="sel"><select class="field" id="sup${i}" data-k="sup"${dis()}>${opts(PEOPLE,r.sup)}</select></td>
@@ -342,8 +336,6 @@ rows.addEventListener("click",e=>{
   else return;
   save(); refresh(i);
 });
-document.getElementById("lunes").addEventListener("change",e=>{if(!editing)return;st.lunes=e.target.value;save();render()});
-
 /* ---- Mensajes ---- */
 const msg=document.getElementById("msg");
 function setMsg(){
@@ -377,8 +369,8 @@ document.getElementById("loginForm").addEventListener("submit",async e=>{
 /* ---- Restablecer y copiar ---- */
 document.getElementById("reset").addEventListener("click",function(){
   if(!editing)return;
-  if(this.dataset.arm){st=defaults();save();render();this.textContent="Restablecer semana";delete this.dataset.arm;flash("Semana restablecida.");return}
-  this.dataset.arm=1;this.textContent="Confirmar: borrar todo";setTimeout(()=>{delete this.dataset.arm;this.textContent="Restablecer semana"},4000)});
+  if(this.dataset.arm){st=defaults();save();render();this.textContent="Restablecer planilla";delete this.dataset.arm;flash("Planilla restablecida.");return}
+  this.dataset.arm=1;this.textContent="Confirmar: borrar todo";setTimeout(()=>{delete this.dataset.arm;this.textContent="Restablecer planilla"},4000)});
 document.getElementById("guardar").addEventListener("click",function(){
   if(!editing)return;
   persistLocal();
@@ -392,9 +384,9 @@ document.getElementById("guardar").addEventListener("click",function(){
     .finally(()=>{btn.disabled=false;btn.textContent=prev});
 });
 document.getElementById("copy").addEventListener("click",()=>{
-  let t=`*Hoja de ruta – Santiago del Estero*`+(st.lunes?` (semana del ${fecha(0)})`:"")+"\n";
+  let t=`*Logística semanal – Santiago del Estero*`+"\n";
   st.rows.forEach((r,i)=>{
-    t+=`\n*${DAYS[i]} ${fecha(i)}*`;
+    t+=`\n*${DAYS[i]}*`;
     if(!r.on){t+=": sin salida";return}
     t+=(r.logs.length?` – Logística ${r.logs.join(" + ")}`:"")+`\n${r.sup}${r.ayu==="Sin ayudante"?" (sin ayudante)":" + "+r.ayu} · ${r.veh}\n${r.locs.length?r.locs.join(", "):"Localidades a definir"}`+(r.obs?`\nObs.: ${r.obs}`:"")+"\n";
   });

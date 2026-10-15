@@ -1,8 +1,9 @@
 /**
- * LogisticaBackend.gs — Hoja de ruta semanal (logistica-santiago-estero.html)
- * Persiste en Drive la semana cargada por el gerente de la sucursal (lunes + los 7 días:
- * salida, logística, supervisor, ayudante, vehículo, localidades, observaciones), para que
- * se vea igual desde cualquier navegador/PC en vez de quedar solo en localStorage.
+ * LogisticaBackend.gs — Logística semanal (logistica-santiago-estero.html)
+ * Persiste en Drive la planilla única cargada por el gerente de la sucursal (7 días fijos:
+ * salida, logística, supervisor, ayudante, vehículo, localidades, observaciones — sin fecha
+ * de semana asociada, los cambios quedan guardados y reflejados siempre), para que se vea
+ * igual desde cualquier navegador/PC en vez de quedar solo en localStorage.
  * Mismo patrón que VacacionesBackend.gs/NominaBackend.gs — sin este backend deployado,
  * el HTML sigue funcionando igual pero guarda solo en el navegador que lo usa.
  *
@@ -56,16 +57,15 @@ function getEstadoFile_(crear) {
   var fit = folder.getFilesByName(LOG_FILE_NAME);
   if (fit.hasNext()) return fit.next();
   if (!crear) return null;
-  var vacio = { lunes: null, rows: [], savedAt: null };
+  var vacio = { rows: [], savedAt: null };
   return folder.createFile(LOG_FILE_NAME, JSON.stringify(vacio), MimeType.PLAIN_TEXT);
 }
 
 function leerEstado_() {
   var file = getEstadoFile_(false);
-  if (!file) return { lunes: null, rows: [] };
+  if (!file) return { rows: [] };
   var data = JSON.parse(file.getBlob().getDataAsString() || "{}");
   return {
-    lunes: data.lunes || null,
     rows: data.rows || [],
     savedAt: data.savedAt || null,
   };
@@ -77,7 +77,6 @@ function guardarEstado_(body) {
   try {
     var file = getEstadoFile_(true);
     var payload = {
-      lunes: body.lunes || null,
       rows: body.rows || [],
       savedAt: new Date().toISOString(),
     };
