@@ -341,6 +341,11 @@ table.cvr-tabla .cvr-mon{color:var(--muted);font-size:11.5px}
 .cvr-persona-obs div{padding:8px 0;border-bottom:1px dashed var(--border);white-space:pre-wrap}
 .cvr-persona-obs div:last-child{border-bottom:none}
 .cvr-persona-obs b{color:var(--blue)}
+.cvr-tabs{display:flex;gap:6px;margin:4px 0 12px}
+.cvr-tab{font-family:inherit;font-size:13px;font-weight:600;border:1px solid var(--border-strong);background:var(--surface);color:var(--muted);padding:7px 14px;border-radius:9px;cursor:pointer}
+.cvr-tab.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.cvr-rank-item{background:var(--page);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:13px;color:var(--text);line-height:1.6}
+.cvr-rank-tit{font-weight:700;font-size:14px;margin-bottom:4px}
 
 footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center}
 @media (max-width:680px){.search{order:5;margin-left:0;width:100%}.search input{width:100%}}
@@ -1322,6 +1327,7 @@ function cvSemanasEnRango(desde,hasta){
   return [...set].sort();
 }
 let cvPersonaSel="";
+let cvTabResumenSel="persona"; // "persona" (resumen por gerente) | "informe" (informe general del período)
 
 function abrirCoventeResumen(){
   const semana=cvRangoSemana();
@@ -1460,14 +1466,30 @@ function renderCoventeResumenTabla(desde, hasta){
     <div class="cv-mes">⚠️ Resumen negativo <span style="color:var(--muted-2);text-transform:none;font-weight:500">(por semana)</span></div>
     ${negLineas.length?`<div class="cvr-neg">${negLineas.map(s=>`<div>${esc(s)}</div>`).join("")}</div>`:`<div class="empty" style="padding:8px 0">Sin casos negativos en el rango elegido.</div>`}`;
 
-  /* Resumen por gerente + período — reusa el mismo rango (desde/hasta) ya elegido arriba */
+  /* Pestañas separadas, a pedido de Sebastian: "Resumen por gerente" (personalizado, 1
+     persona a la vez) vs "Informe general del período" (agregado, estilo narrativo —
+     totales, ranking por salida y observaciones de TODOS los gerentes). */
   const opcionesPersona=CONFIG.SUCURSALES.map(s=>`<option value="${esc(s.sucursal)}" ${cvPersonaSel===s.sucursal?"selected":""}>${esc(s.sucursal)} — ${esc(cvGerenteLabel(s.gerente))}</option>`).join("");
-  const personaHtml=`<div class="cv-sep"></div>
-    <div class="cv-mes">👤 Resumen por gerente</div>
-    <select id="cvrPersonaSel"><option value="">— Elegir gerente —</option>${opcionesPersona}</select>
-    <div id="cvrPersonaOut"></div>`;
+  const tabsHtml=`<div class="cv-sep"></div>
+    <div class="cvr-tabs">
+      <button class="cvr-tab ${cvTabResumenSel==="persona"?"active":""}" data-tab="persona">👤 Resumen por gerente</button>
+      <button class="cvr-tab ${cvTabResumenSel==="informe"?"active":""}" data-tab="informe">📋 Informe general del período</button>
+    </div>
+    <div id="cvrTabPersona" style="display:${cvTabResumenSel==="persona"?"":"none"}">
+      <select id="cvrPersonaSel"><option value="">— Elegir gerente —</option>${opcionesPersona}</select>
+      <div id="cvrPersonaOut"></div>
+    </div>
+    <div id="cvrTabInforme" style="display:${cvTabResumenSel==="informe"?"":"none"}"></div>`;
 
-  el.innerHTML=tablaHtml+top3Html+negativoHtml+personaHtml;
+  el.innerHTML=tablaHtml+top3Html+negativoHtml+tabsHtml;
+
+  el.querySelectorAll(".cvr-tab").forEach(b=>b.onclick=()=>{
+    cvTabResumenSel=b.dataset.tab;
+    $("#cvrTabPersona").style.display=cvTabResumenSel==="persona"?"":"none";
+    $("#cvrTabInforme").style.display=cvTabResumenSel==="informe"?"":"none";
+    el.querySelectorAll(".cvr-tab").forEach(x=>x.classList.toggle("active", x===b));
+    if(cvTabResumenSel==="informe") pintarInformeGeneral();
+  });
 
   const selPersona=$("#cvrPersonaSel");
   function pintarPersona(){
@@ -1492,13 +1514,17 @@ function renderCoventeResumenTabla(desde, hasta){
       const ventasSem=regsSem.reduce((a,r)=>a+cvNum(r.campos.personalesValor)+cvNum(r.campos.ventasValor),0);
       return `${cvLabelSemana(clave)}: ${regsSem.length} salida${regsSem.length===1?"":"s"} · ventas: ${esc(cvFmtMoneda(ventasSem))}`;
     }).filter(Boolean);
-    /* Observaciones: texto real tal cual lo cargó cada gerente, en orden cronológico —
-       sin resumir con IA (no hay backend conectado para eso en este archivo), solo
-       concatenado de forma legible para poder leer de un vistazo qué fue pasando. */
-    const obsRegs=regs.filter(r=>(r.campos.observaciones||"").trim()).slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
-    const obsHtml=obsRegs.length
-      ?`<div class="cvr-persona-obs">${obsRegs.map(r=>`<div><b>${esc(r.fecha.slice(8,10)+"/"+r.fecha.slice(5,7))}:</b> ${esc(r.campos.observaciones.trim())}</div>`).join("")}</div>`
-      :`<div class="empty" style="padding:6px 0">Sin observaciones cargadas en el rango.</div>`;
+    /* Detalle diario: con quién salió ese día (acompañante) + la observación cargada,
+       uno al lado del otro — texto real tal cual lo cargó el gerente, sin resumir con
+       IA (no hay backend conectado para eso en este archivo), en orden cronológico. */
+    const detalleDiario=regs.slice().sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(r=>{
+      const acomp=(r.campos.acompanante||"").trim();
+      const obs=(r.campos.observaciones||"").trim();
+      const fechaLbl=r.fecha.slice(8,10)+"/"+r.fecha.slice(5,7);
+      const quien=acomp?`acompañado de ${acomp}`:"sin acompañante";
+      return `<div><b>${esc(fechaLbl)}</b> — ${esc(quien)}${obs?`: ${esc(obs)}`:""}</div>`;
+    });
+    const obsHtml=detalleDiario.length?`<div class="cvr-persona-obs">${detalleDiario.join("")}</div>`:"";
     out.innerHTML=`<div class="cvr-persona-txt">
       <b>${esc(titulo)}</b> — del ${desde.split("-").reverse().join("/")} al ${hasta.split("-").reverse().join("/")}<br>
       Salidas: ${regs.length}${metaPorGerente?` · Cumplimiento: ${actualMeta}/${metaPorGerente} (${(actualMeta/metaPorGerente*100).toFixed(0)}%)`:""}<br>
@@ -1508,11 +1534,76 @@ function renderCoventeResumenTabla(desde, hasta){
     </div>
     <div class="cv-mes" style="margin-top:10px">Detalle semanal</div>
     <div class="cvr-persona-semanas">${semanasDet.length?semanasDet.map(s=>`<div>${s}</div>`).join(""):`<div class="empty" style="padding:6px 0">Sin semanas con salidas en el rango.</div>`}</div>
-    <div class="cv-mes" style="margin-top:10px">Observaciones cargadas</div>
+    <div class="cv-mes" style="margin-top:10px">Detalle diario — con quién salió y observaciones</div>
     ${obsHtml}`;
   }
+
+  /* Informe general del período: agregado de TODOS los gerentes, estilo narrativo
+     parecido a los resúmenes que manda Gonzalo Coronel por WhatsApp — pero construido
+     100% con los datos reales ya cargados (montos, fechas, acompañantes, observaciones
+     tal cual se escribieron). A propósito NO incluye "evaluación cualitativa" ni
+     "aprendizajes" inventados — eso requeriría leer/interpretar el texto con IA, que no
+     está conectada en este archivo; la "justificación" del ranking es objetiva (el
+     criterio numérico real), no una opinión fabricada. */
+  function pintarInformeGeneral(){
+    const out=$("#cvrTabInforme"); if(!out) return;
+    const gerentesConSalidas=filas.filter(f=>f.key!=="otros" && f.salidas>0);
+    const acompNombres=new Set();
+    registros.forEach(r=>{ const a=(r.campos.acompanante||"").trim(); if(a) acompNombres.add(a); });
+    const transacciones=total.persCant+total.ventCant;
+
+    const encabezado=`<div class="cvr-persona-txt">
+      Total de salidas analizadas: <b>${registros.length}</b><br>
+      Período: <b>${desde.split("-").reverse().join("/")} al ${hasta.split("-").reverse().join("/")}</b><br>
+      Gerentes con salidas registradas: <b>${gerentesConSalidas.length}</b>${gerentesConSalidas.length?` (${esc(gerentesConSalidas.map(f=>f.titulo.split(" — ")[0]).join(", "))})`:""}<br>
+      Vendedores/cobradores acompañantes distintos (texto libre, puede haber variantes del mismo nombre): <b>${acompNombres.size}</b>${acompNombres.size?` (${esc([...acompNombres].join(", "))})`:""}<br>
+      Ventas totales reportadas: <b>${esc(cvFmtMoneda(total.persValor+total.ventValor))}</b> en ${transacciones} operación${transacciones===1?"":"es"} con monto<br>
+      Datos / prospectos: <b>${esc(cvFmtMoneda(total.datValor))}</b> en ${total.datCant} dato${total.datCant===1?"":"s"}
+    </div>`;
+
+    const rankingSalidas=registros.map(r=>{
+      const c=r.campos||{};
+      const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===r.sucursalKey);
+      return {
+        fecha:r.fecha, gerente:sObj?cvGerenteLabel(sObj.gerente):(c.gerente||"—"),
+        acompanante:(c.acompanante||"").trim(),
+        ventas:cvNum(c.personalesValor)+cvNum(c.ventasValor),
+        ventasDet:[c.personalesDetalle,c.ventasDetalle,c.condicionVenta].filter(Boolean).join(" · "),
+        datos:cvNum(c.datosValor), datosDet:c.datosDetalle||"",
+      };
+    }).filter(x=>x.ventas>0).sort((a,b)=>b.ventas-a.ventas).slice(0,3);
+    const medallas=["🥇 1º","🥈 2º","🥉 3º"];
+    const rankingHtml=rankingSalidas.length
+      ?rankingSalidas.map((x,i)=>`<div class="cvr-rank-item">
+        <div class="cvr-rank-tit">${medallas[i]} — ${x.acompanante?esc(x.acompanante):esc(x.gerente)}${x.acompanante?` <span class="cvr-mon">(Gerente: ${esc(x.gerente)})</span>`:" (venta personal del gerente)"}</div>
+        <div>Fecha de salida: ${esc(x.fecha.slice(8,10)+"/"+x.fecha.slice(5,7)+"/"+x.fecha.slice(0,4))}</div>
+        <div>Ventas concretadas: <b>${esc(cvFmtMoneda(x.ventas))}</b>${x.ventasDet?` — ${esc(x.ventasDet)}`:""}</div>
+        ${x.datos?`<div>Datos/prospectos: <b>${esc(cvFmtMoneda(x.datos))}</b>${x.datosDet?` — ${esc(x.datosDet)}`:""}</div>`:""}
+        <div style="color:var(--muted);font-size:12px">Justificación: mayor monto de ventas concretadas en una sola salida, dentro del rango elegido.</div>
+      </div>`).join("")
+      :`<div class="empty" style="padding:8px 0">Sin ventas concretadas registradas en el rango.</div>`;
+
+    const obsTodas=registros.filter(r=>(r.campos.observaciones||"").trim()).slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    const obsGeneralHtml=obsTodas.length
+      ?`<div class="cvr-persona-obs">${obsTodas.map(r=>{
+          const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===r.sucursalKey);
+          const gerente=sObj?cvGerenteLabel(sObj.gerente):(r.campos.gerente||"—");
+          return `<div><b>${esc(r.fecha.slice(8,10)+"/"+r.fecha.slice(5,7))} — ${esc(gerente)}:</b> ${esc(r.campos.observaciones.trim())}</div>`;
+        }).join("")}</div>`
+      :`<div class="empty" style="padding:8px 0">Sin observaciones cargadas en el rango.</div>`;
+
+    out.innerHTML=`<div class="cv-mes">Resumen del período</div>
+      ${encabezado}
+      <div class="cv-mes" style="margin-top:14px">🏆 Ranking de rendimiento por salida</div>
+      ${rankingHtml}
+      <div class="cv-mes" style="margin-top:14px">Observaciones cargadas en el período</div>
+      ${obsGeneralHtml}
+      <div class="empty" style="padding:10px 2px 0;font-style:normal;text-align:left">No incluye evaluación cualitativa ni aprendizajes interpretados — solo datos reales (montos, fechas, acompañantes y observaciones tal cual se escribieron). Eso requeriría un resumen generado por IA, que todavía no está conectada en este archivo.</div>`;
+  }
+
   if(selPersona) selPersona.onchange=()=>{ cvPersonaSel=selPersona.value; pintarPersona(); };
   pintarPersona();
+  if(cvTabResumenSel==="informe") pintarInformeGeneral();
 }
 
 /* ───────── Eventos ───────── */
