@@ -330,95 +330,20 @@ table.cvr-tabla thead th{background:var(--page);color:var(--muted);font-weight:7
 table.cvr-tabla tfoot td{border-top:2px solid var(--border-strong);border-bottom:none;background:var(--page)}
 table.cvr-tabla .cvr-tit{font-weight:600}
 table.cvr-tabla .cvr-mon{color:var(--muted);font-size:11.5px}
+.cvr-top3{margin:0 0 4px 20px;padding:0;color:var(--text);font-size:13.5px;line-height:1.6}
+.cvr-top3 li{margin-bottom:2px}
+.cvr-neg{font-size:13px;color:var(--text)}
+.cvr-neg div{padding:7px 0;border-bottom:1px dashed var(--border)}
+.cvr-neg div:last-child{border-bottom:none}
+.cvr-persona-txt{font-size:13.5px;color:var(--text);line-height:1.7;background:var(--page);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:8px}
+.cvr-persona-semanas{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:4px}
 
 footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center}
 @media (max-width:680px){.search{order:5;margin-left:0;width:100%}.search input{width:100%}}
 </style>
-<style>
-#panelAuthOverlay{display:none;visibility:visible;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:#F6F5F4;font-family:'IBM Plex Sans',system-ui,-apple-system,sans-serif;padding:20px;box-sizing:border-box}
-html[data-theme="dark"] #panelAuthOverlay{background:#191919}
-html.panel-locked body{visibility:hidden}
-html.panel-locked #panelAuthOverlay{display:flex;visibility:visible}
-#panelAuthOverlay .pa-card{width:100%;max-width:360px;background:#fff;border:1px solid #E6E6E6;border-radius:12px;padding:36px 32px;box-shadow:0 20px 50px rgba(0,0,0,.12);box-sizing:border-box}
-html[data-theme="dark"] #panelAuthOverlay .pa-card{background:#242424;border-color:#3A3A3A;box-shadow:0 20px 50px rgba(0,0,0,.5)}
-#panelAuthOverlay .pa-brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
-#panelAuthOverlay .pa-ma{font-weight:600;font-size:13px;letter-spacing:.5px;background:#DD5B00;color:#fff;padding:4px 8px;border-radius:5px;flex:none}
-html[data-theme="dark"] #panelAuthOverlay .pa-ma{background:#FF7A26}
-#panelAuthOverlay .pa-ttl b{display:block;font-weight:700;font-size:15px;color:#000;letter-spacing:-.2px}
-html[data-theme="dark"] #panelAuthOverlay .pa-ttl b{color:#EDECE9}
-#panelAuthOverlay .pa-ttl span{display:block;font-size:10px;color:#615D59;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
-html[data-theme="dark"] #panelAuthOverlay .pa-ttl span{color:#9B968F}
-#panelAuthOverlay h2{font-size:16px;font-weight:700;color:#000;margin:0 0 5px}
-html[data-theme="dark"] #panelAuthOverlay h2{color:#EDECE9}
-#panelAuthOverlay p.pa-sub{font-size:12.5px;color:#615D59;margin:0 0 22px;line-height:1.4}
-html[data-theme="dark"] #panelAuthOverlay p.pa-sub{color:#9B968F}
-#panelAuthOverlay label{display:block;font-size:11px;font-weight:600;color:#615D59;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px}
-html[data-theme="dark"] #panelAuthOverlay label{color:#9B968F}
-#panelAuthOverlay input{width:100%;box-sizing:border-box;padding:9px 11px;font-size:14px;font-family:inherit;border:1px solid #E6E6E6;border-radius:6px;background:#fff;color:#000;margin-bottom:16px;outline:none}
-html[data-theme="dark"] #panelAuthOverlay input{background:#191919;border-color:#3A3A3A;color:#EDECE9}
-#panelAuthOverlay input:focus{border-color:#0075DE}
-html[data-theme="dark"] #panelAuthOverlay input:focus{border-color:#3396F0}
-#panelAuthOverlay button{width:100%;padding:10px;font-size:14px;font-weight:600;font-family:inherit;color:#fff;background:#0075DE;border:none;border-radius:6px;cursor:pointer;margin-top:2px}
-html[data-theme="dark"] #panelAuthOverlay button{background:#3396F0}
-#panelAuthOverlay button:hover{background:#005BAB}
-html[data-theme="dark"] #panelAuthOverlay button:hover{background:#62AEF0}
-#panelAuthOverlay .pa-error{font-size:12.5px;color:#D7484B;margin:-8px 0 14px;min-height:16px}
-html[data-theme="dark"] #panelAuthOverlay .pa-error{color:#FF6B6E}
-#panelAuthOverlay .pa-card.pa-shake{animation:pa-shake .4s}
-@keyframes pa-shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
-</style>
 <script src="assets/nombres-fijos.js"></script>
 </head>
 <body>
-<div id="panelAuthOverlay">
-  <div class="pa-card">
-    <div class="pa-brand">
-      <span class="pa-ma">M&amp;A</span>
-      <div class="pa-ttl"><b>Acceso</b><span>Departamento Comercial</span></div>
-    </div>
-    <h2>Ingresá tus credenciales</h2>
-    <p class="pa-sub">Panel interno de uso exclusivo del equipo.</p>
-    <form id="panelAuthForm" autocomplete="off">
-      <label for="paUser">Usuario</label>
-      <input type="text" id="paUser" autocomplete="username" autocapitalize="off" spellcheck="false" required>
-      <label for="paPass">Contraseña</label>
-      <input type="password" id="paPass" autocomplete="current-password" required>
-      <div class="pa-error" id="paError"></div>
-      <button type="submit">Entrar</button>
-    </form>
-  </div>
-</div>
-<script>
-(function(){
-  if (localStorage.getItem('panelAuthOK') === '1') return;
-  document.documentElement.classList.add('panel-locked');
-  var PA_HASH = '0967f02e309390459f5a18a0b79676ff308c3ad4604113a1984e413595c86551';
-  function paHash(s){
-    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then(function(buf){
-      return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
-    });
-  }
-  document.getElementById('panelAuthForm').addEventListener('submit', function(e){
-    e.preventDefault();
-    var u = document.getElementById('paUser').value.trim();
-    var p = document.getElementById('paPass').value;
-    paHash(u + ':' + p).then(function(h){
-      if (h === PA_HASH) {
-        localStorage.setItem('panelAuthOK', '1');
-        document.documentElement.classList.remove('panel-locked');
-      } else {
-        document.getElementById('paError').textContent = 'Usuario o contraseña incorrectos.';
-        var card = document.querySelector('#panelAuthOverlay .pa-card');
-        card.classList.remove('pa-shake');
-        void card.offsetWidth;
-        card.classList.add('pa-shake');
-        document.getElementById('paPass').value = '';
-        document.getElementById('paPass').focus();
-      }
-    });
-  });
-})();
-</script>
 
 <div class="topbar">
   <a href="index.html" class="brand" style="text-decoration:none;color:inherit" title="Volver al Centro de Control">
@@ -1359,6 +1284,41 @@ function cvRangoMes(){
   return {desde:cvIsoDate(desde), hasta:cvIsoDate(hasta)};
 }
 
+/* ───────── Métricas del resumen (cumplimiento / rankings / negativo / por persona) ─────────
+   Meta de salidas (regla de negocio fija, pedida por Sebastian): 2 salidas por semana,
+   SOLO en las semanas "del medio" del mes (2ª, 3ª y 4ª). Las semanas son bloques FIJOS
+   de 7 días dentro de cada mes (1-7, 8-14, 15-21, 22-28, 29-fin) — no semanas de
+   calendario lunes-a-domingo, a propósito: así ninguna semana queda a caballo entre
+   dos meses distintos (ambiguo para saber de qué mes es "la semana 2"). Total: 6/mes. */
+function cvClaveSemana(iso){
+  const ym=iso.slice(0,7); const dia=parseInt(iso.slice(8,10),10);
+  return ym+"#"+Math.ceil(dia/7);
+}
+function cvEsSemanaMeta(clave){ const n=+clave.split("#")[1]; return n>=2 && n<=4; }
+function cvLabelSemana(clave){
+  const [ym,nStr]=clave.split("#"); const n=+nStr; const [y,m]=ym.split("-").map(Number);
+  const diaIni=(n-1)*7+1, diaFinMes=new Date(y,m,0).getDate(), diaFin=Math.min(n*7,diaFinMes);
+  const mm=String(m).padStart(2,"0");
+  return `Semana ${n} de ${cvMesLabel(ym)} (${String(diaIni).padStart(2,"0")}/${mm} al ${String(diaFin).padStart(2,"0")}/${mm})`;
+}
+/* Claves de semana "del medio" de mes que se superponen con el rango elegido — la meta
+   total es 2 salidas por cada una, igual para todos los gerentes. */
+function cvSemanasMetaEnRango(desde,hasta){
+  const set=new Set();
+  let d=new Date(desde+"T00:00:00"); const fin=new Date(hasta+"T00:00:00");
+  while(d<=fin){ const clave=cvClaveSemana(cvIsoDate(d)); if(cvEsSemanaMeta(clave)) set.add(clave); d.setDate(d.getDate()+1); }
+  return [...set];
+}
+/* Todas las semanas (de meta o no) que tocan el rango — las usa el resumen negativo y
+   el detalle por persona, que necesitan ver la actividad completa, no solo la exigible. */
+function cvSemanasEnRango(desde,hasta){
+  const set=new Set();
+  let d=new Date(desde+"T00:00:00"); const fin=new Date(hasta+"T00:00:00");
+  while(d<=fin){ set.add(cvClaveSemana(cvIsoDate(d))); d.setDate(d.getDate()+1); }
+  return [...set].sort();
+}
+let cvPersonaSel="";
+
 function abrirCoventeResumen(){
   const semana=cvRangoSemana();
   $("#modal").className="modal"; $("#modal").style.maxWidth="";
@@ -1405,6 +1365,7 @@ function renderCoventeResumenTabla(desde, hasta){
   const porSucursal={};
   registros.forEach(r=>{ const key=r.sucursalKey||"otros"; (porSucursal[key]=porSucursal[key]||[]).push(r); });
   const ordenKeys=[...CONFIG.SUCURSALES.map(s=>s.sucursal), "otros"].filter(k=>porSucursal[k]);
+  const ordenKeysGerente=ordenKeys.filter(k=>k!=="otros");
 
   const filas=ordenKeys.map(key=>{
     const regs=porSucursal[key];
@@ -1418,7 +1379,7 @@ function renderCoventeResumenTabla(desde, hasta){
       t.ventCant+=cvNum(c.ventasCantidad); t.ventValor+=cvNum(c.ventasValor);
       t.datCant+=cvNum(c.datosCantidad); t.datValor+=cvNum(c.datosValor);
     });
-    return {titulo, salidas:regs.length, ...t};
+    return {key, titulo, salidas:regs.length, ...t};
   });
   const total=filas.reduce((a,f)=>({
     salidas:a.salidas+f.salidas, visitas:a.visitas+f.visitas, nuevosNegocios:a.nuevosNegocios+f.nuevosNegocios,
@@ -1435,11 +1396,107 @@ function renderCoventeResumenTabla(desde, hasta){
     <td>${f.datCant}${f.datValor?` <span class="cvr-mon">(${esc(cvFmtMoneda(f.datValor))})</span>`:""}</td>
   </tr>`;
 
-  el.innerHTML=`<div class="cvr-wrap"><table class="cvr-tabla">
+  const tablaHtml=`<div class="cvr-wrap"><table class="cvr-tabla">
     <thead><tr><th>Gerente / Sucursal</th><th>Salidas</th><th>Visitas</th><th>Neg. nuevos</th><th>Vtas. personales</th><th>Vtas. equipo</th><th>Datos</th></tr></thead>
     <tbody>${filas.map(fila).join("")}</tbody>
     <tfoot>${fila({...total,titulo:"Total"}).replace('class="cvr-tit"','class="cvr-tit" style="font-weight:700"')}</tfoot>
   </table></div>`;
+
+  /* Top 3 — cumplimiento de salidas (meta: 2/semana en semanas 2ª-4ª del mes) */
+  const semanasMeta=cvSemanasMetaEnRango(desde,hasta);
+  const metaPorGerente=semanasMeta.length*2;
+  const top3Cumpl=ordenKeysGerente.map(key=>{
+    const f=filas.find(x=>x.key===key);
+    const actual=porSucursal[key].filter(r=>cvEsSemanaMeta(cvClaveSemana(r.fecha))).length;
+    return {titulo:f.titulo, actual, meta:metaPorGerente, pct:metaPorGerente?actual/metaPorGerente*100:null};
+  }).filter(x=>x.pct!==null).sort((a,b)=>b.pct-a.pct).slice(0,3);
+
+  /* Top 3 — ventas generadas (personales del gerente + del equipo acompañado) */
+  const top3Ventas=filas.filter(f=>f.key!=="otros").map(f=>({titulo:f.titulo, total:f.persValor+f.ventValor}))
+    .filter(x=>x.total>0).sort((a,b)=>b.total-a.total).slice(0,3);
+
+  const top3Html=`<div class="cv-sep"></div>
+    <div class="cv-mes">🏆 Top 3 — Cumplimiento de salidas <span style="color:var(--muted-2);text-transform:none;font-weight:500">(meta: 2 por semana, semanas 2ª a 4ª del mes = 6/mes)</span></div>
+    ${semanasMeta.length
+      ? (top3Cumpl.length?`<ol class="cvr-top3">${top3Cumpl.map(x=>`<li>${esc(x.titulo)} — ${x.actual}/${x.meta} salidas (${x.pct.toFixed(0)}%)</li>`).join("")}</ol>`:`<div class="empty" style="padding:8px 0">Sin salidas en semanas de meta, en este rango.</div>`)
+      : `<div class="empty" style="padding:8px 0">El rango elegido no incluye ninguna semana "del medio" de mes (2ª, 3ª o 4ª) — no hay meta para calcular cumplimiento acá.</div>`}
+    <div class="cv-mes">💰 Top 3 — Ventas generadas <span style="color:var(--muted-2);text-transform:none;font-weight:500">(personales del gerente + del equipo)</span></div>
+    ${top3Ventas.length?`<ol class="cvr-top3">${top3Ventas.map(x=>`<li>${esc(x.titulo)} — ${esc(cvFmtMoneda(x.total))}</li>`).join("")}</ol>`:`<div class="empty" style="padding:8px 0">Sin ventas registradas en el rango.</div>`}`;
+
+  /* Resumen negativo: evaluado POR SEMANA (lunes a sábado), no por salida suelta — si un
+     gerente tuvo más de una salida la misma semana se agrupan antes de decidir si "no
+     vendió". Dos casos: (a) salió esa semana y entre todas sus salidas no generó ni una
+     venta personal ni de equipo; (b) salió acompañado de un vendedor/cobrador y, en esas
+     salidas acompañadas puntuales, el equipo tampoco vendió nada. */
+  const semanasRango=cvSemanasEnRango(desde,hasta);
+  const negLineas=[];
+  semanasRango.forEach(clave=>{
+    ordenKeysGerente.forEach(key=>{
+      const regsSemana=(porSucursal[key]||[]).filter(r=>cvClaveSemana(r.fecha)===clave);
+      if(!regsSemana.length) return;
+      const f=filas.find(x=>x.key===key);
+      const totalVentasSemana=regsSemana.reduce((a,r)=>a+cvNum(r.campos.personalesValor)+cvNum(r.campos.ventasValor),0);
+      if(totalVentasSemana===0){
+        negLineas.push(`${cvLabelSemana(clave)}: ${f.titulo} salió ${regsSemana.length} ${regsSemana.length===1?"vez":"veces"} y no generó ninguna venta (ni personal ni de equipo).`);
+      }
+      const acompRegs=regsSemana.filter(r=>(r.campos.acompanante||"").trim());
+      if(acompRegs.length){
+        const ventasAcomp=acompRegs.reduce((a,r)=>a+cvNum(r.campos.ventasValor),0);
+        if(ventasAcomp===0){
+          const nombres=[...new Set(acompRegs.map(r=>r.campos.acompanante.trim()))].join(", ");
+          negLineas.push(`${cvLabelSemana(clave)}: ${f.titulo} salió acompañado de ${nombres} pero no se registró venta de equipo en esa/s salida/s.`);
+        }
+      }
+    });
+  });
+  const negativoHtml=`<div class="cv-sep"></div>
+    <div class="cv-mes">⚠️ Resumen negativo <span style="color:var(--muted-2);text-transform:none;font-weight:500">(por semana)</span></div>
+    ${negLineas.length?`<div class="cvr-neg">${negLineas.map(s=>`<div>${esc(s)}</div>`).join("")}</div>`:`<div class="empty" style="padding:8px 0">Sin casos negativos en el rango elegido.</div>`}`;
+
+  /* Resumen por gerente + período — reusa el mismo rango (desde/hasta) ya elegido arriba */
+  const opcionesPersona=CONFIG.SUCURSALES.map(s=>`<option value="${esc(s.sucursal)}" ${cvPersonaSel===s.sucursal?"selected":""}>${esc(s.sucursal)} — ${esc(cvGerenteLabel(s.gerente))}</option>`).join("");
+  const personaHtml=`<div class="cv-sep"></div>
+    <div class="cv-mes">👤 Resumen por gerente</div>
+    <select id="cvrPersonaSel"><option value="">— Elegir gerente —</option>${opcionesPersona}</select>
+    <div id="cvrPersonaOut"></div>`;
+
+  el.innerHTML=tablaHtml+top3Html+negativoHtml+personaHtml;
+
+  const selPersona=$("#cvrPersonaSel");
+  function pintarPersona(){
+    const out=$("#cvrPersonaOut"); if(!out) return;
+    if(!cvPersonaSel){ out.innerHTML=""; return; }
+    const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===cvPersonaSel);
+    const titulo=`${sObj.sucursal} — ${cvGerenteLabel(sObj.gerente)}`;
+    const regs=porSucursal[cvPersonaSel]||[];
+    if(!regs.length){ out.innerHTML=`<div class="empty" style="padding:10px 0">${esc(titulo)} no tiene salidas cargadas en este rango.</div>`; return; }
+    const t={visitas:0,nuevosNegocios:0,persCant:0,persValor:0,ventCant:0,ventValor:0,datCant:0,datValor:0};
+    regs.forEach(r=>{
+      const c=r.campos||{};
+      t.visitas+=cvNum(c.visitas); t.nuevosNegocios+=cvNum(c.nuevosNegocios);
+      t.persCant+=cvNum(c.personalesCantidad); t.persValor+=cvNum(c.personalesValor);
+      t.ventCant+=cvNum(c.ventasCantidad); t.ventValor+=cvNum(c.ventasValor);
+      t.datCant+=cvNum(c.datosCantidad); t.datValor+=cvNum(c.datosValor);
+    });
+    const actualMeta=regs.filter(r=>cvEsSemanaMeta(cvClaveSemana(r.fecha))).length;
+    const semanasDet=cvSemanasEnRango(desde,hasta).map(clave=>{
+      const regsSem=regs.filter(r=>cvClaveSemana(r.fecha)===clave);
+      if(!regsSem.length) return null;
+      const ventasSem=regsSem.reduce((a,r)=>a+cvNum(r.campos.personalesValor)+cvNum(r.campos.ventasValor),0);
+      return `${cvLabelSemana(clave)}: ${regsSem.length} salida${regsSem.length===1?"":"s"} · ventas: ${esc(cvFmtMoneda(ventasSem))}`;
+    }).filter(Boolean);
+    out.innerHTML=`<div class="cvr-persona-txt">
+      <b>${esc(titulo)}</b> — del ${desde.split("-").reverse().join("/")} al ${hasta.split("-").reverse().join("/")}<br>
+      Salidas: ${regs.length}${metaPorGerente?` · Cumplimiento: ${actualMeta}/${metaPorGerente} (${(actualMeta/metaPorGerente*100).toFixed(0)}%)`:""}<br>
+      Visitas: ${t.visitas} · Nuevos negocios: ${t.nuevosNegocios}<br>
+      Ventas personales: ${t.persCant} (${esc(cvFmtMoneda(t.persValor))}) · Ventas de equipo: ${t.ventCant} (${esc(cvFmtMoneda(t.ventValor))}) · Datos: ${t.datCant} (${esc(cvFmtMoneda(t.datValor))})<br>
+      <b>Total ventas generadas: ${esc(cvFmtMoneda(t.persValor+t.ventValor))}</b>
+    </div>
+    <div class="cv-mes" style="margin-top:10px">Detalle semanal</div>
+    <div class="cvr-persona-semanas">${semanasDet.length?semanasDet.map(s=>`<div>${s}</div>`).join(""):`<div class="empty" style="padding:6px 0">Sin semanas con salidas en el rango.</div>`}</div>`;
+  }
+  if(selPersona) selPersona.onchange=()=>{ cvPersonaSel=selPersona.value; pintarPersona(); };
+  pintarPersona();
 }
 
 /* ───────── Eventos ───────── */
