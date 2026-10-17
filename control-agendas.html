@@ -337,6 +337,10 @@ table.cvr-tabla .cvr-mon{color:var(--muted);font-size:11.5px}
 .cvr-neg div:last-child{border-bottom:none}
 .cvr-persona-txt{font-size:13.5px;color:var(--text);line-height:1.7;background:var(--page);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:8px}
 .cvr-persona-semanas{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:4px}
+.cvr-persona-obs{font-size:13px;color:var(--text);line-height:1.55;margin-top:4px}
+.cvr-persona-obs div{padding:8px 0;border-bottom:1px dashed var(--border);white-space:pre-wrap}
+.cvr-persona-obs div:last-child{border-bottom:none}
+.cvr-persona-obs b{color:var(--blue)}
 
 footer{padding:0 22px 30px;color:var(--muted-2);font-size:12px;text-align:center}
 @media (max-width:680px){.search{order:5;margin-left:0;width:100%}.search input{width:100%}}
@@ -1364,11 +1368,14 @@ function renderCoventeResumenTabla(desde, hasta){
 
   const porSucursal={};
   registros.forEach(r=>{ const key=r.sucursalKey||"otros"; (porSucursal[key]=porSucursal[key]||[]).push(r); });
-  const ordenKeys=[...CONFIG.SUCURSALES.map(s=>s.sucursal), "otros"].filter(k=>porSucursal[k]);
+  /* Todos los gerentes de CONFIG.SUCURSALES entran SIEMPRE, aunque tengan 0 salidas en
+     el rango — el conteo sirve justamente para detectar a quién no mandó nada. "otros"
+     (salidas sin sucursal identificada) sí se omite si no hay ninguna, no es una persona. */
+  const ordenKeys=[...CONFIG.SUCURSALES.map(s=>s.sucursal), ...(porSucursal["otros"]?["otros"]:[])];
   const ordenKeysGerente=ordenKeys.filter(k=>k!=="otros");
 
   const filas=ordenKeys.map(key=>{
-    const regs=porSucursal[key];
+    const regs=porSucursal[key]||[];
     const sObj=CONFIG.SUCURSALES.find(s=>s.sucursal===key);
     const titulo=sObj?`${sObj.sucursal} — ${cvGerenteLabel(sObj.gerente)}`:"Sin identificar";
     const t={visitas:0,nuevosNegocios:0,persCant:0,persValor:0,ventCant:0,ventValor:0,datCant:0,datValor:0};
@@ -1407,7 +1414,7 @@ function renderCoventeResumenTabla(desde, hasta){
   const metaPorGerente=semanasMeta.length*2;
   const top3Cumpl=ordenKeysGerente.map(key=>{
     const f=filas.find(x=>x.key===key);
-    const actual=porSucursal[key].filter(r=>cvEsSemanaMeta(cvClaveSemana(r.fecha))).length;
+    const actual=(porSucursal[key]||[]).filter(r=>cvEsSemanaMeta(cvClaveSemana(r.fecha))).length;
     return {titulo:f.titulo, actual, meta:metaPorGerente, pct:metaPorGerente?actual/metaPorGerente*100:null};
   }).filter(x=>x.pct!==null).sort((a,b)=>b.pct-a.pct).slice(0,3);
 
@@ -1485,6 +1492,13 @@ function renderCoventeResumenTabla(desde, hasta){
       const ventasSem=regsSem.reduce((a,r)=>a+cvNum(r.campos.personalesValor)+cvNum(r.campos.ventasValor),0);
       return `${cvLabelSemana(clave)}: ${regsSem.length} salida${regsSem.length===1?"":"s"} · ventas: ${esc(cvFmtMoneda(ventasSem))}`;
     }).filter(Boolean);
+    /* Observaciones: texto real tal cual lo cargó cada gerente, en orden cronológico —
+       sin resumir con IA (no hay backend conectado para eso en este archivo), solo
+       concatenado de forma legible para poder leer de un vistazo qué fue pasando. */
+    const obsRegs=regs.filter(r=>(r.campos.observaciones||"").trim()).slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    const obsHtml=obsRegs.length
+      ?`<div class="cvr-persona-obs">${obsRegs.map(r=>`<div><b>${esc(r.fecha.slice(8,10)+"/"+r.fecha.slice(5,7))}:</b> ${esc(r.campos.observaciones.trim())}</div>`).join("")}</div>`
+      :`<div class="empty" style="padding:6px 0">Sin observaciones cargadas en el rango.</div>`;
     out.innerHTML=`<div class="cvr-persona-txt">
       <b>${esc(titulo)}</b> — del ${desde.split("-").reverse().join("/")} al ${hasta.split("-").reverse().join("/")}<br>
       Salidas: ${regs.length}${metaPorGerente?` · Cumplimiento: ${actualMeta}/${metaPorGerente} (${(actualMeta/metaPorGerente*100).toFixed(0)}%)`:""}<br>
@@ -1493,7 +1507,9 @@ function renderCoventeResumenTabla(desde, hasta){
       <b>Total ventas generadas: ${esc(cvFmtMoneda(t.persValor+t.ventValor))}</b>
     </div>
     <div class="cv-mes" style="margin-top:10px">Detalle semanal</div>
-    <div class="cvr-persona-semanas">${semanasDet.length?semanasDet.map(s=>`<div>${s}</div>`).join(""):`<div class="empty" style="padding:6px 0">Sin semanas con salidas en el rango.</div>`}</div>`;
+    <div class="cvr-persona-semanas">${semanasDet.length?semanasDet.map(s=>`<div>${s}</div>`).join(""):`<div class="empty" style="padding:6px 0">Sin semanas con salidas en el rango.</div>`}</div>
+    <div class="cv-mes" style="margin-top:10px">Observaciones cargadas</div>
+    ${obsHtml}`;
   }
   if(selPersona) selPersona.onchange=()=>{ cvPersonaSel=selPersona.value; pintarPersona(); };
   pintarPersona();
