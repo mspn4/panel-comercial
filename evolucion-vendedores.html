@@ -973,6 +973,7 @@ function aplicarNuevaData(nuevo){
   manualVendors.length=0;
   overrides={};
   textOverrides={};
+  tfData={}; // "mes en curso" (Ventas/Reservas, Minimal v3) se cachea por slide — si no se limpia acá, un JSON nuevo sigue mostrando el valor calculado con el JSON anterior hasta que se toque "Autocompletar del JSON" a mano
   slides=[]; cur=0;
   if(chart){ chart.destroy(); chart=null; }
   hideSlides();
