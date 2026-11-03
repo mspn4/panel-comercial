@@ -1666,7 +1666,7 @@ $('btnPrint').onclick = () => window.print();
 const GERENTES = [
   {key:"GUIPPONI EMANUEL AGUSTIN",     nombre:"Guipponi Emanuel Agustín"},
   {key:"FONTANA VALDEZ HUGO FACUNDO",  nombre:"Fontana Valdez Hugo Facundo"},
-  {key:"GOMEZ LEONARDO DAMIAN",        nombre:"Gómez Leonardo Damián"},
+  {key:"CORONEL ALIAS FACUNDO AMET",   nombre:"Coronel Facundo Amet"},
   {key:"ISA MASSA VICTOR YAMIL",       nombre:"Isa Massa Víctor Yamil"},
   {key:"ARJONA SEBASTIAN RICARDO",     nombre:"Arjona Sebastián Ricardo"},
   {key:"ROIG BA¥A SEBASTIAN",          nombre:nombreFijo("ROIG BA¥A SEBASTIAN")},
@@ -2387,6 +2387,10 @@ function gerAplicarDatos(data, origen){
     return;
   }
   showErr('');
+  // Coronel Facundo Amet figura como EMPLEADOS en origen — se fuerza a GERENTE a pedido de Sebastian.
+  data.ventas.forEach(function(v){
+    if(v.vendedor === 'CORONEL ALIAS FACUNDO AMET') v.fuerza_venta = 'GERENTE';
+  });
   procesar(data);
   procesarProyeccion(data);
   var marca = (origen === 'manual' ? 'Cargado manualmente' : 'Actualizado') + ' · ' +
