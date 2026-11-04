@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="assets/logo.png">
+<title>Matriz de Trabajo Comercial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="assets/nombres-fijos.js"></script>
+<style>
+:root{
+  --page:#F6F5F4;--surface:#FFFFFF;--border:#E6E6E6;--border-strong:#C9C4BE;
+  --ink:#000000;--ink-2:#615D59;
+  --accent:#0075DE;--accent-tint:#EAF2FC;
+  --navy:#213183;--navy-2:#2C42A8;
+  --amar:#C98A02;--amar-bg:rgba(201,138,2,.12);
+  --verde:#1AAE39;--verde-bg:rgba(26,174,57,.12);
+  --rojo:#D7484B;--rojo-bg:rgba(215,72,75,.10);
+  --gris:#9B968F;--gris-bg:#F2F1EF;
+  --shadow-card:0 1px 1px rgba(0,0,0,.03),0 8px 20px rgba(0,0,0,.06);
+}
+html[data-theme="dark"]{
+  --page:#191919;--surface:#242424;--border:#3A3A3A;--border-strong:#4A4A4A;
+  --ink:#EDECE9;--ink-2:#9B968F;
+  --accent:#3396F0;--accent-tint:rgba(51,150,240,.16);
+  --navy:#2C42A8;--navy-2:#213183;
+  --amar:#E0A934;--amar-bg:rgba(224,169,52,.18);
+  --verde:#2ECC58;--verde-bg:rgba(46,204,88,.16);
+  --rojo:#FF6B6E;--rojo-bg:rgba(255,107,110,.14);
+  --gris:#8B8680;--gris-bg:#2A2A2A;
+  --shadow-card:0 1px 1px rgba(0,0,0,.3),0 8px 20px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:var(--page);color:var(--ink);min-height:100vh}
+.topbar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px 26px;background:var(--surface);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit}
+.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--navy-2),var(--navy));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12.5px}
+h1{font-size:16.5px;font-weight:700;letter-spacing:-.02em}
+.topbar p{font-size:11.5px;color:var(--ink-2);margin-top:1px}
+.topbar-right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.estado{font-size:12px;color:var(--ink-2);font-weight:600}
+.estado.error{color:var(--rojo)}
+.btn{font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 14px}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.danger:hover{border-color:var(--rojo);color:var(--rojo)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{opacity:.9;color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+
+.wrap{max-width:1360px;margin:0 auto;padding:20px 26px 70px}
+.resumen{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.r-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 15px;box-shadow:var(--shadow-card)}
+.r-card .lab{font-size:11px;color:var(--ink-2);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.r-card .val{font-size:24px;font-weight:700;margin-top:5px;letter-spacing:-.02em}
+.r-card.estado-pendiente .val{color:var(--gris)}
+.r-card.estado-informado .val{color:var(--accent)}
+.r-card.estado-trabajado .val{color:var(--verde)}
+.r-card.estado-observado .val{color:var(--rojo)}
+
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 18px;margin-bottom:16px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.fld{display:flex;flex-direction:column;gap:6px}
+.fld label{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
+.fld input[type=text],.fld select{border:1px solid var(--border);border-radius:9px;padding:8px 11px;font:inherit;font-size:13px;background:var(--surface);color:var(--ink);min-width:150px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 12px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--ink-2)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.spacer{margin-left:auto;display:flex;gap:8px;align-items:flex-end}
+
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-card)}
+.table-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:980px}
+th{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);font-weight:700;padding:11px 12px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:left}
+td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--accent-tint)}
+.nombre{font-weight:600}
+.sub{color:var(--ink-2);font-size:11.5px}
+.badge{display:inline-block;padding:3px 10px;border-radius:7px;font-weight:700;font-size:11.5px}
+.badge.pendiente{background:var(--gris-bg);color:var(--gris)}
+.badge.informado{background:var(--accent-tint);color:var(--accent)}
+.badge.trabajado{background:var(--verde-bg);color:var(--verde)}
+.badge.observado{background:var(--rojo-bg);color:var(--rojo)}
+.badge.sin{background:var(--gris-bg);color:var(--ink-2)}
+.empty-row{padding:30px;text-align:center;color:var(--ink-2)}
+.obs-input{width:100%;min-width:140px;border:1px solid var(--border);border-radius:7px;padding:5px 8px;font:inherit;font-size:12.5px;background:var(--surface);color:var(--ink)}
+
+.modal{position:fixed;inset:0;z-index:9000;background:rgba(21,26,36,.5);display:flex;align-items:center;justify-content:center;padding:24px}
+.mbox{width:100%;max-width:680px;max-height:88vh;background:var(--surface);border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 70px -20px rgba(20,30,60,.4)}
+.mbox.wide{max-width:900px}
+.mhead{display:flex;align-items:flex-start;gap:14px;padding:18px 20px;border-bottom:1px solid var(--border)}
+.mhead h2{font-size:16px;font-weight:700}
+.mhead .sub{font-size:12px;color:var(--ink-2);margin-top:3px}
+.mclose{margin-left:auto;flex:none;width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink-2);cursor:pointer}
+.mbody{overflow-y:auto;padding:16px 20px;flex:1}
+.mfoot{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--border);background:var(--gris-bg);justify-content:flex-end}
+
+.timeline{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.tl-item{border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.tl-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:7px}
+.tl-fecha{font-size:12px;font-weight:700;color:var(--ink-2)}
+.tl-kpi{font-weight:700;font-size:13.5px}
+.tl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 16px;font-size:12.5px;color:var(--ink-2)}
+.tl-grid b{color:var(--ink);font-weight:600}
+.tl-com{margin-top:7px;font-size:12.5px;color:var(--ink-2);white-space:pre-wrap}
+.tl-autor{font-size:11px;color:var(--ink-2);margin-top:7px;font-style:italic}
+.tl-empty{text-align:center;color:var(--ink-2);padding:20px;font-size:13px}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid .full{grid-column:1/-1}
+.form-grid label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);display:block;margin-bottom:5px}
+.form-grid input,.form-grid select,.form-grid textarea{width:100%;border:1px solid var(--border);border-radius:9px;padding:8px 10px;font:inherit;font-size:13px;background:var(--surface);color:var(--ink)}
+.form-grid textarea{resize:vertical;min-height:60px}
+.lock-note{font-size:12px;color:var(--ink-2);background:var(--gris-bg);border-radius:10px;padding:10px 14px;margin-bottom:14px}
+
+.listas-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.lista-box h3{font-size:12.5px;font-weight:700;margin-bottom:8px}
+.lista-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px}
+.lista-row span{flex:1}
+.lista-row button{flex:none;border:none;background:none;color:var(--rojo);cursor:pointer;font-size:14px}
+.lista-add{display:flex;gap:6px;margin-top:8px}
+.lista-add input{flex:1;border:1px solid var(--border);border-radius:8px;padding:6px 9px;font:inherit;font-size:12.5px;background:var(--surface);color:var(--ink)}
+.lista-add button{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 11px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+
+.login-form{display:flex;flex-direction:column;gap:12px}
+.login-form input{border:1px solid var(--border);border-radius:9px;padding:9px 12px;font:inherit;font-size:13.5px;background:var(--surface);color:var(--ink)}
+.login-err{color:var(--rojo);font-size:12.5px}
+
+.log-row{padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+.log-row .meta{color:var(--ink-2);font-size:11px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html" title="Volver al Centro de Control">
+    <div class="logo">M&amp;A</div>
+    <div><h1>Matriz de Trabajo Comercial</h1><p id="subt">Seguimiento de KPI y plan de acción por persona</p></div>
+  </a>
+  <div class="topbar-right">
+    <span class="estado" id="estado">Sin datos cargados</span>
+    <button class="btn" id="btnSyncNomina" onclick="sincronizarNomina(true)">🔄 Sincronizar nómina</button>
+    <button class="btn" id="btnCargarExcel" onclick="document.getElementById('fileNomina').click()">📂 Cargar Excel nómina</button>
+    <input type="file" id="fileNomina" accept=".xlsx,.xls" style="display:none">
+    <button class="btn" id="btnHistorial" onclick="abrirHistorial()">📜 Historial</button>
+    <button class="btn" id="btnListas" onclick="abrirListas()">⚙️ Listas</button>
+    <button class="btn" id="btnVariasSalidas" onclick="abrirVariasSalidas()" style="display:none">➕ Varias salidas</button>
+    <button class="btn" id="btnGerenteLogin" onclick="abrirLoginGerente()">👤 Soy gerente</button>
+    <button class="btn primary" id="btnEditMode" onclick="toggleEditMode()">✎ Modo edición (admin)</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="resumen" id="resumen"></div>
+
+  <div class="panel">
+    <div class="fld">
+      <label>Buscar</label>
+      <input type="text" id="fBuscar" placeholder="Nombre o legajo…" oninput="renderTabla()">
+    </div>
+    <div class="fld">
+      <label>Fuerza de venta</label>
+      <div class="chips" id="chipsFuerza"></div>
+    </div>
+    <div class="fld">
+      <label>Sucursal</label>
+      <div class="chips" id="chipsSucursal"></div>
+    </div>
+    <div class="fld">
+      <label>Estado (último seguimiento)</label>
+      <div class="chips" id="chipsEstado"></div>
+    </div>
+    <div class="spacer">
+      <button class="btn" onclick="limpiarFiltros()">Limpiar filtros</button>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>Legajo</th><th>Nombre</th><th>Tarea</th><th>Sucursal</th>
+          <th>Último seguimiento</th><th>KPI a mejorar</th><th>Estado</th><th>Plazo</th><th>Observaciones</th>
+        </tr></thead>
+        <tbody id="tbody"><tr><td colspan="9" class="empty-row">Sincronizando nómina…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const CONFIG = {
+  APPSSCRIPT_URL: "", // pendiente: pegar la URL /exec de MatrizBackend.gs después de deployarlo
+  EDIT_KEY: "MAeditor2026",
+  // Mismo backend que ya usan nomina-produccion.html/control-vacaciones.html — se
+  // sincroniza en vivo, no hace falta subir el excel de nuevo en esta herramienta.
+  NOMINA_URL: "https://script.google.com/macros/s/AKfycbwoFPJv2DMHyT_hG6j3jVh8fro6P-u6KbpwJzsbjgKwq-pchrRUsWPeiCbOsh7O-LTffg/exec",
+};
+// Login — dos roles. Admin: hash SHA-256("usuario:contraseña") fijo (usuario sebastianroig).
+// Gerente: cuentas auto-generadas desde la nómina, una por cada persona con tarea
+// GERENTE_ROLE_TAREA — el "usuario" es su nombre y apellido tal cual figuran en la nómina
+// (comparación insensible a mayúsculas/tildes/espacios, ver normNombre()) y la contraseña
+// es la misma para todos (compartida, hash SHA-256("gerente:contraseña") con salt fijo
+// "gerente:" para que este hash no sea comparable con PA_HASH aunque compartan contraseña
+// real). Mismo criterio cosmético que el resto del panel — repo público, ver nota de
+// seguridad de index.html. Un gerente logueado solo ve/edita la sucursal de su propio
+// registro en la nómina (ver sesionSucursal/visibleRoster()). Primera etapa pedida por
+// Sebastian — si dos gerentes tuvieran el mismo nombre normalizado habría que pasar a
+// legajo u otro identificador único, no es el caso hoy en la nómina real.
+const PA_HASH = "f611eb030d5fcdfdb60e0dcafff14ceeb0aa01b115121a3a6957f0dd99f4093e";
+const GERENTE_PASS_HASH = "dacc6eff46d49de8638cad90d9cc7227c04cd7c2e22bed8fd7240ab310e27c30";
+const GERENTE_ROLE_TAREA = "GERENTE DE AREA";
+
+/* =============== listas (selectores), semilla real de la planilla original =============== */
+let listas = {
+  sucursales: ["Tucumán Capital","Concepción","Córdoba","Salta","Jujuy","Santiago","Catamarca","La Rioja","Orán","Metán"],
+  kpis: ["Barrido territorial","Segmentación de zona","Organización trabajo semanal","Cantidad de visitas","Generación de datos","Seguimiento de clientes","Cantidad de audios","Base de datos clientes","Metodología de ventas","Speech comercial","Cierre de ventas","Negociación comercial"],
+  tiposKpi: ["Actividad","Herramientas","Proceso"],
+  planes: ["Acompañamiento en terreno","Capacitación comercial","Entrenamiento en cierre de ventas","Entrenamiento en negociación","Entrenamiento método R5P","Entrenamiento método CARED","Reorganización territorial","Asignación de zonas","Planificación de agenda semanal","Creación de base datos de clientes","Crear y asignar etiquetas WhatsApp","Implementación de respuestas rápidas"],
+  estados: ["Pendiente","Informado","Trabajado","Observado"],
+  plazos: ["1 semana","2 semanas","30 días","60 días","90 días","Seguimiento continuo","Carácter Inmediato"],
+  responsables: ["Gomez Leonardo Damian","Nieva Ramon Ernesto Fernando","Zotar Jorge Alejandro","Arjona Sebastian Ricardo","Iñigo Pablo Esteban","Ruiz Juan Rodrigo","La Loggia Fernando Daniel","Depetris Leandro Gabriel","Fontana Valdez Hugo Facundo","Perez Juan Ricardo","Roig Sebastian","Valdez Todoroff Gonzalo Fabian"],
+};
+// KPI -> Tipo KPI, para autosugerir (sigue siendo editable a mano en el formulario)
+const KPI_TIPO_MAP = {
+  "Barrido territorial":"Actividad","Segmentación de zona":"Actividad","Organización trabajo semanal":"Actividad",
+  "Cantidad de visitas":"Actividad","Generación de datos":"Actividad","Seguimiento de clientes":"Actividad","Cantidad de audios":"Actividad",
+  "Base de datos clientes":"Herramientas",
+  "Metodología de ventas":"Proceso","Speech comercial":"Proceso","Cierre de ventas":"Proceso","Negociación comercial":"Proceso",
+};
+
+let entradas = [];      // historial acumulativo: [{id,legajo,fecha,kpi,tipoKpi,plan,responsable,plazo,estado,comentarios,autor,creadoEn}]
+let observaciones = {}; // legajo -> texto plano, nota libre por persona (independiente del historial de seguimiento)
+let log = [];           // auditoría: [{accion,detalle,autor,fecha}]
+let rosterNomina = [];  // sincronizado desde NominaBackend.gs: [{legajo,nombre,tarea,sucursal,activo}]
+let rosterManual = [];  // fallback / extra (ej. teléfono), cargado a mano por excel: [{legajo,nombre,tarea,sucursal,telefono,activo}]
+let roster = [];        // roster COMPLETO ya combinado (todas las sucursales) — para filtrar la vista usar visibleRoster()
+let selSucursales = new Set();
+let selFuerzas = new Set();   // filtro por fuerza de venta (p.tarea)
+let filtroEstado = '';
+// Sesión: null = anónimo (solo lectura). 'admin' = sebastianroig, ve/edita todo.
+// 'gerente' = ve/edita solo su propia sucursal (sesionSucursal). Se persiste en
+// sessionStorage (no localStorage) para que haya que volver a loguearse por pestaña,
+// mismo criterio que el resto del panel.
+let sesionRol = null, sesionSucursal = null, sesionUsuario = null;
+try{
+  const s = JSON.parse(sessionStorage.getItem('matrizSesion')||'null');
+  if(s && s.rol){ sesionRol=s.rol; sesionSucursal=s.sucursal||null; sesionUsuario=s.usuario||null; }
+}catch(e){}
+let editMode = !!sesionRol;
+function esGerente(){ return sesionRol==='gerente'; }
+function visibleRoster(){ return sesionSucursal ? roster.filter(p=>p.sucursal===sesionSucursal) : roster; }
+
+function autor(){ return sesionUsuario || 'anónimo'; }
+function registrar(accion, detalle){
+  log.unshift({accion, detalle, autor: autor(), fecha: new Date().toISOString()});
+  if(log.length > 500) log.length = 500;
+  guardarRemoto();
+}
+
+/* =============== persistencia =============== */
+function cacheLocal(){
+  try{ localStorage.setItem('matrizCache', JSON.stringify({entradas, observaciones, listas, rosterManual, log})); }catch(e){}
+}
+let guardarTimer = null;
+function guardarRemoto(){
+  cacheLocal();
+  if(!CONFIG.APPSSCRIPT_URL) return;
+  clearTimeout(guardarTimer);
+  guardarTimer = setTimeout(async ()=>{
+    try{
+      await fetch(CONFIG.APPSSCRIPT_URL, {
+        method:'POST',
+        body: JSON.stringify({key:CONFIG.EDIT_KEY, entradas, observaciones, listas, rosterManual, log}),
+      });
+    }catch(e){ console.warn('No se pudo guardar en el backend', e); }
+  }, 600);
+}
+async function cargarEstado(){
+  if(CONFIG.APPSSCRIPT_URL){
+    try{
+      const r = await fetch(CONFIG.APPSSCRIPT_URL+'?accion=leer', {cache:'no-store'});
+      const data = await r.json();
+      if(!data.error){
+        entradas = data.entradas||[];
+        observaciones = data.observaciones||{};
+        if(data.listas && Object.keys(data.listas).length) listas = data.listas;
+        rosterManual = data.rosterManual||[];
+        log = data.log||[];
+        cacheLocal();
+        return;
+      }
+    }catch(e){ console.warn('No se pudo leer el backend de Matriz, uso caché local', e); }
+  }
+  try{
+    const c = JSON.parse(localStorage.getItem('matrizCache')||'null');
+    if(c){ entradas=c.entradas||[]; observaciones=c.observaciones||{}; if(c.listas) listas=c.listas; rosterManual=c.rosterManual||[]; log=c.log||[]; }
+  }catch(e){}
+}
+
+/* =============== nómina: sincronizar (NominaBackend) + fallback manual (excel) =============== */
+function nombreDe(apellido, nombre){
+  const full = [apellido, nombre].filter(Boolean).join(' ');
+  return full.replace(/¥/g,'Ñ').toLowerCase().split(' ').filter(Boolean)
+    .map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+}
+// Para comparar el nombre tipeado en el login de gerente contra p.nombre sin pelear con
+// mayúsculas/tildes/espacios de más.
+function normNombre(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+}
+async function sincronizarNomina(manual){
+  if(!CONFIG.NOMINA_URL){
+    if(manual) setEstado('Falta CONFIG.NOMINA_URL — usá "Cargar Excel nómina" como alternativa.', true);
+    return;
+  }
+  if(manual) setEstado('Sincronizando nómina…');
+  try{
+    const r = await fetch(CONFIG.NOMINA_URL+'?accion=leer', {cache:'no-store'});
+    const data = await r.json();
+    if(!Array.isArray(data.recs)) throw new Error('la nómina remota está vacía todavía');
+    rosterNomina = data.recs.filter(x=>x.activo!==false).map(x=>({
+      legajo: String(x.legajo||''), nombre: nombreDe(x.apellido,x.nombre),
+      tarea: x.tarea || x.cat || '', sucursal: x.areaName || '', activo: true,
+    }));
+    mergeRoster();
+    renderAll();
+    if(manual) setEstado('Nómina sincronizada · '+rosterNomina.length+' personas');
+    else setEstado(roster.length+' personas cargadas');
+  }catch(err){
+    if(manual) setEstado('No se pudo sincronizar la nómina: '+err.message, true);
+    if(!roster.length && rosterManual.length){ mergeRoster(); renderAll(); }
+  }
+}
+function mergeRoster(){
+  const manualByLegajo = {};
+  rosterManual.forEach(r=>{ if(r.legajo) manualByLegajo[r.legajo]=r; });
+  if(rosterNomina.length){
+    roster = rosterNomina.map(r=>({...r, telefono: (manualByLegajo[r.legajo]||{}).telefono || ''}));
+    // personas que están en el excel manual pero no en la nómina sincronizada (ej. todavía no se sincronizó) se agregan igual
+    rosterManual.forEach(r=>{ if(r.legajo && !roster.some(x=>x.legajo===r.legajo)) roster.push(r); });
+  } else {
+    roster = rosterManual.slice();
+  }
+  roster.sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+}
+// Excel esperado: columnas tipo legajo/apellido(s)/nombre(s) (o "Nombre" combinado)/tarea/area o sucursal/teléfono —
+// mismas variantes de headers que ya usa el resto del panel (ver nomina-produccion.html/control-vacaciones.html).
+function findCol(headers, ...cands){
+  const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
+  const hs = headers.map(norm);
+  for(const c of cands){ const i = hs.indexOf(norm(c)); if(i>=0) return i; }
+  return -1;
+}
+function cargarExcelNomina(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:true});
+      const headers = rows[0]||[];
+      const ciLegajo = findCol(headers,'legajo');
+      const ciApellido = findCol(headers,'apellido','apellidos');
+      const ciNombreSolo = findCol(headers,'nombres');
+      const ciNombreFull = findCol(headers,'nombre');
+      const ciTarea = findCol(headers,'tarea','puesto');
+      const ciSucursal = findCol(headers,'sucursal','area','área');
+      const ciTel = findCol(headers,'telefono','teléfono','tel');
+      if(ciApellido<0 && ciNombreFull<0) throw new Error('no encontré columna de apellido ni de nombre');
+      const nuevos = [];
+      for(let i=1;i<rows.length;i++){
+        const r = rows[i]; if(!r || !r.length) continue;
+        const apellido = ciApellido>=0 ? String(r[ciApellido]||'').trim() : '';
+        const nombreSolo = ciNombreSolo>=0 ? String(r[ciNombreSolo]||'').trim() : '';
+        const nombreFull = ciNombreFull>=0 ? String(r[ciNombreFull]||'').trim() : '';
+        const nombre = apellido ? nombreDe(apellido, nombreSolo||nombreFull) : nombreDe('', nombreFull);
+        if(!nombre) continue;
+        nuevos.push({
+          legajo: ciLegajo>=0 ? String(r[ciLegajo]||'').trim() : '',
+          nombre, tarea: ciTarea>=0 ? String(r[ciTarea]||'').trim() : '',
+          sucursal: ciSucursal>=0 ? String(r[ciSucursal]||'').trim() : '',
+          telefono: ciTel>=0 ? String(r[ciTel]||'').trim() : '', activo: true,
+        });
+      }
+      if(!nuevos.length) throw new Error('no se reconoció ninguna fila válida');
+      rosterManual = nuevos;
+      mergeRoster(); renderAll();
+      registrar('cargar_excel_nomina', nuevos.length+' personas (manual)');
+      setEstado('Excel cargado · '+nuevos.length+' personas');
+    }catch(err){
+      setEstado('No se pudo leer el Excel: '+err.message, true);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+$('fileNomina').addEventListener('change', e=>{
+  const f = e.target.files[0]; e.target.value='';
+  if(f) cargarExcelNomina(f);
+});
+function setEstado(msg, esError){ $('estado').textContent = msg; $('estado').classList.toggle('error', !!esError); }
+
+/* =============== seguimiento (historial acumulativo) =============== */
+function entradasDe(legajo){ return entradas.filter(e=>e.legajo===legajo).sort((a,b)=>b.fecha.localeCompare(a.fecha)); }
+function ultimaEntradaDe(legajo){ const l = entradasDe(legajo); return l.length?l[0]:null; }
+function estadoBadge(estado){
+  const cls = estado ? estado.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'') : 'sin';
+  const label = estado || 'Sin seguimiento';
+  return '<span class="badge '+esc(cls)+'">'+esc(label)+'</span>';
+}
+
+function agregarEntrada(legajo, datos){
+  entradas.push({
+    id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+    legajo, fecha: datos.fecha, kpi: datos.kpi, tipoKpi: datos.tipoKpi, plan: datos.plan,
+    responsable: datos.responsable, plazo: datos.plazo, estado: datos.estado, comentarios: datos.comentarios,
+    autor: autor(), creadoEn: new Date().toISOString(),
+  });
+  registrar('agregar_seguimiento', legajo+' · '+datos.kpi+' · '+datos.estado);
+  renderAll();
+}
+
+/* =============== render =============== */
+function renderAll(){ renderResumen(); renderFiltros(); renderTabla(); }
+
+function renderResumen(){
+  const vr = visibleRoster();
+  const total = vr.length;
+  const conSeg = vr.filter(p=>ultimaEntradaDe(p.legajo)).length;
+  const porEstado = {Pendiente:0,Informado:0,Trabajado:0,Observado:0};
+  vr.forEach(p=>{ const u=ultimaEntradaDe(p.legajo); if(u && porEstado.hasOwnProperty(u.estado)) porEstado[u.estado]++; });
+  $('resumen').innerHTML =
+    '<div class="r-card"><div class="lab">Personas</div><div class="val">'+total+'</div></div>'+
+    '<div class="r-card"><div class="lab">Con seguimiento</div><div class="val">'+conSeg+'</div></div>'+
+    '<div class="r-card estado-pendiente"><div class="lab">Pendiente</div><div class="val">'+porEstado.Pendiente+'</div></div>'+
+    '<div class="r-card estado-informado"><div class="lab">Informado</div><div class="val">'+porEstado.Informado+'</div></div>'+
+    '<div class="r-card estado-trabajado"><div class="lab">Trabajado</div><div class="val">'+porEstado.Trabajado+'</div></div>'+
+    '<div class="r-card estado-observado"><div class="lab">Observado</div><div class="val">'+porEstado.Observado+'</div></div>';
+}
+function renderFiltros(){
+  const vr = visibleRoster();
+  const fuerzasEnRoster = [...new Set(vr.map(p=>p.tarea).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  $('chipsFuerza').innerHTML = fuerzasEnRoster.map(f=>
+    '<div class="chip '+(selFuerzas.has(f)?'on':'')+'" data-f="'+esc(f)+'">'+esc(f)+'</div>'
+  ).join('');
+  $('chipsFuerza').querySelectorAll('.chip').forEach(c=>c.addEventListener('click', ()=>{
+    const f = c.dataset.f;
+    selFuerzas.has(f) ? selFuerzas.delete(f) : selFuerzas.add(f);
+    c.classList.toggle('on'); renderTabla();
+  }));
+  const sucursalesEnRoster = [...new Set(vr.map(p=>p.sucursal).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  $('chipsSucursal').innerHTML = sucursalesEnRoster.map(s=>
+    '<div class="chip '+(selSucursales.has(s)?'on':'')+'" data-s="'+esc(s)+'">'+esc(s)+'</div>'
+  ).join('');
+  $('chipsSucursal').querySelectorAll('.chip').forEach(c=>c.addEventListener('click', ()=>{
+    const s = c.dataset.s;
+    selSucursales.has(s) ? selSucursales.delete(s) : selSucursales.add(s);
+    c.classList.toggle('on'); renderTabla();
+  }));
+  $('chipsEstado').innerHTML = ['Pendiente','Informado','Trabajado','Observado','Sin seguimiento'].map(s=>
+    '<div class="chip '+(filtroEstado===s?'on':'')+'" data-e="'+esc(s)+'">'+esc(s)+'</div>'
+  ).join('');
+  $('chipsEstado').querySelectorAll('.chip').forEach(c=>c.addEventListener('click', ()=>{
+    filtroEstado = filtroEstado===c.dataset.e ? '' : c.dataset.e;
+    renderFiltros(); renderTabla();
+  }));
+}
+function limpiarFiltros(){ selSucursales.clear(); selFuerzas.clear(); filtroEstado=''; $('fBuscar').value=''; renderFiltros(); renderTabla(); }
+
+function guardarObservacion(legajo, texto){
+  texto = (texto||'').trim();
+  if((observaciones[legajo]||'') === texto) return;
+  if(texto) observaciones[legajo] = texto; else delete observaciones[legajo];
+  registrar('editar_observacion', legajo+' · '+(texto ? ('"'+texto.slice(0,60)+(texto.length>60?'…':'')+'"') : '(vaciada)'));
+}
+function renderTabla(){
+  const buscar = ($('fBuscar').value||'').toLowerCase().trim();
+  const vr = visibleRoster();
+  let filas = vr.filter(p=>{
+    if(selFuerzas.size && !selFuerzas.has(p.tarea)) return false;
+    if(selSucursales.size && !selSucursales.has(p.sucursal)) return false;
+    if(buscar && !(p.nombre.toLowerCase().includes(buscar) || String(p.legajo).includes(buscar))) return false;
+    if(filtroEstado){
+      const u = ultimaEntradaDe(p.legajo);
+      if(filtroEstado==='Sin seguimiento'){ if(u) return false; }
+      else if(!u || u.estado!==filtroEstado) return false;
+    }
+    return true;
+  });
+  if(!filas.length){
+    $('tbody').innerHTML = '<tr><td colspan="9" class="empty-row">'+(vr.length?'Sin resultados para estos filtros.':(roster.length?'Sin personas en tu sucursal.':'Sin nómina cargada — usá "Sincronizar nómina" o "Cargar Excel nómina" arriba.'))+'</td></tr>';
+    return;
+  }
+  $('tbody').innerHTML = filas.map(p=>{
+    const u = ultimaEntradaDe(p.legajo);
+    const obs = observaciones[p.legajo] || '';
+    return '<tr data-legajo="'+esc(p.legajo)+'">'+
+      '<td class="sub">'+esc(p.legajo)+'</td>'+
+      '<td class="nombre">'+esc(p.nombre)+'</td>'+
+      '<td class="sub">'+esc(p.tarea)+'</td>'+
+      '<td class="sub">'+esc(p.sucursal)+'</td>'+
+      '<td class="sub">'+(u?esc(u.fecha):'—')+'</td>'+
+      '<td>'+(u?esc(u.kpi):'—')+'</td>'+
+      '<td>'+estadoBadge(u?u.estado:null)+'</td>'+
+      '<td class="sub">'+(u?esc(u.plazo):'—')+'</td>'+
+      '<td>'+(editMode
+        ? '<input type="text" class="obs-input" data-legajo="'+esc(p.legajo)+'" value="'+esc(obs)+'" placeholder="Nota libre…">'
+        : '<span class="sub">'+esc(obs)+'</span>')+'</td>'+
+    '</tr>';
+  }).join('');
+  $('tbody').querySelectorAll('tr[data-legajo]').forEach(tr=>tr.addEventListener('click', ()=>abrirPersona(tr.dataset.legajo)));
+  $('tbody').querySelectorAll('.obs-input').forEach(inp=>{
+    inp.addEventListener('click', e=>e.stopPropagation()); // no abrir la ficha al hacer click para escribir
+    inp.addEventListener('change', ()=>guardarObservacion(inp.dataset.legajo, inp.value));
+  });
+}
+
+/* =============== modal persona: historial + agregar seguimiento =============== */
+function cerrarModales(){ document.querySelectorAll('.modal').forEach(m=>m.remove()); }
+function selectHtml(id, opciones, valor){
+  return '<select id="'+id+'">'+opciones.map(o=>'<option value="'+esc(o)+'"'+(o===valor?' selected':'')+'>'+esc(o)+'</option>').join('')+'</select>';
+}
+function abrirPersona(legajo){
+  cerrarModales();
+  const p = visibleRoster().find(x=>x.legajo===legajo); if(!p) return;
+  const hist = entradasDe(legajo);
+  const overlay = document.createElement('div'); overlay.className='modal';
+  overlay.innerHTML =
+    '<div class="mbox wide">'+
+      '<div class="mhead"><div><h2>'+esc(p.nombre)+'</h2><div class="sub">'+esc(p.tarea)+' · '+esc(p.sucursal)+' · Legajo '+esc(p.legajo)+'</div></div><button class="mclose">✕</button></div>'+
+      '<div class="mbody">'+
+        '<div class="timeline" id="plTimeline"></div>'+
+        (editMode ? formularioSeguimientoHtml('f','+ Agregar seguimiento','Guardar seguimiento') : '<div class="lock-note">🔒 Modo solo lectura — entrá a "Modo edición" para agregar un seguimiento nuevo.</div>')+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+  $('plTimeline').innerHTML = hist.length ? hist.map(e=>
+    '<div class="tl-item"><div class="tl-head"><span class="tl-fecha">'+esc(e.fecha)+'</span>'+estadoBadge(e.estado)+'</div>'+
+    '<div class="tl-kpi">'+esc(e.kpi)+' <span class="sub">('+esc(e.tipoKpi)+')</span></div>'+
+    '<div class="tl-grid"><div>Plan: <b>'+esc(e.plan)+'</b></div><div>Responsable: <b>'+esc(e.responsable)+'</b></div><div>Plazo: <b>'+esc(e.plazo)+'</b></div></div>'+
+    (e.comentarios?'<div class="tl-com">'+esc(e.comentarios)+'</div>':'')+
+    '<div class="tl-autor">Registrado por '+esc(e.autor)+' · '+new Date(e.creadoEn).toLocaleString('es-AR')+'</div>'+
+    '</div>'
+  ).join('') : '<div class="tl-empty">Todavía no hay seguimiento registrado para esta persona.</div>';
+  if(editMode) wireFormularioSeguimiento('f', datos=>{ agregarEntrada(legajo, datos); abrirPersona(legajo); });
+  overlay.querySelector('.mclose').onclick = cerrarModales;
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) cerrarModales(); });
+}
+// prefix: para poder repetir este mismo formulario más de una vez en la página (modal de
+// persona usa 'f', modal de "varias salidas" usa 'vs') sin que los ids de los campos choquen.
+function formularioSeguimientoHtml(prefix, titulo, btnLabel){
+  const hoy = new Date().toISOString().slice(0,10);
+  return '<h3 style="font-size:13px;margin-bottom:10px">'+esc(titulo)+'</h3>'+
+    '<div class="form-grid">'+
+      '<div><label>Fecha</label><input type="date" id="'+prefix+'Fecha" value="'+hoy+'"></div>'+
+      '<div><label>KPI a mejorar</label>'+selectHtml(prefix+'Kpi', listas.kpis)+'</div>'+
+      '<div><label>Tipo KPI</label>'+selectHtml(prefix+'TipoKpi', listas.tiposKpi)+'</div>'+
+      '<div><label>Plan de acción</label>'+selectHtml(prefix+'Plan', listas.planes)+'</div>'+
+      '<div><label>Responsable</label>'+selectHtml(prefix+'Responsable', listas.responsables)+'</div>'+
+      '<div><label>Plazo</label>'+selectHtml(prefix+'Plazo', listas.plazos)+'</div>'+
+      '<div><label>Estado</label>'+selectHtml(prefix+'Estado', listas.estados)+'</div>'+
+      '<div class="full"><label>Comentarios</label><textarea id="'+prefix+'Comentarios" placeholder="Observaciones de esta visita/seguimiento…"></textarea></div>'+
+      '<div class="full" style="text-align:right"><button class="btn primary" id="'+prefix+'BtnGuardar">'+esc(btnLabel)+'</button></div>'+
+    '</div>';
+}
+// onGuardar(datos) decide qué hacer con la fila cargada — agregarla directo (modal de
+// persona) o sumarla a la lista en vuelo (modal de "varias salidas").
+function wireFormularioSeguimiento(prefix, onGuardar){
+  $(prefix+'Kpi').addEventListener('change', ()=>{ const t=KPI_TIPO_MAP[$(prefix+'Kpi').value]; if(t) $(prefix+'TipoKpi').value=t; });
+  $(prefix+'BtnGuardar').addEventListener('click', ()=>{
+    const datos = {
+      fecha: $(prefix+'Fecha').value, kpi: $(prefix+'Kpi').value, tipoKpi: $(prefix+'TipoKpi').value, plan: $(prefix+'Plan').value,
+      responsable: $(prefix+'Responsable').value, plazo: $(prefix+'Plazo').value, estado: $(prefix+'Estado').value,
+      comentarios: $(prefix+'Comentarios').value.trim(),
+    };
+    if(!datos.fecha){ alert('Falta la fecha'); return; }
+    onGuardar(datos);
+  });
+}
+
+/* =============== modal "varias salidas": varias entradas del mismo vendedor, una sola pasada =============== */
+// Pedido explícito: cargar varios seguimientos (distintas fechas/KPI) de UN mismo vendedor
+// sin tener que cerrar y reabrir su ficha cada vez. Se eligen el vendedor una vez y se van
+// apilando filas en "vsStage" (en memoria, nada se guarda hasta tocar "Guardar N seguimientos").
+let vsLegajo = null;
+let vsStage = [];
+function abrirVariasSalidas(){
+  if(!editMode){ alert('Entrá a "Modo edición" primero.'); return; }
+  const vr = visibleRoster();
+  if(!vr.length){ alert('Todavía no hay nómina cargada (o sin personas en tu sucursal).'); return; }
+  cerrarModales();
+  vsLegajo = null; vsStage = [];
+  const overlay = document.createElement('div'); overlay.className='modal';
+  const opcionesVendedor = vr.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))
+    .map(p=>'<option value="'+esc(p.legajo)+'">'+esc(p.nombre)+' · '+esc(p.tarea)+'</option>').join('');
+  overlay.innerHTML =
+    '<div class="mbox wide">'+
+      '<div class="mhead"><div><h2>Varias salidas, mismo vendedor</h2>'+
+      '<div class="sub">Elegí el vendedor una vez y cargá tantas fechas/seguimientos como necesites antes de guardar todo junto.</div></div>'+
+      '<button class="mclose">✕</button></div>'+
+      '<div class="mbody">'+
+        '<div class="fld" style="margin-bottom:14px;width:100%"><label>Vendedor</label><select id="vsVendedor" style="width:100%"><option value="">— elegir —</option>'+opcionesVendedor+'</select></div>'+
+        '<div id="vsStageWrap"></div>'+
+        '<div id="vsFormWrap"></div>'+
+      '</div>'+
+      '<div class="mfoot"><button class="btn" id="vsCerrar">Cerrar</button><button class="btn primary" id="vsGuardarTodo" disabled>Guardar 0 seguimientos</button></div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+  renderVsStage();
+  renderVsForm();
+  $('vsVendedor').addEventListener('change', ()=>{ vsLegajo = $('vsVendedor').value || null; renderVsForm(); });
+  $('vsCerrar').onclick = cerrarModales;
+  overlay.querySelector('.mclose').onclick = cerrarModales;
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) cerrarModales(); });
+  $('vsGuardarTodo').addEventListener('click', ()=>{
+    if(!vsLegajo || !vsStage.length) return;
+    vsStage.forEach(datos=>agregarEntrada(vsLegajo, datos));
+    cerrarModales();
+  });
+}
+function renderVsForm(){
+  $('vsFormWrap').innerHTML = vsLegajo
+    ? formularioSeguimientoHtml('vs','+ Cargar otra salida para este vendedor','Agregar a la lista')
+    : '<div class="sub">Elegí un vendedor arriba para empezar a cargar.</div>';
+  if(vsLegajo) wireFormularioSeguimiento('vs', datos=>{
+    vsStage.push(datos);
+    renderVsStage();
+    renderVsForm(); // limpia el formulario (fecha vuelve a hoy) para cargar la próxima salida
+  });
+}
+function renderVsStage(){
+  const wrap = $('vsStageWrap'), btn = $('vsGuardarTodo');
+  btn.textContent = 'Guardar '+vsStage.length+(vsStage.length===1?' seguimiento':' seguimientos');
+  btn.disabled = vsStage.length===0;
+  if(!vsStage.length){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = '<div class="timeline" style="margin-bottom:6px">'+vsStage.map((d,i)=>
+    '<div class="tl-item" style="display:flex;justify-content:space-between;align-items:center;gap:10px">'+
+      '<div><b>'+esc(d.fecha)+'</b> · '+esc(d.kpi)+' '+estadoBadge(d.estado)+'</div>'+
+      '<button class="ovUndo" data-i="'+i+'" title="Quitar de la lista">✕</button>'+
+    '</div>'
+  ).join('')+'</div>';
+  wrap.querySelectorAll('button[data-i]').forEach(b=>b.addEventListener('click', ()=>{
+    vsStage.splice(+b.dataset.i,1);
+    renderVsStage();
+  }));
+}
+
+/* =============== modal listas (editable en modo edición) =============== */
+const LISTA_META = [
+  {key:'sucursales', label:'Sucursales'}, {key:'kpis', label:'KPI a mejorar'}, {key:'tiposKpi', label:'Tipo KPI'},
+  {key:'planes', label:'Plan de acción'}, {key:'estados', label:'Estado'}, {key:'plazos', label:'Plazo'},
+  {key:'responsables', label:'Responsables'},
+];
+function abrirListas(){
+  cerrarModales();
+  const overlay = document.createElement('div'); overlay.className='modal';
+  overlay.innerHTML =
+    '<div class="mbox wide">'+
+      '<div class="mhead"><div><h2>Listas de los selectores</h2><div class="sub">'+(editMode?'Agregá o quitá opciones — se reflejan en el formulario de seguimiento al toque.':'Modo solo lectura — entrá a "Modo edición" para modificarlas.')+'</div></div><button class="mclose">✕</button></div>'+
+      '<div class="mbody"><div class="listas-grid" id="listasGrid"></div></div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+  renderListasGrid();
+  overlay.querySelector('.mclose').onclick = cerrarModales;
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) cerrarModales(); });
+}
+function renderListasGrid(){
+  $('listasGrid').innerHTML = LISTA_META.map(m=>
+    '<div class="lista-box"><h3>'+esc(m.label)+'</h3><div id="lb-'+m.key+'"></div>'+
+    (editMode ? '<div class="lista-add"><input type="text" id="li-'+m.key+'" placeholder="Agregar opción…"><button data-k="'+m.key+'">+</button></div>' : '')+
+    '</div>'
+  ).join('');
+  LISTA_META.forEach(m=>{
+    $('lb-'+m.key).innerHTML = listas[m.key].map(v=>
+      '<div class="lista-row"><span>'+esc(v)+'</span>'+(editMode?'<button data-k="'+m.key+'" data-v="'+esc(v)+'">✕</button>':'')+'</div>'
+    ).join('') || '<div class="sub" style="padding:6px 0">Sin opciones.</div>';
+  });
+  if(editMode){
+    $('listasGrid').querySelectorAll('.lista-row button').forEach(b=>b.addEventListener('click', ()=>{
+      const k=b.dataset.k, v=b.dataset.v;
+      listas[k] = listas[k].filter(x=>x!==v);
+      registrar('editar_lista', 'quitó "'+v+'" de '+k);
+      renderListasGrid();
+    }));
+    $('listasGrid').querySelectorAll('.lista-add button').forEach(b=>b.addEventListener('click', ()=>{
+      const k=b.dataset.k, inp=$('li-'+k), v=inp.value.trim();
+      if(!v || listas[k].includes(v)) return;
+      listas[k].push(v);
+      registrar('editar_lista', 'agregó "'+v+'" a '+k);
+      inp.value=''; renderListasGrid();
+    }));
+  }
+}
+
+/* =============== modal historial (auditoría) =============== */
+function abrirHistorial(){
+  cerrarModales();
+  const overlay = document.createElement('div'); overlay.className='modal';
+  overlay.innerHTML =
+    '<div class="mbox">'+
+      '<div class="mhead"><div><h2>Historial de cambios</h2><div class="sub">Quién hizo qué, más reciente primero.</div></div><button class="mclose">✕</button></div>'+
+      '<div class="mbody" id="logBody"></div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+  $('logBody').innerHTML = log.length ? log.slice(0,200).map(l=>
+    '<div class="log-row"><b>'+esc(l.accion)+'</b> — '+esc(l.detalle)+'<div class="meta">'+esc(l.autor)+' · '+new Date(l.fecha).toLocaleString('es-AR')+'</div></div>'
+  ).join('') : '<div class="tl-empty">Sin cambios registrados todavía.</div>';
+  overlay.querySelector('.mclose').onclick = cerrarModales;
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) cerrarModales(); });
+}
+
+/* =============== modo edición (login) =============== */
+async function sha256Hex(s){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function actualizarBtnEditMode(){
+  const b = $('btnEditMode');
+  b.textContent = editMode ? '🔓 Salir de edición' : '✎ Modo edición (admin)';
+  b.className = editMode ? 'btn danger' : 'btn primary';
+  $('btnGerenteLogin').style.display = editMode ? 'none' : '';
+  $('btnVariasSalidas').style.display = editMode ? '' : 'none';
+  // Nómina/Listas/Historial son herramientas globales (afectan a todas las sucursales) —
+  // un gerente logueado solo ve/edita la suya, así que no tiene sentido darle acceso.
+  const soloAdmin = !esGerente();
+  $('btnSyncNomina').style.display = soloAdmin ? '' : 'none';
+  $('btnCargarExcel').style.display = soloAdmin ? '' : 'none';
+  $('btnHistorial').style.display = soloAdmin ? '' : 'none';
+  $('btnListas').style.display = soloAdmin ? '' : 'none';
+  $('subt').textContent = sesionRol==='admin' ? 'Viendo todas las sucursales (admin)'
+    : sesionRol==='gerente' ? 'Viendo solo ' + sesionSucursal + ' (gerente)'
+    : 'Seguimiento de KPI y plan de acción por persona';
+}
+function login(rol, usuario, sucursal){
+  sesionRol = rol; sesionUsuario = usuario; sesionSucursal = sucursal; editMode = true;
+  sessionStorage.setItem('matrizSesion', JSON.stringify({rol, usuario, sucursal}));
+  actualizarBtnEditMode(); cerrarModales(); renderAll();
+}
+function abrirModalLogin(opts){
+  // opts: {titulo, sub, placeholderUsuario, placeholderPass, label, onIntentar}
+  cerrarModales();
+  const overlay = document.createElement('div'); overlay.className='modal';
+  overlay.innerHTML =
+    '<div class="mbox" style="max-width:380px">'+
+      '<div class="mhead"><div><h2>'+esc(opts.titulo)+'</h2><div class="sub">'+esc(opts.sub)+'</div></div><button class="mclose">✕</button></div>'+
+      '<div class="mbody"><div class="login-form">'+
+        '<input type="text" id="laUser" placeholder="'+esc(opts.placeholderUsuario)+'" autocomplete="username">'+
+        '<input type="password" id="laPass" placeholder="Contraseña" autocomplete="current-password">'+
+        '<div class="login-err" id="laErr"></div>'+
+        '<button class="btn primary" id="laBtn">'+esc(opts.label)+'</button>'+
+      '</div></div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('.mclose').onclick = cerrarModales;
+  const intentar = () => opts.onIntentar($('laUser').value.trim(), $('laPass').value, msg => $('laErr').textContent = msg);
+  $('laBtn').addEventListener('click', intentar);
+  overlay.querySelectorAll('input').forEach(i=>i.addEventListener('keydown', e=>{ if(e.key==='Enter') intentar(); }));
+}
+function toggleEditMode(){
+  if(editMode){
+    editMode = false; sesionRol = null; sesionSucursal = null; sesionUsuario = null;
+    sessionStorage.removeItem('matrizSesion');
+    actualizarBtnEditMode(); renderAll(); return;
+  }
+  abrirModalLogin({
+    titulo: 'Modo edición (admin)',
+    sub: 'Tu usuario y contraseña de administrador.',
+    placeholderUsuario: 'Usuario',
+    label: 'Entrar',
+    onIntentar: async (u, p, setErr) => {
+      const hAdmin = await sha256Hex(u+':'+p);
+      if(hAdmin === PA_HASH){ login('admin', u, null); return; }
+      setErr('Usuario o contraseña incorrectos.');
+    },
+  });
+}
+// Botón dedicado — pedido explícito de Sebastian: un acceso directo para gerentes,
+// separado del login de admin, que al loguearse muestra directo la info de su sucursal
+// (renderAll() ya queda scopeado por sesionSucursal, no hace falta nada más acá).
+function abrirLoginGerente(){
+  abrirModalLogin({
+    titulo: 'Ingresar como gerente',
+    sub: 'Tu nombre y apellido (como figuran en la nómina) + la contraseña que te pasó Sebastian. Vas a ver y poder editar solo tu sucursal.',
+    placeholderUsuario: 'Nombre y apellido',
+    label: 'Entrar como gerente',
+    onIntentar: async (u, p, setErr) => {
+      const hGerente = await sha256Hex('gerente:'+p);
+      if(hGerente !== GERENTE_PASS_HASH){ setErr('Nombre o contraseña incorrectos.'); return; }
+      if(!roster.length){ setErr('Todavía no sincronizó la nómina — esperá un momento e intentá de nuevo.'); return; }
+      const nu = normNombre(u);
+      const persona = roster.find(x=>x.tarea===GERENTE_ROLE_TAREA && normNombre(x.nombre)===nu);
+      if(!persona){ setErr('No encontré ese nombre entre los gerentes de la nómina.'); return; }
+      login('gerente', persona.nombre, persona.sucursal);
+    },
+  });
+}
+
+/* =============== tema claro/oscuro, sincronizado con el panel =============== */
+function aplicarTema(t){ document.documentElement.setAttribute('data-theme', t); }
+aplicarTema(localStorage.getItem('panelTheme')==='dark' ? 'dark' : 'light');
+window.addEventListener('storage', e=>{ if(e.key==='panelTheme') aplicarTema(e.newValue==='dark'?'dark':'light'); });
+
+/* =============== arranque =============== */
+(async function init(){
+  actualizarBtnEditMode();
+  setEstado('Cargando…');
+  await cargarEstado();
+  await sincronizarNomina(false);
+  if(!roster.length) renderAll();
+})();
+</script>
+</body>
+</html>
