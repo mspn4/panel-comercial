@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Organigrama de Sucursales · Departamento Comercial</title>
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F5F4;--bg1:#F8F7F5;--bg2:#F0EEEA;
+    --card:#FFFFFF;--card-soft:#FBFAF8;--line:#E6E6E6;--line-soft:#EFEFEF;
+    --ink:#000000;--ink-2:#31302E;--ink-3:#615D59;
+    --accent:#0075DE;--accent-ink:#005BAB;--accent-tint:#EAF2FC;
+    --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(20,23,28,.06);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+    --radius:18px;--radius-sm:12px;
+    --err:#D7484B;--err-tint:#FBE7E7;
+    --gerente-grad-1:#213183;--gerente-grad-2:#0075DE;
+  }
+  html[data-theme="dark"]{
+    --bg:#191919;--bg1:#1D1D1D;--bg2:#161616;
+    --card:#242424;--card-soft:#2A2A2A;--line:#3A3A3A;--line-soft:#333333;
+    --ink:#EDECE9;--ink-2:#C9C6C2;--ink-3:#9B968F;
+    --accent:#3396F0;--accent-ink:#62AEF0;--accent-tint:rgba(51,150,240,.16);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.4);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.3);
+    --err:#FF6B6E;--err-tint:rgba(215,72,75,.15);
+    --gerente-grad-1:#2C42A8;--gerente-grad-2:#3396F0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+    color:var(--ink);background:radial-gradient(1200px 600px at 80% -10%,var(--card) 0%,rgba(255,255,255,0) 60%),linear-gradient(180deg,var(--bg1) 0%,var(--bg) 40%,var(--bg2) 100%);
+    background-attachment:fixed;min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+  header{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);background:color-mix(in srgb, var(--card) 82%, transparent);border-bottom:1px solid var(--line);}
+  .head-wrap{max-width:1360px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:13px;min-width:0;}
+  .brand-logo-img{height:42px;width:auto;flex:0 0 auto;display:none}
+  .brand-logo-light{display:block}
+  html[data-theme="dark"] .brand-logo-light{display:none}
+  html[data-theme="dark"] .brand-logo-dark{display:block}
+  .brand-txt h1{font-size:15px;font-weight:600;margin:0;letter-spacing:-.01em;line-height:1.2;white-space:nowrap;}
+  .brand-txt p{font-size:12px;color:var(--ink-3);margin:1px 0 0;}
+  .head-spacer{flex:1 1 auto;}
+  .hbtn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-size:12.5px;font-weight:550;font-family:inherit;padding:8px 13px;border-radius:10px;cursor:pointer;transition:.15s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;}
+  .hbtn:hover{background:var(--card-soft);color:var(--ink);border-color:var(--ink-3);}
+  .hbtn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .hbtn.primary:hover{background:var(--accent-ink);color:#fff;}
+  .hbtn.on{background:var(--ok,#1AAE39);color:#fff;border-color:var(--ok,#1AAE39);}
+  .hbtn.on:hover{background:var(--ok,#1AAE39);color:#fff;}
+  .btn-theme{appearance:none;width:34px;height:34px;flex:none;background:var(--card);border:1px solid var(--line);color:var(--ink-3);border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .btn-theme:hover{background:var(--accent-tint);border-color:var(--accent);color:var(--ink);}
+
+  nav.filters{position:sticky;top:69px;z-index:40;background:color-mix(in srgb, var(--card) 78%, transparent);backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid var(--line);}
+  .filters-wrap{max-width:1360px;margin:0 auto;padding:12px 24px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .searchbox{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:220px;flex:0 1 260px;}
+  .searchbox svg{color:var(--ink-3);flex:none;}
+  .searchbox input{border:none;outline:none;background:transparent;font-family:inherit;font-size:13px;color:var(--ink);width:100%;}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 auto;overflow-x:auto;scrollbar-width:thin;}
+  .chip{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink-2);font-family:inherit;font-size:12.5px;font-weight:550;padding:7px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:.15s;}
+  .chip:hover{background:var(--card-soft);color:var(--ink);}
+  .chip.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 8px rgba(0,117,222,.25);}
+
+  main{max-width:1360px;margin:0 auto;padding:24px 24px 80px;}
+  .summary{font-size:12.5px;color:var(--ink-3);margin-bottom:16px;}
+  .grid-sucursales{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px;}
+  main.single .grid-sucursales{grid-template-columns:1fr;max-width:760px;margin:0 auto;}
+
+  .suc-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;}
+  .suc-foto-wrap{width:100%;aspect-ratio:3/2;overflow:hidden;border-bottom:1px solid var(--line-soft);background:var(--card-soft);}
+  .suc-foto{width:100%;height:100%;object-fit:cover;object-position:center 40%;display:block;}
+  .suc-head{padding:16px 20px;border-bottom:1px solid var(--line-soft);}
+  .suc-head h2{margin:0 0 4px;font-size:16px;font-weight:650;letter-spacing:-.01em;}
+  .suc-dir{font-size:12px;color:var(--ink-3);line-height:1.4;}
+  .suc-hor{font-size:11.5px;color:var(--ink-3);margin-top:6px;display:flex;align-items:flex-start;gap:5px;}
+  .suc-hor svg{flex:none;margin-top:1px;color:var(--ink-3);}
+
+  .org-body{padding:20px;display:flex;flex-direction:column;align-items:center;gap:0;flex:1;}
+  .gerente-box{background:linear-gradient(135deg,var(--gerente-grad-1) 0%,var(--gerente-grad-2) 100%);color:#fff;border-radius:14px;padding:12px 20px;text-align:center;box-shadow:0 8px 24px rgba(0,60,140,.25);position:relative;min-width:180px;}
+  .gerente-box .rol{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.7);font-weight:600;}
+  .gerente-box .nom{font-size:14.5px;font-weight:650;margin-top:3px;}
+  .gerente-box .tel{font-size:11.5px;color:rgba(255,255,255,.75);margin-top:4px;}
+  .gerente-box .del{position:absolute;top:4px;right:6px;background:rgba(255,255,255,.18);border:none;color:#fff;width:18px;height:18px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1;display:none;align-items:center;justify-content:center;}
+  .gerente-box:hover .del{display:flex;}
+
+  .org-line{width:2px;height:18px;background:var(--line-soft);}
+  .org-branch{width:100%;position:relative;}
+  .org-branch::before{content:"";position:absolute;top:0;left:50%;right:50%;height:2px;background:var(--line-soft);}
+  .equipo{display:flex;flex-wrap:wrap;justify-content:center;gap:12px 14px;padding-top:18px;}
+  .emp-col{display:flex;flex-direction:column;align-items:center;gap:0;}
+  .emp-stem{width:2px;height:12px;background:var(--line-soft);}
+  .emp-box{background:var(--card-soft);border:1px solid var(--line);border-radius:12px;padding:9px 14px;text-align:center;min-width:140px;position:relative;transition:.13s;}
+  .emp-box:hover{border-color:var(--accent);background:var(--accent-tint);}
+  .emp-box .rol{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:650;}
+  .emp-box .nom{font-size:13px;font-weight:600;color:var(--ink);margin-top:2px;}
+  .emp-box .tel{font-size:11px;color:var(--ink-3);margin-top:3px;}
+  .emp-box .del{position:absolute;top:-7px;right:-7px;background:var(--err);border:2px solid var(--card);color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1;display:none;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .emp-box:hover .del{display:flex;}
+
+  .suc-foot{padding:14px 20px;border-top:1px solid var(--line-soft);background:var(--card-soft);display:flex;justify-content:center;}
+  .add-emp-btn{appearance:none;border:1.5px dashed var(--line);background:transparent;color:var(--ink-3);font-family:inherit;font-size:12.5px;font-weight:550;padding:8px 16px;border-radius:10px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px;}
+  .add-emp-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-tint);}
+
+  .empty-state{text-align:center;padding:60px 20px;color:var(--ink-3);}
+  .empty-state .ic{font-size:40px;margin-bottom:10px;}
+
+  /* modal agregar empleado */
+  .modal-bg{position:fixed;inset:0;background:rgba(15,15,17,.45);z-index:99;display:none;align-items:center;justify-content:center;padding:20px;}
+  .modal-bg.open{display:flex;}
+  .modal-card{background:var(--card);border-radius:var(--radius);box-shadow:0 20px 60px rgba(0,0,0,.3);width:100%;max-width:420px;padding:24px;}
+  .modal-card h3{margin:0 0 4px;font-size:17px;font-weight:650;letter-spacing:-.01em;}
+  .modal-card .msub{font-size:12.5px;color:var(--ink-3);margin-bottom:18px;}
+  .modal-card label{display:block;font-size:11px;font-weight:650;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:0 0 6px;}
+  .modal-card .field{margin-bottom:14px;}
+  .modal-card input{width:100%;box-sizing:border-box;font-family:inherit;font-size:14px;color:var(--ink);background:var(--card-soft);border:1px solid var(--line);border-radius:9px;padding:9px 11px;}
+  .modal-card input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint);}
+  .modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:6px;}
+  .modal-actions .hbtn{padding:9px 16px;}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);
+    padding:10px 18px;border-radius:10px;font-size:13.5px;z-index:120;box-shadow:0 8px 24px rgba(0,0,0,.25);display:none;}
+  .toast.show{display:block;}
+</style>
+</head>
+<body>
+<header>
+  <div class="head-wrap">
+    <div class="brand">
+      <img src="assets/logo.png" alt="M&amp;A" class="brand-logo-img brand-logo-light">
+      <img src="assets/logo-blanco.png" alt="M&amp;A" class="brand-logo-img brand-logo-dark">
+      <div class="brand-txt">
+        <h1>Organigrama de Sucursales</h1>
+        <p>Estructura de personal por sucursal</p>
+      </div>
+    </div>
+    <div class="head-spacer"></div>
+    <button class="hbtn" id="btnReset" style="display:none">↺ Restaurar original</button>
+    <button class="hbtn" id="btnEditMode"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Modo edición</button>
+    <button class="btn-theme" id="btnTheme" title="Modo oscuro">
+      <svg id="themeIconMoon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg id="themeIconSun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+
+<nav class="filters">
+  <div class="filters-wrap">
+    <div class="searchbox">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+      <input type="text" id="q" placeholder="Buscar persona o rol…" autocomplete="off">
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+</nav>
+
+<main id="main">
+  <div class="summary" id="summary"></div>
+  <div class="grid-sucursales" id="grid"></div>
+</main>
+
+<!-- Modal: agregar empleado -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal-card">
+    <h3>Agregar empleado</h3>
+    <div class="msub" id="modalSub"></div>
+    <div class="field"><label>Nombre</label><input type="text" id="fNombre" placeholder="Ej: Juan Pérez"></div>
+    <div class="field"><label>Rol / Puesto</label><input type="text" id="fRol" placeholder="Ej: Oficial de Crédito"></div>
+    <div class="field"><label>Teléfono (opcional)</label><input type="text" id="fTel" placeholder="Ej: 3814123456"></div>
+    <div class="modal-actions">
+      <button class="hbtn" id="btnCancel">Cancelar</button>
+      <button class="hbtn primary" id="btnGuardar">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════ Datos base — Organigrama Sucursales (3).xlsx ═══════ */
+const DATA_BASE = [
+  {
+    "nombre": "CONCEPCIÓN",
+    "direccion": "General José de San Martín 1005, Concepción, Tucumán, CP 4146",
+    "horario": ["Lunes a Viernes: 09.00 a 13.00 - 17.00 a 21.00 · Sabados: 09.00 a 13.00"],
+    "foto": "assets/sucursales/concepcion.webp",
+    "empleados": [
+      {"nombre": "YAMIL ISA MASSA", "rol": "GERENTE", "telefono": "3816145117"},
+      {"nombre": "JUAN BAGNE", "rol": "ENCARGADO DEPOSITO", "telefono": "3865615498"},
+      {"nombre": "LUIS GARCIA", "rol": "OFICIAL CREDITO", "telefono": "3865533453"},
+      {"nombre": "FRANCO ROBLES", "rol": "LIDER COMERCIAL", "telefono": "3814984917"}
+    ]
+  },
+  {
+    "nombre": "JUJUY",
+    "direccion": "Juana Manuela Gorriti 413, Doctor Manuel Belgrano, Jujuy, CP 4607",
+    "horario": ["Lunes a Viernes: 09.00 a 13.00 - 17.00 a 21.00 · Sabados: 09.00 a 13.00"],
+    "foto": "assets/sucursales/jujuy.webp",
+    "empleados": [
+      {"nombre": "SEBASTIAN ARJONA", "rol": "GERENTE", "telefono": "3816438250"},
+      {"nombre": "RODRIGO RUIZ", "rol": "LIDER COMERCIAL", "telefono": "3884603477"},
+      {"nombre": "BRUNO OVEJERO", "rol": "OFICIAL CRÉDITO", "telefono": "3885084438"},
+      {"nombre": "RODRIGO ROMAN", "rol": "AUX. DEPOSITO", "telefono": "3885255700"},
+      {"nombre": "GERMAN KROH", "rol": "ENCARGADO DEPOSITO", "telefono": "3884157183"}
+    ]
+  },
+  {
+    "nombre": "ORAN - NORTE INTERIOR",
+    "direccion": "Avenida Palacios 625, Orán, Salta, CP 4530",
+    "horario": ["Lunes a Viernes: 09.00 a 13.00 - 17.00 a 21.00 · Sabados: 09.00 a 13.00"],
+    "foto": "assets/sucursales/oran.webp",
+    "empleados": [
+      {"nombre": "FACUNDO FONTANA", "rol": "GERENTE", "telefono": "3875688223"},
+      {"nombre": "CARRIZO EUGENIA", "rol": "OFICIAL DE CREDITO", "telefono": "3878836866"},
+      {"nombre": "GENEFE DANIEL", "rol": "ENCARGADO DEPOSITO", "telefono": "3878612861"},
+      {"nombre": "JOSE ALGAÑARAS", "rol": "LIDER COMERCIAL", "telefono": "3878214322"}
+    ]
+  },
+  {
+    "nombre": "METAN - NORTE CENTRO",
+    "direccion": "Bartolomé Mitre Oeste 268, Metán, Salta, CP 4440",
+    "horario": ["Lunes a Viernes: 09.00 a 13.00 - 17.00 a 21.00 · Sabados: 09.00 a 13.00"],
+    "foto": "assets/sucursales/metan.jpg",
+    "empleados": [
+      {"nombre": "EMMANUEL GUIPPONI", "rol": "GERENTE", "telefono": "3812104446"},
+      {"nombre": "CRISTIAN PAEZ", "rol": "LIDER COMERCIAL", "telefono": "3876641789"},
+      {"nombre": "JUAN ORTIZ", "rol": "ADMINISTRATIVO", "telefono": "3876532111"},
+      {"nombre": "PADIAL DAMIAN", "rol": "ENCARGADO DEPOSITO", "telefono": "3876502586"},
+      {"nombre": "VICTOR SERRANO", "rol": "OFICIAL DE CREDITO", "telefono": "3876533280"}
+    ]
+  },
+  {
+    "nombre": "SANTIAGO DEL ESTERO",
+    "direccion": "Avenida Belgrano Sur 1076, Santiago del Estero Capital, CP 4200",
+    "horario": ["Lunes a Viernes: 09.00 a 13.00 - 17.00 a 21.00 · Sabados: 09.00 a 13.00"],
+    "foto": "assets/sucursales/santiago-del-estero.jpg",
+    "empleados": [
+      {"nombre": "LEANDRO DEPETRIS", "rol": "GERENTE", "telefono": "3854852280"},
+      {"nombre": "GUILLERMO ALVAREZ", "rol": "OFICIAL CREDITO", "telefono": "3854844048"},
+      {"nombre": "PABLO JUAREZ", "rol": "ENCARGADO DEPOSITO", "telefono": "3856132249"},
+      {"nombre": "BRIAN DURAN", "rol": "LIDER COMERCIAL", "telefono": "3855850424"},
+      {"nombre": "YAMILA PAVON", "rol": "ADMINISTRATIVA", "telefono": "3854726776"}
+    ]
+  },
+  {
+    "nombre": "CATAMARCA",
+    "direccion": "Chacabuco 701, Catamarca Capital, CP 4703",
+    "horario": ["Lunes a Viernes: 09.00 a 13.00 - 17.00 a 21.00 · Sabados: 09.00 a 13.00"],
+    "foto": "assets/sucursales/catamarca.webp",
+    "empleados": [
+      {"nombre": "GABRIEL LUDUEÑA", "rol": "GERENTE", "telefono": "3834720474"},
+      {"nombre": "DANIEL RIOS", "rol": "LIDER COMERCIAL", "telefono": "3834620732"},
+      {"nombre": "CEBALLOS CRISTIAN", "rol": "OFICIAL CREDITO", "telefono": "3834211262"},
+      {"nombre": "RAUL CASTRO", "rol": "ENCARGADO DEPOSITO", "telefono": "3834890421"}
+    ]
+  },
+  {
+    "nombre": "LA RIOJA",
+    "direccion": "Rivadavia 1010, La Rioja Capital, CP 5300",
+    "horario": ["Lunes a Viernes: 08.30 a 13.00 - 18.00 a 21.30 · Sabados: 09.00 a 13.00"],
+    "foto": "assets/sucursales/la-rioja.jpg",
+    "empleados": [
+      {"nombre": "RIOS NIETO SEBASTIAN", "rol": "GERENTE", "telefono": "3804713744"},
+      {"nombre": "PABLO QUINTERO", "rol": "OFICIAL CREDITO", "telefono": "3804275575"},
+      {"nombre": "DAVID DIAZ", "rol": "ENCARGADO DEPOSITO", "telefono": "3804761313"}
+    ]
+  },
+  {
+    "nombre": "SALTA",
+    "direccion": "Mendoza 1036, entre Jujuy y Esteco, Salta Capital, CP 4400",
+    "horario": ["Lunes a Viernes: 09.00 a 13.00 - 17.00 a 21.00 · Sabados: 09.00 a 13.00"],
+    "foto": "assets/sucursales/salta.jpg",
+    "empleados": [
+      {"nombre": "FACUNDO CORONEL", "rol": "GERENTE", "telefono": "3815243742"},
+      {"nombre": "AGUSTIN RODRIGUEZ", "rol": "ENCARGADO DEPOSITO", "telefono": "3885801720"},
+      {"nombre": "CESAR BENITEZ", "rol": "AUX. DEPOSITO", "telefono": "3874451522"},
+      {"nombre": "CESAR CORDERO", "rol": "OFICIAL CREDITO", "telefono": "3874110690"},
+      {"nombre": "CLAUDIO QUINTANA", "rol": "OFICIAL CREDITO", "telefono": "3875959282"},
+      {"nombre": "JORGE ZOTAR", "rol": "LIDER COMERCIAL", "telefono": "3875473717"},
+      {"nombre": "MATIAS SEGURA", "rol": "ADMINISTRATIVO", "telefono": "3875034343"}
+    ]
+  },
+  {
+    "nombre": "CORDOBA",
+    "direccion": "Avenida Alem 1056, Córdoba Capital, CP 5000",
+    "horario": ["Lunes a Viernes: 09.00 a 18.00 · Sabados: 09.00 a 13.00"],
+    "foto": "assets/sucursales/cordoba.jpg",
+    "empleados": [
+      {"nombre": "RODRIGUEZ RAUL", "rol": "GERENTE", "telefono": "3512510125"},
+      {"nombre": "GABRIEL FILIPPI", "rol": "LIDER RRSS", "telefono": "3513748498"},
+      {"nombre": "EMILIANO PERIN", "rol": "ENCARGADO DE DEPOSITO", "telefono": "3517543824"},
+      {"nombre": "EMMANUEL GERONIMO", "rol": "OFICIAL DE CREDITO", "telefono": "3816638035"},
+      {"nombre": "GUIDO VALLEJOS", "rol": "ADMINISTRATIVO", "telefono": "1166279521"}
+    ]
+  },
+  {
+    "nombre": "TUCUMAN CAPITAL",
+    "direccion": "Avenida 24 de Septiembre 941, Tucumán Capital, CP 4000",
+    "horario": ["Lunes a Viernes: 09.00 a 13.00 - 17.00 a 20.30 · Sabados: 09.00 a 13.00"],
+    "foto": "assets/sucursales/tucuman-capital.webp",
+    "empleados": [
+      {"nombre": "SEBASTIAN ROIG", "rol": "GERENTE", "telefono": "3814429801"},
+      {"nombre": "PABLO CAMPERO", "rol": "LIDER RRSS", "telefono": "3812138185"},
+      {"nombre": "CRISTIAN PEREYRA", "rol": "LIDER COMERCIAL", "telefono": "3815401140"},
+      {"nombre": "NELSON FLORES", "rol": "ENCARGADO DEPOSITO", "telefono": "3815794974"},
+      {"nombre": "IGNACIO PAEZ", "rol": "OFICIAL CREDITO", "telefono": "3815670002"},
+      {"nombre": "HECTOR FIGUEROA", "rol": "RESPONSABLE LOGISTICA / STOCK", "telefono": "3816288377"}
+    ]
+  }
+];
+
+const LS_KEY = "organigrama_sucursales_v1";
+const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
+const norm=s=>(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2400); }
+
+const ICO_PHONE = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`;
+const ICO_PIN = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`;
+const ICO_CLOCK = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
+const ICO_SEARCH = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>`;
+
+const EDIT_PASSWORD = "3796";
+const state = { data: cargarDatos(), filtro: "todas", query: "", addTargetSucursal: null, editMode: false };
+
+function cargarDatos(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return JSON.parse(JSON.stringify(DATA_BASE));
+}
+function guardarDatos(){
+  localStorage.setItem(LS_KEY, JSON.stringify(state.data));
+}
+
+/* ═══════ Tema ═══════ */
+function aplicarTema(t){
+  document.documentElement.setAttribute("data-theme", t);
+  $("#themeIconMoon").style.display = t==="dark" ? "none" : "block";
+  $("#themeIconSun").style.display = t==="dark" ? "block" : "none";
+  localStorage.setItem("organigrama_theme", t);
+}
+aplicarTema(localStorage.getItem("organigrama_theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark":"light"));
+$("#btnTheme").addEventListener("click", ()=>{
+  aplicarTema(document.documentElement.getAttribute("data-theme")==="dark" ? "light":"dark");
+});
+
+/* ═══════ Modo edición (protegido por contraseña) ═══════ */
+function setEditMode(on){
+  state.editMode = on;
+  $("#btnEditMode").classList.toggle("on", on);
+  const icoLock = on
+    ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.75-1.5"/></svg>`
+    : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
+  $("#btnEditMode").innerHTML = on ? `${icoLock} Modo edición (activo)` : `${icoLock} Modo edición`;
+  $("#btnReset").style.display = on ? "inline-flex" : "none";
+  render();
+}
+$("#btnEditMode").addEventListener("click", ()=>{
+  if(state.editMode){ setEditMode(false); toast("Modo edición desactivado."); return; }
+  const pass = window.prompt("Contraseña para activar el modo edición:");
+  if(pass===null) return;
+  if(pass!==EDIT_PASSWORD){ toast("Contraseña incorrecta."); return; }
+  setEditMode(true);
+  toast("Modo edición activado.");
+});
+
+/* ═══════ Filtro por sucursal (chips) ═══════ */
+function renderChips(){
+  const chips = ['<button class="chip" data-f="todas">Todas</button>']
+    .concat(state.data.map(s=>`<button class="chip" data-f="${esc(s.nombre)}">${esc(s.nombre)}</button>`));
+  $("#chips").innerHTML = chips.join("");
+  $$(".chip").forEach(c=>{
+    c.classList.toggle("active", c.dataset.f===state.filtro);
+    c.addEventListener("click", ()=>{ state.filtro=c.dataset.f; render(); });
+  });
+}
+
+/* ═══════ Render principal ═══════ */
+function personaMatch(p, q){ return !q || norm(p.nombre).includes(q) || norm(p.rol).includes(q); }
+function sucursalMatch(s, q){ return !q || norm(s.nombre).includes(q) || personaOk(s,q); }
+function personaOk(s,q){ return (s.empleados||[]).some(p=>personaMatch(p,q)); }
+
+function cardSucursal(s){
+  const gerente = s.empleados.find(p=>norm(p.rol).includes("gerente")) || s.empleados[0];
+  const resto = s.empleados.filter(p=>p!==gerente);
+  const q = norm(state.query.trim());
+
+  const delBtn = (nombre)=> state.editMode
+    ? `<button class="del" data-action="del-emp" data-suc="${esc(s.nombre)}" data-emp="${esc(nombre)}" title="Quitar">✕</button>` : "";
+
+  const empTeam = resto.filter(p=>!q || personaMatch(p,q)).map(p=>`
+    <div class="emp-col">
+      <div class="emp-stem"></div>
+      <div class="emp-box" data-suc="${esc(s.nombre)}" data-emp="${esc(p.nombre)}">
+        ${delBtn(p.nombre)}
+        <div class="rol">${esc(p.rol)}</div>
+        <div class="nom">${esc(p.nombre)}</div>
+        ${p.telefono?`<div class="tel">${ICO_PHONE} ${esc(p.telefono)}</div>`:""}
+      </div>
+    </div>`).join("");
+
+  const gerenteHtml = gerente ? `
+    <div class="gerente-box">
+      ${delBtn(gerente.nombre)}
+      <div class="rol">${esc(gerente.rol)}</div>
+      <div class="nom">${esc(gerente.nombre)}</div>
+      ${gerente.telefono?`<div class="tel">${ICO_PHONE} ${esc(gerente.telefono)}</div>`:""}
+    </div>` : `<div class="summary">Sin gerente asignado</div>`;
+
+  return `
+  <div class="suc-card">
+    ${s.foto?`<div class="suc-foto-wrap"><img class="suc-foto" src="${esc(s.foto)}" alt="Frente de la sucursal ${esc(s.nombre)}" loading="lazy"></div>`:""}
+    <div class="suc-head">
+      <h2>${esc(s.nombre)}</h2>
+      <div class="suc-dir">${ICO_PIN} ${esc(s.direccion)}</div>
+      ${(s.horario||[]).map(h=>`<div class="suc-hor">${ICO_CLOCK} ${esc(h)}</div>`).join("")}
+    </div>
+    <div class="org-body">
+      ${gerenteHtml}
+      ${empTeam ? `<div class="org-line"></div><div class="org-branch"><div class="equipo">${empTeam}</div></div>` : ""}
+    </div>
+    ${state.editMode ? `<div class="suc-foot">
+      <button class="add-emp-btn" data-action="add-emp" data-suc="${esc(s.nombre)}">+ Agregar empleado</button>
+    </div>` : ""}
+  </div>`;
+}
+
+function render(){
+  renderChips();
+  const q = norm(state.query.trim());
+  let lista = state.data;
+  if(state.filtro!=="todas") lista = lista.filter(s=>s.nombre===state.filtro);
+  if(q) lista = lista.filter(s=>sucursalMatch(s,q));
+
+  $("#main").classList.toggle("single", state.filtro!=="todas");
+  const totalPersonas = lista.reduce((a,s)=>a+s.empleados.length,0);
+  $("#summary").textContent = `${lista.length} sucursal${lista.length===1?"":"es"} · ${totalPersonas} persona${totalPersonas===1?"":"s"}`;
+
+  $("#grid").innerHTML = lista.length ? lista.map(cardSucursal).join("")
+    : `<div class="empty-state" style="grid-column:1/-1"><div class="ic">${ICO_SEARCH}</div>Sin resultados para la búsqueda.</div>`;
+
+  wireEvents();
+}
+
+function wireEvents(){
+  $$('[data-action="del-emp"]').forEach(b=>b.addEventListener("click", e=>{
+    e.stopPropagation();
+    const {suc, emp} = b.dataset;
+    if(!confirm(`¿Quitar a "${emp}" de ${suc}?`)) return;
+    const s = state.data.find(x=>x.nombre===suc);
+    s.empleados = s.empleados.filter(p=>p.nombre!==emp);
+    guardarDatos(); render();
+    toast(`${emp} quitado de ${suc}.`);
+  }));
+  $$('[data-action="add-emp"]').forEach(b=>b.addEventListener("click", ()=>abrirModalAgregar(b.dataset.suc)));
+}
+
+/* ═══════ Búsqueda ═══════ */
+$("#q").addEventListener("input", e=>{ state.query = e.target.value; render(); });
+
+/* ═══════ Modal agregar empleado ═══════ */
+function abrirModalAgregar(sucursal){
+  state.addTargetSucursal = sucursal;
+  $("#modalSub").textContent = `Sucursal: ${sucursal}`;
+  $("#fNombre").value=""; $("#fRol").value=""; $("#fTel").value="";
+  $("#modalBg").classList.add("open");
+  $("#fNombre").focus();
+}
+function cerrarModal(){ $("#modalBg").classList.remove("open"); state.addTargetSucursal=null; }
+$("#btnCancel").addEventListener("click", cerrarModal);
+$("#modalBg").addEventListener("click", e=>{ if(e.target.id==="modalBg") cerrarModal(); });
+$("#btnGuardar").addEventListener("click", ()=>{
+  const nombre = $("#fNombre").value.trim();
+  const rol = $("#fRol").value.trim();
+  const telefono = $("#fTel").value.trim();
+  if(!nombre || !rol){ toast("Nombre y rol son obligatorios."); return; }
+  const s = state.data.find(x=>x.nombre===state.addTargetSucursal);
+  s.empleados.push({nombre, rol, telefono});
+  guardarDatos();
+  cerrarModal();
+  render();
+  toast(`${nombre} agregado a ${s.nombre}.`);
+});
+
+/* ═══════ Restaurar original ═══════ */
+$("#btnReset").addEventListener("click", ()=>{
+  if(!confirm("¿Restaurar el organigrama original? Se perderán los cambios manuales (altas/bajas de empleados).")) return;
+  localStorage.removeItem(LS_KEY);
+  state.data = JSON.parse(JSON.stringify(DATA_BASE));
+  render();
+  toast("Organigrama restaurado al original.");
+});
+
+render();
+</script>
+</body>
+</html>
